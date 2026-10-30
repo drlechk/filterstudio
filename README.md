@@ -38,6 +38,8 @@ The sun/moon button switches between **light and dark mode**, including plots, f
 5. Inspect the magnitude and phase of the S-parameters. The axis menu can switch to a range of 0 to −3 dB to reveal passband ripple. Calculations use the components actually connected in the circuit.
 6. Open the ABCD matrix, S-matrix, and their rational polynomial expressions. Export LaTeX code for lecture notes or worksheets.
 
+To start over, select **Clear circuit** above the canvas. This removes all components and signal connections while keeping both ports, their reference impedances, and the common ground rail. Project settings are preserved. **Undo** restores the previous circuit; **Redo** clears it again. The component library opens automatically: click an element to connect it between the empty ports, or drag elements onto the canvas and connect them manually. Empty workspaces can also be saved and reopened as JSON projects.
+
 The editor models a **cascade of two-port networks with a common ground**. Each block contains a series impedance or shunt admittance; shunt branches are drawn to ground. There must be exactly one continuous path from port 1 to port 2. Open or disconnected elements are reported as an incomplete circuit. Arbitrary branching networks with bridges or feedback loops are outside the scope of this model.
 
 The diagram shows separate signal and ground terminals at each port. The lower port terminals sit directly on the straight, continuous ground rail connecting both ports and all shunt branches. No additional ground symbol is drawn. The rail follows panning and zooming and is included when fitting the circuit to the viewport.

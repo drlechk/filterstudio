@@ -392,6 +392,8 @@ export default function App() {
   ]);
   const analysis = evaluation.analysis;
   const selected = project.nodes.find((n) => n.id === selectedId);
+  const circuitIsEmpty =
+    !project.nodes.some((node) => node.section) && project.wires.length === 0;
   const atCutoff = analysis?.evaluate(project.settings.cutoff);
   const title = `${familyNames[project.settings.family]}-${responseLabels[project.settings.response]}`;
   const bandMode = isBandResponse(settings.response);
@@ -603,6 +605,13 @@ export default function App() {
           { id: `wire-${id}-a`, source: incoming.source, target: id },
           { id: `wire-${id}-b`, source: id, target: output.id },
         ];
+      else if (circuitIsEmpty) {
+        const input = project.nodes.find((n) => n.port === "input")!;
+        wires = [
+          { id: `wire-${id}-a`, source: input.id, target: id },
+          { id: `wire-${id}-b`, source: id, target: output.id },
+        ];
+      }
       nodes = nodes.map((n) =>
         n.id === output.id ? { ...n, x: n.x + 155 } : n,
       );
@@ -638,6 +647,25 @@ export default function App() {
       ),
     });
     setSelectedId(null);
+  }
+  function clearCircuit() {
+    if (circuitIsEmpty || generating) return;
+    commit({
+      ...project,
+      nodes: project.nodes.filter((node) => node.port),
+      wires: [],
+    });
+    setSelectedId(null);
+    setNotes([]);
+    setPaletteTab("elements");
+    setResultTab("response");
+    setFitKey((key) => key + 1);
+    setToast(
+      t(
+        "Schaltung geleert. Mit Rückgängig kannst du sie wiederherstellen.",
+        "Circuit cleared. Use Undo to restore it.",
+      ),
+    );
   }
   function save() {
     downloadFile(
@@ -1338,18 +1366,6 @@ export default function App() {
                   <Grip size={14} />
                 </button>
               ))}
-              <button
-                className="clear-button"
-                onClick={() => {
-                  commit({ ...project, ...createCircuit([]) });
-                  setSelectedId(null);
-                  setFitKey((k) => k + 1);
-                  setNotes([]);
-                }}
-              >
-                <Plus size={14} />{" "}
-                {t("Leere Schaltung beginnen", "Start an empty circuit")}
-              </button>
             </div>
           )}
           <div className="learning-tip">
@@ -1388,10 +1404,14 @@ export default function App() {
                 </span>
                 <h2>{t("Schaltung", "Circuit")}</h2>
                 <span
-                  className={`live-badge ${evaluation.error ? "warning" : ""}`}
+                  className={`live-badge ${circuitIsEmpty ? "empty" : evaluation.error ? "warning" : ""}`}
                 >
                   <i />
-                  {evaluation.error ? t("Offen", "Open circuit") : "Live"}
+                  {circuitIsEmpty
+                    ? t("Leer", "Empty")
+                    : evaluation.error
+                      ? t("Offen", "Open circuit")
+                      : "Live"}
                 </span>
               </div>
               <div className="canvas-actions">
@@ -1401,6 +1421,19 @@ export default function App() {
                     "Select, move, connect",
                   )}
                 </span>
+                <button
+                  className="circuit-clear-button"
+                  onClick={clearCircuit}
+                  disabled={circuitIsEmpty || generating}
+                  title={t(
+                    "Alle Bauelemente und Signalverbindungen entfernen. Rückgängig ist möglich.",
+                    "Remove all components and signal connections. This can be undone.",
+                  )}
+                >
+                  <Trash2 size={15} />
+                  {t("Schaltung leeren", "Clear circuit")}
+                </button>
+                <span className="toolbar-separator" />
                 <button
                   className="icon-button"
                   onClick={undo}
@@ -1715,14 +1748,35 @@ export default function App() {
               <div className="empty-analysis">
                 <Activity size={31} />
                 <h3>
-                  {t("Verbinde deine Schaltung.", "Connect your circuit.")}
+                  {circuitIsEmpty
+                    ? t(
+                        "Dein Arbeitsbereich ist leer.",
+                        "Your workspace is empty.",
+                      )
+                    : t("Verbinde deine Schaltung.", "Connect your circuit.")}
                 </h3>
-                <p>{translate(evaluation.error ?? "")}</p>
+                <p>
+                  {circuitIsEmpty
+                    ? t(
+                        "Füge Bauelemente aus der Bibliothek hinzu oder generiere einen neuen Filter. Mit Rückgängig stellst du die vorherige Schaltung wieder her.",
+                        "Add components from the library or generate a new filter. Use Undo to restore the previous circuit.",
+                      )
+                    : translate(evaluation.error ?? "")}
+                </p>
                 <button
                   className="small-button"
-                  onClick={() => setShowHelp(true)}
+                  onClick={() =>
+                    circuitIsEmpty
+                      ? setPaletteTab("elements")
+                      : setShowHelp(true)
+                  }
                 >
-                  {t("Verbindungen erklärt", "How to connect components")}{" "}
+                  {circuitIsEmpty
+                    ? t("Bauelemente hinzufügen", "Add components")
+                    : t(
+                        "Verbindungen erklärt",
+                        "How to connect components",
+                      )}{" "}
                   <ArrowRight size={13} />
                 </button>
               </div>

@@ -881,14 +881,20 @@ h1 {
   margin-left: auto;
   color: var(--text-muted);
 }
-.clear-button {
+.circuit-clear-button {
   display: flex;
   align-items: center;
-  gap: 7px;
-  font-size: 11px;
+  gap: 6px;
+  padding: 7px 9px;
+  border-radius: 5px;
   color: var(--text-muted);
-  margin: 16px auto 0;
-  padding: 7px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.circuit-clear-button:hover:not(:disabled) {
+  background: var(--surface-hover);
+  color: var(--text);
 }
 .workspace {
   min-width: 0;
@@ -901,11 +907,13 @@ h1 {
   overflow: hidden;
 }
 .panel-toolbar {
-  height: 49px;
+  min-height: 49px;
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: space-between;
   align-items: center;
-  padding: 0 17px;
+  padding: 8px 17px;
   border-bottom: 1px solid var(--border);
 }
 .panel-title {
@@ -945,10 +953,18 @@ h1 {
 .live-badge.warning i {
   background: var(--warning);
 }
+.live-badge.empty {
+  color: var(--text-muted);
+  background: var(--surface-subtle);
+}
+.live-badge.empty i {
+  background: var(--text-muted);
+}
 .canvas-actions {
   display: flex;
   align-items: center;
   gap: 3px;
+  margin-left: auto;
 }
 .canvas-hint {
   color: var(--text-faint);
@@ -2230,7 +2246,7 @@ td:last-child {
     width: 100%;
   }
   .panel-toolbar {
-    padding: 0 12px;
+    padding: 8px 12px;
   }
   .canvas-area {
     height: 280px;
@@ -2294,8 +2310,7 @@ td:last-child {
     padding: 18px 14px;
   }
   .element-palette > .section-eyebrow,
-  .element-palette > .palette-intro,
-  .clear-button {
+  .element-palette > .palette-intro {
     grid-column: 1/-1;
   }
   .element-palette > .palette-intro {
@@ -2320,9 +2335,6 @@ td:last-child {
   }
   .palette-item small {
     font-size: 11px;
-  }
-  .clear-button {
-    margin-top: 5px;
   }
   .modal-backdrop {
     padding: 12px;
