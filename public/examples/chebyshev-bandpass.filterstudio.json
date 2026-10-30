@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "name": "Chebyshev-Bandpass · 8. Ordnung",
+  "settings": {
+    "family": "chebyshev",
+    "response": "bandpass",
+    "order": 4,
+    "cutoff": 1000000,
+    "impedance": 50,
+    "ripple": 0.5,
+    "attenuation": 40,
+    "bandwidth": 500000
+  },
+  "nodes": [
+    {
+      "id": "input",
+      "x": 0,
+      "y": 100,
+      "port": "input"
+    },
+    {
+      "id": "section-1",
+      "x": 155,
+      "y": 100,
+      "section": {
+        "id": "section-1",
+        "kind": "LC",
+        "connection": "series",
+        "value": 0.00002658373969987912,
+        "label": "LC1",
+        "value2": 9.528492302646051e-10,
+        "resonator": "series"
+      }
+    },
+    {
+      "id": "section-2",
+      "x": 310,
+      "y": 100,
+      "section": {
+        "id": "section-2",
+        "kind": "LC",
+        "connection": "shunt",
+        "value": 0.000003336400511566228,
+        "label": "LC2",
+        "value2": 7.5921028733728e-9,
+        "resonator": "parallel"
+      }
+    },
+    {
+      "id": "section-3",
+      "x": 465,
+      "y": 100,
+      "section": {
+        "id": "section-3",
+        "kind": "LC",
+        "connection": "series",
+        "value": 0.00003765788768757147,
+        "label": "LC3",
+        "value2": 6.726425050904914e-10,
+        "resonator": "series"
+      }
+    },
+    {
+      "id": "section-4",
+      "x": 620,
+      "y": 100,
+      "section": {
+        "id": "section-4",
+        "kind": "LC",
+        "connection": "shunt",
+        "value": 0.000004726264895901322,
+        "label": "LC4",
+        "value2": 5.359474440916591e-9,
+        "resonator": "parallel"
+      }
+    },
+    {
+      "id": "output",
+      "x": 775,
+      "y": 100,
+      "port": "output"
+    }
+  ],
+  "wires": [
+    {
+      "id": "wire-input-section-1",
+      "source": "input",
+      "target": "section-1"
+    },
+    {
+      "id": "wire-section-1-section-2",
+      "source": "section-1",
+      "target": "section-2"
+    },
+    {
+      "id": "wire-section-2-section-3",
+      "source": "section-2",
+      "target": "section-3"
+    },
+    {
+      "id": "wire-section-3-section-4",
+      "source": "section-3",
+      "target": "section-4"
+    },
+    {
+      "id": "wire-section-4-output",
+      "source": "section-4",
+      "target": "output"
+    }
+  ],
+  "z2": 99.20278561990014,
+  "sweep": {
+    "min": 100000,
+    "max": 10000000,
+    "points": 601
+  }
+}

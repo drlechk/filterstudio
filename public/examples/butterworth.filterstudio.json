@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "name": "Butterworth-Tiefpass",
+  "settings": {
+    "family": "butterworth",
+    "response": "lowpass",
+    "order": 5,
+    "cutoff": 1000000,
+    "impedance": 50,
+    "ripple": 0.5,
+    "attenuation": 40
+  },
+  "nodes": [
+    {
+      "id": "input",
+      "port": "input",
+      "x": 0,
+      "y": 100
+    },
+    {
+      "id": "section-1",
+      "section": {
+        "id": "section-1",
+        "kind": "L",
+        "connection": "series",
+        "value": 0.000004918158215417329,
+        "label": "L1"
+      },
+      "x": 155,
+      "y": 100
+    },
+    {
+      "id": "section-2",
+      "section": {
+        "id": "section-2",
+        "kind": "C",
+        "connection": "shunt",
+        "value": 5.15036214800484e-9,
+        "label": "C2"
+      },
+      "x": 310,
+      "y": 100
+    },
+    {
+      "id": "section-3",
+      "section": {
+        "id": "section-3",
+        "kind": "L",
+        "connection": "series",
+        "value": 0.000015915494309189534,
+        "label": "L3"
+      },
+      "x": 465,
+      "y": 100
+    },
+    {
+      "id": "section-4",
+      "section": {
+        "id": "section-4",
+        "kind": "C",
+        "connection": "shunt",
+        "value": 5.15036214800484e-9,
+        "label": "C4"
+      },
+      "x": 620,
+      "y": 100
+    },
+    {
+      "id": "section-5",
+      "section": {
+        "id": "section-5",
+        "kind": "L",
+        "connection": "series",
+        "value": 0.000004918158215417331,
+        "label": "L5"
+      },
+      "x": 775,
+      "y": 100
+    },
+    {
+      "id": "output",
+      "port": "output",
+      "x": 930,
+      "y": 100
+    }
+  ],
+  "wires": [
+    {
+      "id": "wire-input-section-1",
+      "source": "input",
+      "target": "section-1"
+    },
+    {
+      "id": "wire-section-1-section-2",
+      "source": "section-1",
+      "target": "section-2"
+    },
+    {
+      "id": "wire-section-2-section-3",
+      "source": "section-2",
+      "target": "section-3"
+    },
+    {
+      "id": "wire-section-3-section-4",
+      "source": "section-3",
+      "target": "section-4"
+    },
+    {
+      "id": "wire-section-4-section-5",
+      "source": "section-4",
+      "target": "section-5"
+    },
+    {
+      "id": "wire-section-5-output",
+      "source": "section-5",
+      "target": "output"
+    }
+  ],
+  "z2": 50,
+  "sweep": {
+    "min": 100000,
+    "max": 10000000,
+    "points": 601
+  }
+}

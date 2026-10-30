@@ -1,0 +1,273 @@
+.circuit-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 260px;
+  position: relative;
+  background: var(--canvas-bg, #fbfcfa);
+  overflow: hidden;
+}
+.circuit-canvas .react-flow {
+  --xy-background-color: var(--canvas-bg, #fbfcfa);
+  --xy-edge-stroke: var(--circuit-wire, #6e8388);
+}
+.circuit-canvas .react-flow__node {
+  cursor: grab;
+  border: 0;
+  outline: none;
+}
+.circuit-canvas .react-flow__node:active {
+  cursor: grabbing;
+}
+.circuit-component {
+  position: relative;
+  width: 126px;
+  height: 144px;
+  color: var(--circuit-wire, #344b54);
+  border-radius: 10px;
+  box-shadow: 0 0 0 1px transparent;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.circuit-component:hover {
+  background: var(--circuit-hover-bg, #ebeeeb88);
+}
+.circuit-component.is-selected {
+  background: var(--circuit-selected-bg, #fff2e9cc);
+  box-shadow: 0 0 0 1.5px var(--circuit-selected-border, #e59a7e);
+  color: var(--accent, #c75839);
+}
+.circuit-component svg {
+  display: block;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.circuit-glyph rect {
+  fill: var(--canvas-bg, #fbfcfa);
+}
+.circuit-component.is-selected .circuit-glyph rect {
+  fill: var(--circuit-selected-bg, #fff3eb);
+}
+.circuit-component svg .junction {
+  fill: currentColor;
+  stroke: none;
+}
+.circuit-component-label {
+  position: absolute;
+  top: 9px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.3;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  color: var(--circuit-label, currentColor);
+}
+.circuit-component.is-resonator:not(.is-shunt) .circuit-component-label {
+  top: -2px;
+}
+.circuit-component-value {
+  position: absolute;
+  left: -8px;
+  right: -8px;
+  top: 84px;
+  text-align: center;
+  font-size: 12px;
+  line-height: 1.3;
+  font-family: var(--font-mono, "SFMono-Regular", Consolas, monospace);
+  color: var(--circuit-muted, #708084);
+  white-space: nowrap;
+  pointer-events: none;
+  letter-spacing: -0.02em;
+}
+/* Keep the vertical return conductor clear of component-value text. */
+.circuit-component.is-shunt .circuit-component-value {
+  top: 29px;
+}
+.circuit-port {
+  width: 76px;
+  height: 144px;
+  position: relative;
+  color: var(--circuit-wire, #6e8388);
+}
+.circuit-port svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  overflow: visible;
+}
+.circuit-port .port-terminal {
+  fill: var(--canvas-bg, #fbfcfa);
+}
+.circuit-port .port-voltage-arrow {
+  stroke: var(--circuit-muted, #708084);
+  stroke-width: 1;
+}
+.circuit-port .port-voltage-label,
+.circuit-port .port-polarity {
+  stroke: none;
+  fill: var(--circuit-muted, #708084);
+  font-family: var(--font-mono, "SFMono-Regular", Consolas, monospace);
+  font-size: 12px;
+}
+.circuit-port .port-polarity {
+  font-size: 11px;
+}
+.circuit-port-label {
+  position: absolute;
+  top: 9px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: var(--circuit-label, #637371);
+  font-size: 11px;
+  line-height: 1.3;
+  letter-spacing: 0.13em;
+  font-weight: 700;
+}
+.circuit-port-caption {
+  position: absolute;
+  top: 27px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--circuit-muted, #8a9692);
+}
+.circuit-ground-layer {
+  position: absolute;
+  overflow: visible;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--circuit-rail, #81958a);
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.circuit-ground-layer .return-junction {
+  fill: var(--circuit-rail, #81958a);
+  stroke: none;
+}
+.circuit-ground-layer .port-terminal {
+  fill: var(--canvas-bg, #fbfcfa);
+  stroke: var(--circuit-wire, #6e8388);
+}
+.circuit-canvas .react-flow__node-groundBounds,
+.ground-bounds {
+  pointer-events: none !important;
+}
+.ground-bounds {
+  width: 100%;
+  height: 100%;
+}
+.circuit-canvas .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  min-height: 8px;
+  border: 1.6px solid var(--circuit-handle, #83978f);
+  background: var(--canvas-bg, #fbfcfa);
+  opacity: 0.42;
+  transition:
+    opacity 0.1s,
+    background 0.1s;
+}
+.circuit-canvas .react-flow__node:hover .react-flow__handle,
+.circuit-canvas .react-flow__node.selected .react-flow__handle,
+.circuit-canvas .react-flow__node:focus-visible .react-flow__handle,
+.circuit-canvas .react-flow__handle.connectingfrom,
+.circuit-canvas .react-flow__handle.connectingto {
+  opacity: 1;
+}
+.circuit-canvas .react-flow__handle:hover {
+  background: var(--accent, #e96342);
+  border-color: var(--accent, #e96342);
+}
+.circuit-canvas .react-flow__handle.connectionindicator {
+  cursor: crosshair;
+}
+.circuit-canvas .react-flow__edge-path {
+  stroke: var(--circuit-wire, #6e8388);
+}
+.circuit-canvas .react-flow__edge.selected .react-flow__edge-path {
+  stroke: var(--accent, #e96342);
+  stroke-width: 2.5 !important;
+}
+.circuit-canvas .react-flow__controls {
+  box-shadow: 0 2px 8px #00000012;
+  border: 1px solid var(--border, #e2e6e1);
+  border-radius: 7px;
+  overflow: hidden;
+  display: flex;
+  margin: 14px;
+}
+.circuit-canvas .react-flow__controls-button {
+  width: 27px;
+  height: 27px;
+  padding: 7px;
+  background: var(--surface, #fff);
+  color: var(--text-muted, #6b7b75);
+  border-bottom: 0;
+  border-right: 1px solid var(--border, #e2e6e1);
+}
+.circuit-canvas .react-flow__controls-button:last-child {
+  border-right: 0;
+}
+.circuit-canvas .react-flow__controls-button:hover {
+  background: var(--surface-hover, #f0f4ee);
+}
+.circuit-canvas .react-flow__controls-button svg {
+  max-width: 12px;
+  max-height: 12px;
+  fill: currentColor;
+}
+.circuit-canvas .react-flow__attribution {
+  font-size: 10px;
+  color: var(--circuit-muted, #a4ada6);
+  background: transparent;
+  opacity: 0.7;
+}
+.circuit-canvas-note {
+  position: absolute;
+  right: 17px;
+  bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--circuit-muted, #87948d);
+  pointer-events: none;
+}
+.circuit-canvas-note span {
+  width: 5px;
+  height: 5px;
+  background: var(--circuit-rail, #a6b6a5);
+  border-radius: 50%;
+}
+.circuit-canvas-note i {
+  font-style: normal;
+  color: var(--circuit-muted, #bec7c0);
+}
+@media (max-width: 650px) {
+  .circuit-canvas-note {
+    bottom: 54px;
+    right: 12px;
+  }
+}
+.circuit-canvas .react-flow__node:focus-visible .circuit-component,
+.circuit-canvas .react-flow__node:focus-visible .circuit-port {
+  outline: 2px solid var(--accent, #e96342);
+  outline-offset: 5px;
+  border-radius: 8px;
+}
+.circuit-canvas .react-flow__edge:focus-visible .react-flow__edge-path {
+  stroke: var(--accent, #e96342);
+  stroke-width: 2.5px;
+}

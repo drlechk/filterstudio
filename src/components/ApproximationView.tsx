@@ -1,0 +1,119 @@
+import { MathView } from "./MathView";
+import { usePreferences } from "../lib/preferences";
+import type { FilterApproximation } from "../lib/approximation";
+import type { FilterSettings } from "../lib/types";
+
+export function ApproximationView({
+  approximation,
+  settings,
+  matchesPrototype,
+}: {
+  approximation: FilterApproximation | null;
+  settings: FilterSettings;
+  matchesPrototype: boolean;
+}) {
+  const { t, number } = usePreferences();
+  if (!approximation)
+    return (
+      <p className="approximation-status is-reference">
+        {t(
+          "Für diese Einstellungen ist keine verlässliche Approximationsreferenz verfügbar. Die folgenden Polynome beschreiben die tatsächliche Schaltung.",
+          "No reliable approximation reference is available for these settings. The following polynomials describe the actual circuit.",
+        )}
+      </p>
+    );
+  const { family, order, response } = settings;
+  const familyName =
+    family === "butterworth"
+      ? "Butterworth"
+      : family === "chebyshev"
+        ? "Chebyshev I"
+        : t("Cauer / elliptisch", "Cauer / elliptic");
+  const responseName = {
+    lowpass: t("Tiefpass", "low-pass"),
+    highpass: t("Hochpass", "high-pass"),
+    bandpass: t("Bandpass", "band-pass"),
+    bandstop: t("Bandsperre", "band-stop"),
+  }[response];
+  const description =
+    family === "butterworth"
+      ? t(
+          "Potenzfunktion Ωⁿ: maximal flacher Durchlassbereich.",
+          "Power function Ωⁿ: maximally flat passband.",
+        )
+      : family === "chebyshev"
+        ? t(
+            "Chebyshev-Polynom erster Art: gleichmäßige Welligkeit im Durchlassbereich.",
+            "Chebyshev polynomial of the first kind: equal ripple in the passband.",
+          )
+        : t(
+            `Elliptische rationale Funktion: Welligkeit in Durchlass- und Sperrbereich. Rₙ(1) = 1; normierte Sperrbandgrenze Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
+            `Elliptic rational function: ripple in the passband and stopband. Rₙ(1) = 1; normalized stopband edge Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
+          );
+  return (
+    <section
+      className="approximation-section"
+      aria-label={t("Approximationsgrundlage", "Approximation basis")}
+    >
+      <div className="approximation-heading">
+        <h3>
+          {t("Approximationsgrundlage", "Approximation basis")} · {familyName} ·
+          n = {order}
+        </h3>
+        <p>
+          {t(
+            `Ziel ist der ideale ${responseName}-Frequenzgang. Die Approximationsfunktion Fₙ bestimmt, wie der endliche Filter diesen Sprung zwischen Durchlassen und Sperren annähert.`,
+            `The target is an ideal ${responseName} response. The approximation function Fₙ determines how the finite-order filter approximates the transition between transmission and rejection.`,
+          )}
+        </p>
+      </div>
+      <p
+        className={`approximation-status ${matchesPrototype ? "" : "is-reference"}`}
+        role="status"
+      >
+        {matchesPrototype
+          ? t(
+              "Die Schaltung entspricht dem erzeugten Prototyp einschließlich seiner Torimpedanzen.",
+              "The circuit matches the generated prototype, including its port impedances.",
+            )
+          : t(
+              "Entwurfsreferenz: Die aktuelle Schaltung oder ihre Torimpedanzen weichen vom erzeugten Prototyp ab. Die Referenzfunktion gilt daher nicht automatisch für die nachfolgenden S-Polynome.",
+              "Design reference: the current circuit or its port impedances differ from the generated prototype. The reference function therefore does not automatically apply to the S-polynomials below.",
+            )}
+      </p>
+      <MathView
+        title={t(
+          "Approximationsfunktion des Prototyps Fₙ(Ω)",
+          "Prototype approximation function Fₙ(Ω)",
+        )}
+        description={description}
+        latex={approximation.latex.characteristic}
+      />
+      <MathView
+        title={t("Was wird approximiert?", "What is being approximated?")}
+        description={t(
+          "Idealer Leistungsfrequenzgang und gewählte Approximation. An der idealen Sprungstelle |Ω| = 1 ist kein Wert vorgegeben.",
+          "Ideal power response and the selected approximation. No value is prescribed at the ideal discontinuity |Ω| = 1.",
+        )}
+        latex={approximation.latex.response}
+      />
+      <MathView
+        title={t(
+          `Frequenzabbildung für ${responseName}`,
+          `Frequency mapping for the ${responseName}`,
+        )}
+        description={t(
+          "Ω ist die reelle Frequenz des Tiefpassprototyps; q ist dessen komplexe Frequenzvariable. Die Schaltungspolynome darunter verwenden p. Für Bandfilter gilt die Ordnung 2n.",
+          "Ω is the real frequency of the low-pass prototype; q is its complex frequency variable. The circuit polynomials below use p. Band filters have order 2n.",
+        )}
+        latex={approximation.latex.mapping}
+      />
+      <p className="approximation-explanation">
+        {t(
+          "Für die Entwurfsreferenz gilt |Ψref(jx)|² = ε² Fₙ²(Ω(x)) mit der oben angegebenen Frequenzabbildung. Ψ(p) und die S-Polynome darunter beschreiben die tatsächlich verbundenen Bauelemente.",
+          "For the design reference, |Ψref(jx)|² = ε² Fₙ²(Ω(x)) using the frequency mapping above. Ψ(p) and the S-polynomials below describe the actual connected components.",
+        )}
+      </p>
+    </section>
+  );
+}

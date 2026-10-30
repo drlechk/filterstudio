@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f8f5" />
+    <script>
+      (() => {
+        let language = "de",
+          theme;
+        try {
+          const savedLanguage = localStorage.getItem("filterstudio.language");
+          if (savedLanguage === "de" || savedLanguage === "en")
+            language = savedLanguage;
+          const savedTheme = localStorage.getItem("filterstudio.theme");
+          if (savedTheme === "light" || savedTheme === "dark")
+            theme = savedTheme;
+        } catch {}
+        if (!theme)
+          theme =
+            typeof matchMedia === "function" &&
+            matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        const html = document.documentElement;
+        html.lang = language;
+        html.dataset.theme = theme;
+        html.style.colorScheme = theme;
+        html.style.backgroundColor = theme === "dark" ? "#10151c" : "#f7f8f5";
+        document.querySelector('meta[name="theme-color"]').content =
+          html.style.backgroundColor;
+      })();
+    </script>
+    <meta
+      name="description"
+      content="Analoge Filter entwerfen, Schaltungen verstehen und S-Parameter interaktiv untersuchen. Ein lokales Filterlabor für die Lehre."
+    />
+    <title>Filterstudio · Das analoge Filterlabor</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
