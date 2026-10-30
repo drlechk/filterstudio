@@ -122,7 +122,7 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       if (event.key === preferenceKeys.language) {
         setPreferences((previous) => ({
           ...previous,
-          language: validLanguage(event.newValue) ? event.newValue : "de",
+          language: validLanguage(event.newValue) ? event.newValue : "en",
         }));
       } else if (event.key === preferenceKeys.theme) {
         const explicit = validTheme(event.newValue);

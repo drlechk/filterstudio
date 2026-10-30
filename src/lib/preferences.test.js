@@ -22,33 +22,39 @@ function memoryStorage(initial = {}) {
 }
 
 describe("persistent display preferences", () => {
-  it("defaults to German and the system theme without writing a preference", () => {
+  it("defaults to English and the system theme without writing a preference", () => {
     const storage = memoryStorage();
     expect(loadPreferences(storage, true)).toEqual({
-      language: "de",
+      language: "en",
       theme: "dark",
       themeIsExplicit: false,
     });
     expect(loadPreferences(storage, false)).toEqual({
-      language: "de",
+      language: "en",
       theme: "light",
       themeIsExplicit: false,
     });
     expect(storage.getItem(preferenceKeys.theme)).toBeNull();
+    expect(storage.getItem(preferenceKeys.language)).toBeNull();
   });
 
-  it("restores explicit choices across reloads and prioritizes them over the system", () => {
-    const storage = memoryStorage();
-    expect(savePreference(storage, preferenceKeys.language, "en")).toBe(true);
-    expect(savePreference(storage, preferenceKeys.theme, "light")).toBe(true);
-    expect(loadPreferences(storage, true)).toEqual({
-      language: "en",
-      theme: "light",
-      themeIsExplicit: true,
-    });
-    savePreference(storage, preferenceKeys.theme, "dark");
-    expect(loadPreferences(storage, false).theme).toBe("dark");
-  });
+  it.each(["de", "en"])(
+    "restores an explicit %s choice across reloads and prioritizes saved choices over defaults",
+    (language) => {
+      const storage = memoryStorage();
+      expect(savePreference(storage, preferenceKeys.language, language)).toBe(
+        true,
+      );
+      expect(savePreference(storage, preferenceKeys.theme, "light")).toBe(true);
+      expect(loadPreferences(storage, true)).toEqual({
+        language,
+        theme: "light",
+        themeIsExplicit: true,
+      });
+      savePreference(storage, preferenceKeys.theme, "dark");
+      expect(loadPreferences(storage, false).theme).toBe("dark");
+    },
+  );
 
   it("recovers from corrupt values and unavailable or denied browser storage", () => {
     expect(
@@ -59,7 +65,7 @@ describe("persistent display preferences", () => {
         }),
         true,
       ),
-    ).toEqual({ language: "de", theme: "dark", themeIsExplicit: false });
+    ).toEqual({ language: "en", theme: "dark", themeIsExplicit: false });
     const denied = {
       getItem: () => {
         throw new Error("SecurityError");
@@ -69,7 +75,7 @@ describe("persistent display preferences", () => {
       },
     };
     expect(loadPreferences(denied, true)).toEqual({
-      language: "de",
+      language: "en",
       theme: "dark",
       themeIsExplicit: false,
     });
@@ -77,7 +83,7 @@ describe("persistent display preferences", () => {
     expect(savePreference(undefined, preferenceKeys.language, "en")).toBe(
       false,
     );
-    expect(loadPreferences(undefined, false).language).toBe("de");
+    expect(loadPreferences(undefined, false).language).toBe("en");
   });
 
   it("formats decimal and grouping separators without discarding small component values", () => {
@@ -94,7 +100,16 @@ describe("persistent display preferences", () => {
     );
     const bootstrap = html.match(/<script>\s*([\s\S]*?)<\/script>/)?.[1];
     expect(bootstrap).toBeTruthy();
+    expect(html).toContain('<html lang="en">');
     for (const [storage, systemDark, expectedLanguage, expectedTheme] of [
+      [memoryStorage(), false, "en", "light"],
+      [memoryStorage(), true, "en", "dark"],
+      [
+        memoryStorage({ [preferenceKeys.language]: "de" }),
+        false,
+        "de",
+        "light",
+      ],
       [
         memoryStorage({
           [preferenceKeys.language]: "en",
@@ -104,7 +119,13 @@ describe("persistent display preferences", () => {
         "en",
         "light",
       ],
-      [memoryStorage({ [preferenceKeys.theme]: "dark" }), false, "de", "dark"],
+      [memoryStorage({ [preferenceKeys.theme]: "dark" }), false, "en", "dark"],
+      [
+        memoryStorage({ [preferenceKeys.language]: "fr" }),
+        false,
+        "en",
+        "light",
+      ],
       [
         {
           getItem: () => {
@@ -112,7 +133,7 @@ describe("persistent display preferences", () => {
           },
         },
         true,
-        "de",
+        "en",
         "dark",
       ],
     ]) {

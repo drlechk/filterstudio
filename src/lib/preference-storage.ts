@@ -35,7 +35,7 @@ export function loadPreferences(
   const language = readPreference(storage, preferenceKeys.language);
   const theme = readPreference(storage, preferenceKeys.theme);
   return {
-    language: validLanguage(language) ? language : "de",
+    language: validLanguage(language) ? language : "en",
     theme: validTheme(theme) ? theme : systemDark ? "dark" : "light",
     themeIsExplicit: validTheme(theme),
   };
