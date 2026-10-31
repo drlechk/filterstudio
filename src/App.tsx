@@ -28,6 +28,7 @@ import {
   X,
 } from "lucide-react";
 import { CircuitEditor } from "./components/CircuitEditor";
+import { ComponentValueInput } from "./components/ComponentValueInput";
 import { ResponsePlot } from "./components/ResponsePlot";
 import { Formula, MathView } from "./components/MathView";
 import { ApproximationView } from "./components/ApproximationView";
@@ -1523,50 +1524,31 @@ export default function App() {
                             ? t("Widerstand", "Resistance")
                             : t("Induktivität", "Inductance")}
                       </label>
-                      <PositiveInput
+                      <ComponentValueInput
+                        key={`${selected.id}:value`}
                         label={t("Bauteilwert", "Component value")}
-                        value={
-                          selected.section.value /
-                          (selected.section.kind === "R"
-                            ? 1
-                            : selected.section.kind === "C"
-                              ? 1e-9
-                              : 1e-6)
+                        quantity={
+                          selected.section.kind === "LC"
+                            ? "L"
+                            : selected.section.kind
                         }
-                        unit={
-                          selected.section.kind === "R"
-                            ? "Ω"
-                            : selected.section.kind === "C"
-                              ? "nF"
-                              : "µH"
-                        }
-                        onChange={(n) =>
-                          updateSection({
-                            value:
-                              n *
-                              (selected.section!.kind === "R"
-                                ? 1
-                                : selected.section!.kind === "C"
-                                  ? 1e-9
-                                  : 1e-6),
-                          })
-                        }
+                        value={selected.section.value}
+                        onChange={(value) => updateSection({ value })}
                       />
                       {selected.section.kind === "LC" && (
                         <>
                           <label className="field-label">
                             {t("Kapazität", "Capacitance")}
                           </label>
-                          <PositiveInput
+                          <ComponentValueInput
+                            key={`${selected.id}:value2`}
                             label={t(
                               "Resonator-Kapazität",
                               "Resonator capacitance",
                             )}
-                            value={selected.section.value2! / 1e-9}
-                            unit="nF"
-                            onChange={(n) =>
-                              updateSection({ value2: n * 1e-9 })
-                            }
+                            quantity="C"
+                            value={selected.section.value2!}
+                            onChange={(value2) => updateSection({ value2 })}
                           />
                           <label className="field-label">Resonator</label>
                           <select

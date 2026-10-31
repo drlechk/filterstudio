@@ -46,6 +46,8 @@ The diagram shows separate signal and ground terminals at each port. The lower p
 
 Available elements include R, L, and C in series or shunt, as well as LC series and parallel resonators. The two component values of an LC block describe its internal circuit; the series/shunt setting determines how the entire block connects to the cascade.
 
+The component inspector provides a unit selector next to each value, ordered from smallest to largest: **fF, pF, nF, µF, mF, F** for capacitors; **pH, nH, µH, mH, H** for inductors; and **µΩ, mΩ, Ω, kΩ, MΩ, GΩ** for resistors. LC resonators have separate selectors for inductance and capacitance. Selecting a different unit converts the displayed number without changing the physical value, response, or undo history. Entering a new number applies the selected unit. Decimal points, decimal commas, and scientific notation are accepted; grouping separators are not used. Calculations and JSON files continue to use farads, henries, and ohms. When opening a component's properties, a suitable initial display unit is chosen automatically.
+
 ## Filter synthesis
 
 | Family | Prototype orders | Parameters and meaning |
