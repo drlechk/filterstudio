@@ -50,6 +50,7 @@ import {
 import { usePreferences } from "./lib/preferences";
 type Translator = (de: string, en: string) => string;
 import { synthesize } from "./lib/synthesis";
+import { CIRCUIT_SPACING, snapCircuitCoordinate } from "./lib/circuit-layout";
 import {
   bandEdges,
   filterDegree,
@@ -593,7 +594,7 @@ export default function App() {
     const node: CircuitNode = {
       id,
       section,
-      x: position?.x ?? output.x,
+      x: position?.x ?? snapCircuitCoordinate(output.x),
       y: position?.y ?? output.y,
     };
     let nodes = [...project.nodes, node],
@@ -614,7 +615,7 @@ export default function App() {
         ];
       }
       nodes = nodes.map((n) =>
-        n.id === output.id ? { ...n, x: n.x + 155 } : n,
+        n.id === output.id ? { ...n, x: node.x + CIRCUIT_SPACING } : n,
       );
       setFitKey((k) => k + 1);
     }

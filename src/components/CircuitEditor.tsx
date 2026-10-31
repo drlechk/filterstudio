@@ -19,6 +19,12 @@ import {
 import type { CircuitNode, CircuitWire, Section } from "../lib/types";
 import { usePreferences, type Language } from "../lib/preferences";
 import {
+  CIRCUIT_GRID,
+  CIRCUIT_SNAP_GRID,
+  droppedComponentPosition,
+  snapCircuitPosition,
+} from "../lib/circuit-layout";
+import {
   CIRCUIT_NODE_HEIGHT,
   COMPONENT_WIDTH,
   GROUND_CLEARANCE,
@@ -510,14 +516,14 @@ function Canvas(props: CircuitEditorProps) {
         event.preventDefault();
         const kind = event.dataTransfer.getData("application/filterstudio");
         if (!kind) return;
-        const position = screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        });
-        onDropSection(kind, {
-          x: Math.round((position.x - 63) / 12) * 12,
-          y: Math.round((position.y - SIGNAL_Y) / 12) * 12,
-        });
+        const position = screenToFlowPosition(
+          { x: event.clientX, y: event.clientY },
+          { snapToGrid: false },
+        );
+        onDropSection(
+          kind,
+          droppedComponentPosition(position, modelRef.current.nodes),
+        );
       }}
     >
       <ReactFlow<FlowNode>
@@ -552,12 +558,26 @@ function Canvas(props: CircuitEditorProps) {
               onSelect(null);
             const next = applyNodeChanges(positionOrRemove, flowNodes);
             const ids = new Set(next.map((n) => n.id));
+            const movingIds = new Set(
+              positionOrRemove.flatMap((change) =>
+                change.type === "position" && change.position
+                  ? [change.id]
+                  : [],
+              ),
+            );
+            const stationaryNodes = modelRef.current.nodes.filter(
+              (node) => ids.has(node.id) && !movingIds.has(node.id),
+            );
             commit(
               modelRef.current.nodes
                 .filter((n) => ids.has(n.id))
                 .map((n) => {
+                  if (!movingIds.has(n.id)) return n;
                   const flow = next.find((f) => f.id === n.id)!;
-                  return { ...n, x: flow.position.x, y: flow.position.y };
+                  return {
+                    ...n,
+                    ...snapCircuitPosition(flow.position, stationaryNodes),
+                  };
                 }),
               modelRef.current.wires.filter(
                 (w) => ids.has(w.source) && ids.has(w.target),
@@ -606,7 +626,7 @@ function Canvas(props: CircuitEditorProps) {
         minZoom={0.08}
         maxZoom={2}
         snapToGrid
-        snapGrid={[12, 12]}
+        snapGrid={CIRCUIT_SNAP_GRID}
         deleteKeyCode={["Backspace", "Delete"]}
         connectionRadius={24}
         connectionLineStyle={{
@@ -661,7 +681,7 @@ function Canvas(props: CircuitEditorProps) {
         <Background
           variant={BackgroundVariant.Dots}
           color="var(--circuit-grid, #d6d9d6)"
-          gap={18}
+          gap={CIRCUIT_GRID}
           size={1}
         />
         {ground && <GroundRail geometry={ground} />}
