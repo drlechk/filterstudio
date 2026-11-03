@@ -1,5 +1,6 @@
 import { bandEdges, isBandResponse, MIN_RELATIVE_BANDWIDTH } from "./frequency";
 import { ellipticK, ellipticPrototype } from "./synthesis";
+import { CAUER_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation } from "./filter-limits";
 import type { FilterFamily, FilterSettings, ToleranceSpec } from "./types";
 
 export const MIN_MASK_FREQUENCY = 1;
@@ -178,18 +179,18 @@ export function designTolerance(
   let order = minimumOrder,
     attenuation = as;
   if (family === "cauer") {
-    // This app realizes only odd Cauer ladders; the seventh-order solver needs Rs >= 40 dB.
+    // Choose the smallest supported odd prototype satisfying the mask.
     order =
-      [3, 5, 7].find((n) => {
-        const rs = n === 7 ? Math.max(40, as) : as;
+      CAUER_ORDERS.find((n) => {
+        const rs = Math.max(cauerMinimumAttenuation(n), as);
         return (
           ellipticPrototype(n, ap, rs).stopbandRatio <=
           stopbandRatio * (1 + 1e-12)
         );
       }) ?? 0;
-    if (order === 7) attenuation = Math.max(40, as);
+    if (order) attenuation = Math.max(cauerMinimumAttenuation(order), as);
   }
-  if (!Number.isFinite(order) || order < 1 || order > 9)
+  if (!Number.isFinite(order) || order < 1 || order > MAX_PROTOTYPE_ORDER)
     return { settings: null, minimumOrder, stopbandRatio, issue: "order" };
   const scale =
     family === "butterworth" ? Math.exp(-Math.log(ep2) / (2 * order)) : 1;

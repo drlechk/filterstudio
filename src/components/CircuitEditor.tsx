@@ -16,8 +16,9 @@ import {
   type NodeProps,
   type Connection,
 } from "@xyflow/react";
-import type { CircuitNode, CircuitWire, Section } from "../lib/types";
-import { usePreferences, type Language } from "../lib/preferences";
+import type { CircuitNode, CircuitWire, ComponentPrecision, Section } from "../lib/types";
+import { usePreferences } from "../lib/preferences";
+import { formatComponentLabel, type ComponentQuantity } from "../lib/component-units";
 import {
   CIRCUIT_GRID,
   CIRCUIT_SNAP_GRID,
@@ -41,11 +42,15 @@ type CircuitData = {
   section?: Section;
   port?: "input" | "output";
   returnY?: number;
+  precision: ComponentPrecision;
   index: number;
   [key: string]: unknown;
 };
 type FlowNode = Node<CircuitData, "circuit" | "groundBounds">;
 export type CircuitEditorProps = {
+  id: string;
+  active: boolean;
+  precision: ComponentPrecision;
   nodes: CircuitNode[];
   wires: CircuitWire[];
   selectedId: string | null;
@@ -54,29 +59,6 @@ export type CircuitEditorProps = {
   onDropSection: (kind: string, position: { x: number; y: number }) => void;
   fitKey: number;
 };
-
-export function formatValue(
-  value: number,
-  unit = "",
-  language: Language = "de",
-) {
-  if (!Number.isFinite(value) || value === 0) return `${value} ${unit}`.trim();
-  const prefixes: [number, string][] = [
-    [1e9, "G"],
-    [1e6, "M"],
-    [1e3, "k"],
-    [1, ""],
-    [1e-3, "m"],
-    [1e-6, "µ"],
-    [1e-9, "n"],
-    [1e-12, "p"],
-    [1e-15, "f"],
-  ];
-  const [scale, prefix] = prefixes.find(
-    ([scale]) => Math.abs(value) >= scale * 0.9999,
-  ) ?? [1e-15, "f"];
-  return `${Number((value / scale).toPrecision(4)).toLocaleString(language === "de" ? "de-DE" : "en-US", { maximumFractionDigits: 5 })} ${prefix}${unit}`;
-}
 
 function Glyph({
   kind,
@@ -266,19 +248,19 @@ function CircuitComponent({ data, selected }: NodeProps<FlowNode>) {
       ? shuntGeometry(returnY).terminalY + 12
       : CIRCUIT_NODE_HEIGHT;
   const label = section.label || `${section.kind}${data.index}`;
-  const value =
-    section.kind === "LC"
-      ? `${formatValue(section.value, "H", language)} / ${formatValue(section.value2 ?? 0, "F", language)}`
-      : formatValue(
-          section.value,
-          section.kind === "R" ? "Ω" : section.kind === "L" ? "H" : "F",
-          language,
-        );
+  const values: { value: number; quantity: ComponentQuantity }[] = [
+    { value: section.value, quantity: section.kind === "LC" ? "L" : section.kind },
+    ...(section.kind === "LC" ? [{ value: section.value2!, quantity: "C" as const }] : []),
+  ];
+  const exactValue = values.map(({ value, quantity }) =>
+    formatComponentLabel(value, quantity, language, "full"),
+  ).join(" / ");
+  const precise = data.precision === "full" || data.precision > 8;
   return (
     <div
-      className={`circuit-component ${selected ? "is-selected" : ""} ${section.connection === "shunt" ? "is-shunt" : ""} ${section.kind === "LC" ? "is-resonator" : ""}`}
+      className={`circuit-component ${selected ? "is-selected" : ""} ${section.connection === "shunt" ? "is-shunt" : ""} ${section.kind === "LC" ? "is-resonator" : ""} ${precise ? "precise-values" : ""}`}
       style={{ height: componentHeight }}
-      title={`${label}: ${value} · ${section.connection === "series" ? t("Serienzweig", "Series branch") : t("Querzweig", "Shunt branch")}`}
+      title={`${label}: ${exactValue} · ${section.connection === "series" ? t("Serienzweig", "Series branch") : t("Querzweig", "Shunt branch")}`}
     >
       <span className="circuit-component-label">{label}</span>
       <svg
@@ -289,7 +271,11 @@ function CircuitComponent({ data, selected }: NodeProps<FlowNode>) {
       >
         <ComponentSymbol section={section} returnY={returnY} />
       </svg>
-      <span className="circuit-component-value">{value}</span>
+      <span className="circuit-component-value">
+        {values.map(({ value, quantity }) => (
+          <span key={quantity}>{formatComponentLabel(value, quantity, language, data.precision)}</span>
+        ))}
+      </span>
       <Handle
         type="target"
         position={Position.Left}
@@ -366,6 +352,9 @@ function GroundRail({ geometry }: { geometry: GroundGeometry }) {
 
 function Canvas(props: CircuitEditorProps) {
   const {
+    id,
+    active,
+    precision,
     nodes,
     wires,
     selectedId,
@@ -377,6 +366,7 @@ function Canvas(props: CircuitEditorProps) {
   const { t, theme, number } = usePreferences();
   const { screenToFlowPosition, fitView } = useReactFlow<FlowNode>();
   const [selectedEdges, setSelectedEdges] = useState<string[]>([]);
+  const lastFitKey = useRef<number | null>(null);
   const modelRef = useRef({ nodes, wires });
   modelRef.current = { nodes, wires };
   const commit = (nextNodes: CircuitNode[], nextWires: CircuitWire[]) => {
@@ -404,6 +394,7 @@ function Canvas(props: CircuitEditorProps) {
               : CIRCUIT_NODE_HEIGHT,
       },
       data: {
+        precision,
         section: n.section,
         port: n.port,
         index: i,
@@ -425,7 +416,7 @@ function Canvas(props: CircuitEditorProps) {
         id: boundsId,
         type: "groundBounds",
         position: { x: ground.bounds.x, y: ground.bounds.y },
-        data: { index: -1 },
+        data: { index: -1, precision },
         width: ground.bounds.width,
         height: ground.bounds.height,
         measured: { width: ground.bounds.width, height: ground.bounds.height },
@@ -444,7 +435,7 @@ function Canvas(props: CircuitEditorProps) {
         domAttributes: { "aria-hidden": true },
       });
     return modelNodes;
-  }, [nodes, selectedId, ground, boundsId, t]);
+  }, [nodes, selectedId, ground, boundsId, t, precision]);
   const flowEdges = useMemo<Edge[]>(() => {
     const label = (id: string) => {
       const node = nodes.find((n) => n.id === id);
@@ -463,16 +454,18 @@ function Canvas(props: CircuitEditorProps) {
     }));
   }, [wires, selectedEdges, nodes, t]);
   useEffect(() => {
+    if (!active || lastFitKey.current === fitKey) return;
     const timer = window.setTimeout(() => {
+      lastFitKey.current = fitKey;
       void fitView({
         duration: 320,
         padding: 0.18,
         maxZoom: 1.18,
-        minZoom: 0.08,
+        minZoom: 0.025,
       });
     }, 80);
     return () => window.clearTimeout(timer);
-  }, [fitKey, fitView]);
+  }, [active, fitKey, fitView]);
 
   const isValidConnection = useCallback(
     (connection: Connection | Edge) => {
@@ -527,6 +520,7 @@ function Canvas(props: CircuitEditorProps) {
       }}
     >
       <ReactFlow<FlowNode>
+        id={id}
         nodes={flowNodes}
         edges={flowEdges}
         nodeTypes={nodeTypes}
@@ -622,12 +616,13 @@ function Canvas(props: CircuitEditorProps) {
           setSelectedEdges([]);
         }}
         fitView
-        fitViewOptions={{ padding: 0.18, maxZoom: 1.18, minZoom: 0.08 }}
-        minZoom={0.08}
+        fitViewOptions={{ padding: 0.18, maxZoom: 1.18, minZoom: 0.025 }}
+        minZoom={0.025}
         maxZoom={2}
         snapToGrid
         snapGrid={CIRCUIT_SNAP_GRID}
-        deleteKeyCode={["Backspace", "Delete"]}
+        deleteKeyCode={active ? ["Backspace", "Delete"] : null}
+        disableKeyboardA11y={!active}
         connectionRadius={24}
         connectionLineStyle={{
           stroke: "var(--accent, #e96342)",

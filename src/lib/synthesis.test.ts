@@ -3,6 +3,7 @@ import { synthesize, ellipticPrototype } from './synthesis';
 import { analyzeNetwork, decibels, magnitude, polyAdd, polyMultiply, type Polynomial } from './network';
 import type { FilterSettings } from './types';
 import { MIN_RELATIVE_BANDWIDTH } from './frequency';
+import ellipticReference from './fixtures/elliptic-high-order.json';
 
 const defaults: FilterSettings = { family: 'butterworth', response: 'lowpass', order: 5, cutoff: 1e6, impedance: 50, ripple: .5, attenuation: 40 };
 const make = (settings: Partial<FilterSettings>) => {
@@ -12,7 +13,7 @@ const make = (settings: Partial<FilterSettings>) => {
 
 describe('passive analog synthesis', () => {
   it('agrees with the Butterworth power response at all supported orders', () => {
-    for (let order = 1; order <= 10; order++) {
+    for (let order = 1; order <= 20; order++) {
       const { network } = make({ order });
       for (const ratio of [0, .1, .5, .8, 1, 1.5, 3, 10]) {
         expect(magnitude(network.evaluate(ratio * defaults.cutoff).s21) ** 2).toBeCloseTo(1 / (1 + ratio ** (2 * order)), 9);
@@ -21,7 +22,7 @@ describe('passive analog synthesis', () => {
   });
 
   it('matches Chebyshev I including the unequal termination of even orders', () => {
-    for (let order = 1; order <= 10; order++) for (const ripple of [.1, .5, 3]) {
+    for (let order = 1; order <= 20; order++) for (const ripple of [.1, .5, 3]) {
       const { network, result } = make({ family: 'chebyshev', order, ripple });
       expect(result.z2 >= defaults.impedance).toBe(true);
       if (order % 2) expect(result.z2).toBe(defaults.impedance);
@@ -91,12 +92,30 @@ describe('passive analog synthesis', () => {
     expect(() => synthesize({ ...defaults, family: 'chebyshev', ripple: 0 })).toThrow();
     expect(() => synthesize({ ...defaults, family: 'cauer', order: 4 })).toThrow();
     expect(() => synthesize({ ...defaults, family: 'cauer', order: 7, attenuation: 20 })).toThrow();
+    for (const order of [0, 21]) expect(() => synthesize({ ...defaults, order })).toThrow();
+    expect(() => synthesize({ ...defaults, family: 'cauer', order: 20 })).toThrow();
+    expect(() => synthesize({ ...defaults, family: 'cauer', order: 19, attenuation: 39 })).toThrow();
+  });
+
+  it.each(ellipticReference.cases)('matches independent SciPy complex responses for Cauer n=$order, Rp=$ripple, Rs=$attenuation', ({ order, ripple, attenuation, samples }) => {
+    const { network, result } = make({ family: 'cauer', order, ripple, attenuation });
+    for (const section of result.sections) {
+      expect(Number.isFinite(section.value) && section.value > 0).toBe(true);
+      if (section.kind === 'LC') expect(Number.isFinite(section.value2) && section.value2! > 0).toBe(true);
+    }
+    for (const { frequency, re, im } of samples) {
+      const actual = network.evaluate(frequency * defaults.cutoff);
+      // Relative complex error checks both phase and magnitude, including the
+      // narrow transition and deep stopband, without a dB floor hiding errors.
+      expect(Math.hypot(actual.s21.re - re, actual.s21.im - im) / Math.hypot(re, im)).toBeLessThan(2e-6);
+      expect(magnitude(actual.s21) ** 2 + magnitude(actual.s11) ** 2).toBeCloseTo(1, 8);
+    }
   });
 
   it('maps every complex S-parameter through the exact band transformation', () => {
     const keys = ['s11', 's12', 's21', 's22'] as const;
     for (const family of ['butterworth', 'chebyshev', 'cauer'] as const) {
-      const orders = family === 'cauer' ? [3, 5, 7] : [1, 4, 7, 10];
+      const orders = family === 'cauer' ? [3, 5, 7, 19] : [1, 4, 7, 10, 20];
       for (const order of orders) for (const b of [MIN_RELATIVE_BANDWIDTH, .005, .05, .2, 1, 4]) for (const response of ['bandpass', 'bandstop'] as const) {
         const low = make({ family, order }).network;
         const band = make({ family, order, response, bandwidth: b * defaults.cutoff }).network;
@@ -105,9 +124,12 @@ describe('passive analog synthesis', () => {
           const mapped = response === 'bandpass' ? (ratio - 1 / ratio) / b : b * ratio / (1 - ratio * ratio);
           const expected = low.evaluate(Math.abs(mapped) * defaults.cutoff);
           const actual = band.evaluate(ratio * defaults.cutoff);
+          // At n=19 the narrowest elliptic band amplifies component roundoff
+          // near its very steep edge; retain the tighter check everywhere else.
+          const tolerance = family === 'cauer' && order > 7 && b === MIN_RELATIVE_BANDWIDTH ? 1e-7 : 5e-8;
           for (const key of keys) {
-            expect(actual[key].re, `${family} n=${order} ${response} b=${b} r=${ratio} ${key}.re`).toBeCloseTo(expected[key].re, 7);
-            expect(actual[key].im, `${family} n=${order} ${response} b=${b} r=${ratio} ${key}.im`).toBeCloseTo(Math.sign(mapped) * expected[key].im, 7);
+            expect(Math.abs(actual[key].re - expected[key].re), `${family} n=${order} ${response} b=${b} r=${ratio} ${key}.re`).toBeLessThan(tolerance);
+            expect(Math.abs(actual[key].im - Math.sign(mapped) * expected[key].im), `${family} n=${order} ${response} b=${b} r=${ratio} ${key}.im`).toBeLessThan(tolerance);
           }
           expect(magnitude(actual.s21) ** 2 + magnitude(actual.s11) ** 2).toBeCloseTo(1, 8);
         }

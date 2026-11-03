@@ -1,0 +1,2346 @@
+[
+  {
+    "name": "@babel/code-frame",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/code-frame/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/compat-data",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/compat-data/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/core",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/core/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/generator",
+    "version": "7.29.12",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/generator/v/7.29.12",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/helper-compilation-targets",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/helper-compilation-targets/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/helper-globals",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/helper-globals/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/helper-module-imports",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/helper-module-imports/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/helper-module-transforms",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/helper-module-transforms/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/helper-plugin-utils",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/helper-plugin-utils/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/helper-string-parser",
+    "version": "7.29.11",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/helper-string-parser/v/7.29.11",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/helper-validator-identifier",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/helper-validator-identifier/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/helper-validator-option",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/helper-validator-option/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/helpers",
+    "version": "7.29.10",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/helpers/v/7.29.10",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/parser",
+    "version": "7.29.12",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/parser/v/7.29.12",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/plugin-transform-react-jsx-self",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/plugin-transform-react-jsx-self/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/plugin-transform-react-jsx-source",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/plugin-transform-react-jsx-source/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/template",
+    "version": "7.29.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/template/v/7.29.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/traverse",
+    "version": "7.29.12",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/traverse/v/7.29.12",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@babel/types",
+    "version": "7.29.11",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@babel/types/v/7.29.11",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/aix-ppc64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/aix-ppc64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/android-arm",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/android-arm/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/android-arm64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/android-arm64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/android-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/android-x64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/darwin-arm64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/darwin-arm64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/darwin-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/darwin-x64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/freebsd-arm64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/freebsd-arm64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/freebsd-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/freebsd-x64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/linux-arm",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/linux-arm/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/linux-arm64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/linux-arm64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/linux-ia32",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/linux-ia32/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/linux-loong64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/linux-loong64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/linux-mips64el",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/linux-mips64el/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/linux-ppc64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/linux-ppc64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/linux-riscv64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/linux-riscv64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/linux-s390x",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/linux-s390x/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/linux-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/linux-x64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/netbsd-arm64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/netbsd-arm64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/netbsd-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/netbsd-x64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/openbsd-arm64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/openbsd-arm64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/openbsd-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/openbsd-x64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/openharmony-arm64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/openharmony-arm64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/sunos-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/sunos-x64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/win32-arm64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/win32-arm64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/win32-ia32",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/win32-ia32/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@esbuild/win32-x64",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@esbuild/win32-x64/v/0.28.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@fontsource-variable/dm-sans",
+    "version": "5.3.0",
+    "license": "OFL-1.1",
+    "url": "https://www.npmjs.com/package/@fontsource-variable/dm-sans/v/5.3.0",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "@fontsource-variable/manrope",
+    "version": "5.3.0",
+    "license": "OFL-1.1",
+    "url": "https://www.npmjs.com/package/@fontsource-variable/manrope/v/5.3.0",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "@hono/node-server",
+    "version": "2.1.6",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@hono/node-server/v/2.1.6",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "@jridgewell/gen-mapping",
+    "version": "0.3.13",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@jridgewell/gen-mapping/v/0.3.13",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@jridgewell/remapping",
+    "version": "2.3.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@jridgewell/remapping/v/2.3.5",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@jridgewell/resolve-uri",
+    "version": "3.1.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@jridgewell/resolve-uri/v/3.1.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@jridgewell/sourcemap-codec",
+    "version": "1.6.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@jridgewell/sourcemap-codec/v/1.6.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@jridgewell/trace-mapping",
+    "version": "0.3.31",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@jridgewell/trace-mapping/v/0.3.31",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@modelcontextprotocol/sdk",
+    "version": "1.32.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@modelcontextprotocol/sdk/v/1.32.2",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "@napi-rs/lzma-linux-x64-gnu",
+    "version": "1.5.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@napi-rs/lzma-linux-x64-gnu/v/1.5.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@noble/hashes",
+    "version": "1.8.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@noble/hashes/v/1.8.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@paralleldrive/cuid2",
+    "version": "2.3.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@paralleldrive/cuid2/v/2.3.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rolldown/pluginutils",
+    "version": "1.0.0-rc.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rolldown/pluginutils/v/1.0.0-rc.3",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-android-arm-eabi",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-android-arm-eabi/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-android-arm64",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-android-arm64/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-android-x64",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-android-x64/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-darwin-arm64",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-darwin-arm64/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-darwin-x64",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-darwin-x64/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-freebsd-arm64",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-freebsd-arm64/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-freebsd-x64",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-freebsd-x64/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-arm-gnueabihf",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-arm-gnueabihf/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-arm-musleabihf",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-arm-musleabihf/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-arm64-gnu",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-arm64-gnu/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-arm64-musl",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-arm64-musl/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-loong64-gnu",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-loong64-gnu/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-loong64-musl",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-loong64-musl/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-ppc64-gnu",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-ppc64-gnu/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-ppc64-musl",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-ppc64-musl/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-riscv64-gnu",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-riscv64-gnu/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-riscv64-musl",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-riscv64-musl/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-s390x-gnu",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-s390x-gnu/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-x64-gnu",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-x64-gnu/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-linux-x64-musl",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-linux-x64-musl/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-openbsd-x64",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-openbsd-x64/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-openharmony-arm64",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-openharmony-arm64/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-win32-arm64-msvc",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-win32-arm64-msvc/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-win32-ia32-msvc",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-win32-ia32-msvc/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-win32-x64-gnu",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-win32-x64-gnu/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@rollup/rollup-win32-x64-msvc",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@rollup/rollup-win32-x64-msvc/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@scarf/scarf",
+    "version": "1.4.0",
+    "license": "Apache-2.0",
+    "url": "https://www.npmjs.com/package/@scarf/scarf/v/1.4.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "@types/babel__core",
+    "version": "7.20.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/babel__core/v/7.20.5",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/babel__generator",
+    "version": "7.27.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/babel__generator/v/7.27.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/babel__template",
+    "version": "7.4.4",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/babel__template/v/7.4.4",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/babel__traverse",
+    "version": "7.28.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/babel__traverse/v/7.28.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/body-parser",
+    "version": "1.19.6",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/body-parser/v/1.19.6",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/chai",
+    "version": "5.2.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/chai/v/5.2.3",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/connect",
+    "version": "3.4.38",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/connect/v/3.4.38",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/cookiejar",
+    "version": "2.1.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/cookiejar/v/2.1.5",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/d3-color",
+    "version": "3.1.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/d3-color/v/3.1.3",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "@types/d3-drag",
+    "version": "3.0.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/d3-drag/v/3.0.7",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "@types/d3-interpolate",
+    "version": "3.0.4",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/d3-interpolate/v/3.0.4",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "@types/d3-selection",
+    "version": "3.0.12",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/d3-selection/v/3.0.12",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "@types/d3-transition",
+    "version": "3.0.9",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/d3-transition/v/3.0.9",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "@types/d3-zoom",
+    "version": "3.0.9",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/d3-zoom/v/3.0.9",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "@types/deep-eql",
+    "version": "4.0.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/deep-eql/v/4.0.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/estree",
+    "version": "1.0.10",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/estree/v/1.0.10",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/express",
+    "version": "5.0.6",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/express/v/5.0.6",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "@types/express-serve-static-core",
+    "version": "5.1.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/express-serve-static-core/v/5.1.3",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/http-errors",
+    "version": "2.0.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/http-errors/v/2.0.5",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/katex",
+    "version": "0.16.8",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/katex/v/0.16.8",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "@types/methods",
+    "version": "1.1.4",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/methods/v/1.1.4",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/node",
+    "version": "24.19.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/node/v/24.19.2",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "@types/qs",
+    "version": "6.15.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/qs/v/6.15.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/range-parser",
+    "version": "1.2.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/range-parser/v/1.2.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/react",
+    "version": "19.3.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/react/v/19.3.0",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "@types/react-dom",
+    "version": "19.3.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/react-dom/v/19.3.0",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "@types/send",
+    "version": "1.2.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/send/v/1.2.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/serve-static",
+    "version": "2.2.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/serve-static/v/2.2.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/superagent",
+    "version": "8.1.11",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/superagent/v/8.1.11",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@types/supertest",
+    "version": "7.2.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/supertest/v/7.2.1",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "@types/swagger-ui-dist",
+    "version": "3.30.6",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/swagger-ui-dist/v/3.30.6",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "@types/ws",
+    "version": "8.18.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@types/ws/v/8.18.2",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "@vitejs/plugin-react",
+    "version": "5.2.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@vitejs/plugin-react/v/5.2.0",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "@vitest/mocker",
+    "version": "5.0.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@vitest/mocker/v/5.0.5",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@vitest/spy",
+    "version": "5.0.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@vitest/spy/v/5.0.5",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "@xyflow/react",
+    "version": "12.12.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@xyflow/react/v/12.12.0",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "@xyflow/system",
+    "version": "0.0.83",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/@xyflow/system/v/0.0.83",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "accepts",
+    "version": "2.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/accepts/v/2.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "ajv",
+    "version": "8.20.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/ajv/v/8.20.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "ajv-formats",
+    "version": "3.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/ajv-formats/v/3.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "asap",
+    "version": "2.0.6",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/asap/v/2.0.6",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "assertion-error",
+    "version": "2.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/assertion-error/v/2.0.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "asynckit",
+    "version": "0.4.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/asynckit/v/0.4.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "baseline-browser-mapping",
+    "version": "2.11.34",
+    "license": "Apache-2.0",
+    "url": "https://www.npmjs.com/package/baseline-browser-mapping/v/2.11.34",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "body-parser",
+    "version": "2.4.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/body-parser/v/2.4.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "browserslist",
+    "version": "4.29.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/browserslist/v/4.29.5",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "bytes",
+    "version": "3.1.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/bytes/v/3.1.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "call-bind-apply-helpers",
+    "version": "1.0.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/call-bind-apply-helpers/v/1.0.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "call-bound",
+    "version": "1.0.4",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/call-bound/v/1.0.4",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "caniuse-lite",
+    "version": "1.0.30001820",
+    "license": "CC-BY-4.0",
+    "url": "https://www.npmjs.com/package/caniuse-lite/v/1.0.30001820",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "chai",
+    "version": "6.3.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/chai/v/6.3.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "classcat",
+    "version": "5.0.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/classcat/v/5.0.5",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "combined-stream",
+    "version": "1.0.8",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/combined-stream/v/1.0.8",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "commander",
+    "version": "15.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/commander/v/15.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "component-emitter",
+    "version": "1.3.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/component-emitter/v/1.3.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "content-disposition",
+    "version": "2.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/content-disposition/v/2.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "content-type",
+    "version": "1.0.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/content-type/v/1.0.5",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "content-type",
+    "version": "2.1.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/content-type/v/2.1.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "convert-source-map",
+    "version": "2.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/convert-source-map/v/2.0.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "cookie",
+    "version": "0.7.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/cookie/v/0.7.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "cookie-signature",
+    "version": "1.2.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/cookie-signature/v/1.2.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "cookiejar",
+    "version": "2.1.4",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/cookiejar/v/2.1.4",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "cors",
+    "version": "2.8.6",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/cors/v/2.8.6",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "cross-spawn",
+    "version": "7.0.6",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/cross-spawn/v/7.0.6",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "csstype",
+    "version": "3.2.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/csstype/v/3.2.3",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "d3-color",
+    "version": "3.1.0",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/d3-color/v/3.1.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "d3-dispatch",
+    "version": "3.0.1",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/d3-dispatch/v/3.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "d3-drag",
+    "version": "3.0.0",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/d3-drag/v/3.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "d3-ease",
+    "version": "3.0.1",
+    "license": "BSD-3-Clause",
+    "url": "https://www.npmjs.com/package/d3-ease/v/3.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "d3-interpolate",
+    "version": "3.0.1",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/d3-interpolate/v/3.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "d3-selection",
+    "version": "3.0.0",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/d3-selection/v/3.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "d3-timer",
+    "version": "3.0.1",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/d3-timer/v/3.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "d3-transition",
+    "version": "3.0.1",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/d3-transition/v/3.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "d3-zoom",
+    "version": "3.0.0",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/d3-zoom/v/3.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "debug",
+    "version": "4.4.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/debug/v/4.4.3",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "delayed-stream",
+    "version": "1.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/delayed-stream/v/1.0.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "depd",
+    "version": "2.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/depd/v/2.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "dezalgo",
+    "version": "1.0.4",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/dezalgo/v/1.0.4",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "dunder-proto",
+    "version": "1.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/dunder-proto/v/1.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "ee-first",
+    "version": "1.1.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/ee-first/v/1.1.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "electron-to-chromium",
+    "version": "1.5.469",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/electron-to-chromium/v/1.5.469",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "encodeurl",
+    "version": "2.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/encodeurl/v/2.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "es-define-property",
+    "version": "1.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/es-define-property/v/1.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "es-errors",
+    "version": "1.3.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/es-errors/v/1.3.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "es-module-lexer",
+    "version": "2.3.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/es-module-lexer/v/2.3.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "es-object-atoms",
+    "version": "1.1.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/es-object-atoms/v/1.1.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "es-set-tostringtag",
+    "version": "2.1.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/es-set-tostringtag/v/2.1.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "esbuild",
+    "version": "0.28.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/esbuild/v/0.28.2",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "escalade",
+    "version": "3.2.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/escalade/v/3.2.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "escape-html",
+    "version": "1.0.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/escape-html/v/1.0.3",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "estree-walker",
+    "version": "3.0.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/estree-walker/v/3.0.3",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "etag",
+    "version": "1.8.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/etag/v/1.8.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "eventsource",
+    "version": "3.0.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/eventsource/v/3.0.7",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "eventsource-parser",
+    "version": "3.1.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/eventsource-parser/v/3.1.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "expect-type",
+    "version": "1.4.0",
+    "license": "Apache-2.0",
+    "url": "https://www.npmjs.com/package/expect-type/v/1.4.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "express",
+    "version": "5.3.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/express/v/5.3.0",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "express-rate-limit",
+    "version": "8.7.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/express-rate-limit/v/8.7.3",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "fast-deep-equal",
+    "version": "3.1.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/fast-deep-equal/v/3.1.3",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "fast-safe-stringify",
+    "version": "2.1.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/fast-safe-stringify/v/2.1.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "fast-uri",
+    "version": "3.1.9",
+    "license": "BSD-3-Clause",
+    "url": "https://www.npmjs.com/package/fast-uri/v/3.1.9",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "fdir",
+    "version": "6.5.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/fdir/v/6.5.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "finalhandler",
+    "version": "2.1.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/finalhandler/v/2.1.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "form-data",
+    "version": "4.0.6",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/form-data/v/4.0.6",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "formidable",
+    "version": "3.5.4",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/formidable/v/3.5.4",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "forwarded",
+    "version": "0.2.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/forwarded/v/0.2.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "fresh",
+    "version": "2.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/fresh/v/2.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "fsevents",
+    "version": "2.3.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/fsevents/v/2.3.3",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "function-bind",
+    "version": "1.1.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/function-bind/v/1.1.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "gensync",
+    "version": "1.0.0-beta.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/gensync/v/1.0.0-beta.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "get-intrinsic",
+    "version": "1.3.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/get-intrinsic/v/1.3.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "get-proto",
+    "version": "1.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/get-proto/v/1.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "gopd",
+    "version": "1.2.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/gopd/v/1.2.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "has-symbols",
+    "version": "1.1.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/has-symbols/v/1.1.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "has-tostringtag",
+    "version": "1.0.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/has-tostringtag/v/1.0.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "hasown",
+    "version": "2.0.4",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/hasown/v/2.0.4",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "hono",
+    "version": "4.13.16",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/hono/v/4.13.16",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "http-errors",
+    "version": "2.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/http-errors/v/2.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "iconv-lite",
+    "version": "0.7.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/iconv-lite/v/0.7.3",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "inherits",
+    "version": "2.0.4",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/inherits/v/2.0.4",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "ip-address",
+    "version": "10.7.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/ip-address/v/10.7.5",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "ipaddr.js",
+    "version": "1.9.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/ipaddr.js/v/1.9.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "is-promise",
+    "version": "4.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/is-promise/v/4.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "isexe",
+    "version": "2.0.0",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/isexe/v/2.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "jose",
+    "version": "6.2.15",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/jose/v/6.2.15",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "js-tokens",
+    "version": "4.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/js-tokens/v/4.0.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "jsesc",
+    "version": "3.1.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/jsesc/v/3.1.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "json-schema-traverse",
+    "version": "1.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/json-schema-traverse/v/1.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "json-schema-typed",
+    "version": "8.0.2",
+    "license": "BSD-2-Clause",
+    "url": "https://www.npmjs.com/package/json-schema-typed/v/8.0.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "json5",
+    "version": "2.2.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/json5/v/2.2.3",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "katex",
+    "version": "0.19.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/katex/v/0.19.1",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "lru-cache",
+    "version": "5.1.1",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/lru-cache/v/5.1.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "lucide-react",
+    "version": "0.468.0",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/lucide-react/v/0.468.0",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "magic-string",
+    "version": "1.4.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/magic-string/v/1.4.5",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "math-intrinsics",
+    "version": "1.1.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/math-intrinsics/v/1.1.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "media-typer",
+    "version": "1.1.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/media-typer/v/1.1.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "merge-descriptors",
+    "version": "2.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/merge-descriptors/v/2.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "methods",
+    "version": "1.1.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/methods/v/1.1.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "mime",
+    "version": "2.6.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/mime/v/2.6.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "mime-db",
+    "version": "1.52.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/mime-db/v/1.52.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "mime-db",
+    "version": "1.54.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/mime-db/v/1.54.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "mime-types",
+    "version": "2.1.35",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/mime-types/v/2.1.35",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "mime-types",
+    "version": "3.0.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/mime-types/v/3.0.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "ms",
+    "version": "2.1.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/ms/v/2.1.3",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "nanoid",
+    "version": "3.3.20",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/nanoid/v/3.3.20",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "negotiator",
+    "version": "1.1.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/negotiator/v/1.1.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "node-releases",
+    "version": "2.0.62",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/node-releases/v/2.0.62",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "object-assign",
+    "version": "4.1.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/object-assign/v/4.1.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "object-inspect",
+    "version": "1.13.4",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/object-inspect/v/1.13.4",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "obug",
+    "version": "3.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/obug/v/3.0.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "on-finished",
+    "version": "2.4.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/on-finished/v/2.4.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "once",
+    "version": "1.4.0",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/once/v/1.4.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "parseurl",
+    "version": "1.3.3",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/parseurl/v/1.3.3",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "path-key",
+    "version": "3.1.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/path-key/v/3.1.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "path-to-regexp",
+    "version": "8.4.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/path-to-regexp/v/8.4.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "picocolors",
+    "version": "1.1.1",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/picocolors/v/1.1.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "picomatch",
+    "version": "4.0.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/picomatch/v/4.0.7",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "pkce-challenge",
+    "version": "5.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/pkce-challenge/v/5.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "postcss",
+    "version": "8.5.32",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/postcss/v/8.5.32",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "proxy-addr",
+    "version": "2.0.8",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/proxy-addr/v/2.0.8",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "qs",
+    "version": "6.17.1",
+    "license": "BSD-3-Clause",
+    "url": "https://www.npmjs.com/package/qs/v/6.17.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "range-parser",
+    "version": "1.3.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/range-parser/v/1.3.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "raw-body",
+    "version": "3.0.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/raw-body/v/3.0.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "react",
+    "version": "19.3.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/react/v/19.3.1",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "react-dom",
+    "version": "19.3.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/react-dom/v/19.3.1",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "react-refresh",
+    "version": "0.18.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/react-refresh/v/0.18.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "require-from-string",
+    "version": "2.0.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/require-from-string/v/2.0.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "rollup",
+    "version": "4.67.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/rollup/v/4.67.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "router",
+    "version": "2.2.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/router/v/2.2.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "safer-buffer",
+    "version": "2.1.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/safer-buffer/v/2.1.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "scheduler",
+    "version": "0.28.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/scheduler/v/0.28.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "semver",
+    "version": "6.3.1",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/semver/v/6.3.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "send",
+    "version": "1.2.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/send/v/1.2.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "serve-static",
+    "version": "2.2.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/serve-static/v/2.2.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "setprototypeof",
+    "version": "1.2.0",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/setprototypeof/v/1.2.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "shebang-command",
+    "version": "2.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/shebang-command/v/2.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "shebang-regex",
+    "version": "3.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/shebang-regex/v/3.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "side-channel",
+    "version": "1.1.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/side-channel/v/1.1.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "side-channel-list",
+    "version": "1.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/side-channel-list/v/1.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "side-channel-map",
+    "version": "1.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/side-channel-map/v/1.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "side-channel-weakmap",
+    "version": "1.0.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/side-channel-weakmap/v/1.0.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "source-map-js",
+    "version": "1.2.2",
+    "license": "BSD-3-Clause",
+    "url": "https://www.npmjs.com/package/source-map-js/v/1.2.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "statuses",
+    "version": "2.0.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/statuses/v/2.0.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "std-env",
+    "version": "4.3.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/std-env/v/4.3.0",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "superagent",
+    "version": "10.4.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/superagent/v/10.4.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "supertest",
+    "version": "7.3.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/supertest/v/7.3.1",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "swagger-ui-dist",
+    "version": "5.34.1",
+    "license": "Apache-2.0",
+    "url": "https://www.npmjs.com/package/swagger-ui-dist/v/5.34.1",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "tinybench",
+    "version": "6.2.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/tinybench/v/6.2.2",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "tinyexec",
+    "version": "1.3.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/tinyexec/v/1.3.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "tinyglobby",
+    "version": "0.2.17",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/tinyglobby/v/0.2.17",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "toidentifier",
+    "version": "1.0.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/toidentifier/v/1.0.1",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "tsx",
+    "version": "4.23.15",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/tsx/v/4.23.15",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "type-is",
+    "version": "2.1.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/type-is/v/2.1.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "typescript",
+    "version": "5.9.3",
+    "license": "Apache-2.0",
+    "url": "https://www.npmjs.com/package/typescript/v/5.9.3",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "undici-types",
+    "version": "7.24.6",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/undici-types/v/7.24.6",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "unpipe",
+    "version": "1.0.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/unpipe/v/1.0.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "update-browserslist-db",
+    "version": "1.3.4",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/update-browserslist-db/v/1.3.4",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "use-sync-external-store",
+    "version": "1.7.0",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/use-sync-external-store/v/1.7.0",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "vary",
+    "version": "1.1.2",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/vary/v/1.1.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "vite",
+    "version": "7.3.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/vite/v/7.3.7",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "vitest",
+    "version": "5.0.5",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/vitest/v/5.0.5",
+    "direct": true,
+    "development": true
+  },
+  {
+    "name": "which",
+    "version": "2.0.2",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/which/v/2.0.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "why-is-node-running",
+    "version": "3.2.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/why-is-node-running/v/3.2.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "wrappy",
+    "version": "1.0.2",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/wrappy/v/1.0.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "ws",
+    "version": "8.22.1",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/ws/v/8.22.1",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "yallist",
+    "version": "3.1.1",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/yallist/v/3.1.1",
+    "direct": false,
+    "development": true
+  },
+  {
+    "name": "zod",
+    "version": "4.6.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/zod/v/4.6.7",
+    "direct": true,
+    "development": false
+  },
+  {
+    "name": "zod-to-json-schema",
+    "version": "3.25.2",
+    "license": "ISC",
+    "url": "https://www.npmjs.com/package/zod-to-json-schema/v/3.25.2",
+    "direct": false,
+    "development": false
+  },
+  {
+    "name": "zustand",
+    "version": "4.5.7",
+    "license": "MIT",
+    "url": "https://www.npmjs.com/package/zustand/v/4.5.7",
+    "direct": false,
+    "development": false
+  }
+]

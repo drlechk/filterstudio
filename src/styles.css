@@ -261,6 +261,110 @@ button svg {
 .app-shell {
   width: 100%;
 }
+.app-shell[hidden] {
+  display: none;
+}
+.project-tabs-bar {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px clamp(14px, 2vw, 32px) 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+.project-tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.project-tab {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  max-width: 240px;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 7px 7px 0 0;
+  color: var(--text-muted);
+}
+.project-tab:hover {
+  background: var(--surface-hover);
+}
+.project-tab.active {
+  color: var(--text);
+  background: var(--surface);
+  border-color: var(--border);
+  border-bottom-color: var(--accent);
+}
+.project-tab-select {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  padding: 12px 9px 12px 13px;
+  font-size: 12px;
+  font-weight: 550;
+}
+.project-tab-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-tab-dot {
+  width: 5px;
+  height: 5px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.project-tab-close {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  margin-right: 6px;
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+.project-tab-close:hover {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+.project-tab-new {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-shrink: 0;
+  padding: 0 12px;
+  margin-bottom: 3px;
+  border-radius: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.project-tab-new:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+}
+.project-tab-select:focus-visible {
+  outline-offset: -3px;
+  border-radius: 6px;
+}
+@media (max-width: 650px) {
+  .project-tab {
+    max-width: 190px;
+  }
+  .project-tab-new {
+    padding: 0 8px;
+  }
+  .project-tab-new span {
+    display: none;
+  }
+}
 .app-header {
   height: 72px;
   display: flex;
@@ -516,6 +620,25 @@ h1 {
   border: 1px solid var(--border);
   border-radius: 9px;
   overflow: hidden;
+}
+.sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding: 10px 14px;
+}
+.acknowledgements-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  min-height: 32px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+.acknowledgements-button:hover {
+  color: var(--accent-text);
+  background: var(--accent-soft);
 }
 .sidebar-tabs {
   display: grid;
@@ -962,9 +1085,80 @@ h1 {
 }
 .canvas-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 3px;
   margin-left: auto;
+  max-width: 100%;
+}
+.circuit-rounding-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.circuit-rounding-button:hover,
+.circuit-rounding-button[aria-expanded="true"] {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+}
+.component-rounding {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-subtle);
+}
+.component-rounding[hidden] {
+  display: none;
+}
+.rounding-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: start;
+  align-items: end;
+  gap: 10px;
+  min-width: 0;
+}
+.rounding-setting label {
+  display: grid;
+  gap: 7px;
+  flex: 1;
+  min-width: 180px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.rounding-setting select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 5px;
+  color: var(--text);
+  background: var(--input-bg);
+  font-size: 12px;
+}
+.rounding-setting p,
+.rounding-example {
+  flex-basis: 100%;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.6;
+}
+.rounding-example {
+  grid-column: 1 / -1;
+}
+@media (max-width: 900px) {
+  .component-rounding {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
 }
 .canvas-hint {
   color: var(--text-faint);

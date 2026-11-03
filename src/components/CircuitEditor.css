@@ -86,9 +86,21 @@
   pointer-events: none;
   letter-spacing: -0.02em;
 }
+.circuit-component-value > span {
+  display: block;
+}
+.circuit-component.precise-values .circuit-component-value {
+  font-size: 10px;
+}
 /* Keep the vertical return conductor clear of component-value text. */
 .circuit-component.is-shunt .circuit-component-value {
   top: 29px;
+}
+.circuit-component.is-shunt.is-resonator .circuit-component-label {
+  top: -9px;
+}
+.circuit-component.is-shunt.is-resonator .circuit-component-value {
+  top: 14px;
 }
 .circuit-port {
   width: 76px;

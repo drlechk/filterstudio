@@ -22,14 +22,16 @@ const english: Record<string, string> = {
     "The file contains invalid filter parameters.",
   "Ungültiges Toleranzschema in der Datei.":
     "The file contains an invalid tolerance mask.",
-  "Cauer benötigt Grad 3, 5 oder 7; bei Grad 7 mindestens 40 dB Sperrdämpfung.":
-    "Cauer requires order 3, 5, or 7; order 7 requires at least 40 dB of stopband attenuation.",
+  "Ungültige Anzeigegenauigkeit für Bauteilwerte.":
+    "The file contains an invalid component display precision.",
+  "Cauer benötigt einen ungeraden Grad von 3 bis 19; ab Grad 7 mindestens 40 dB Sperrdämpfung.":
+    "Cauer requires an odd order from 3 to 19; orders 7 and above require at least 40 dB of stopband attenuation.",
   "Die Bandbreite muss positiv, endlich und höchstens 1 THz sein.":
     "Bandwidth must be positive, finite, and at most 1 THz.",
   "Beide Bandgrenzen müssen zwischen 1 Hz und 1 THz liegen.":
     "Both band edges must be between 1 Hz and 1 THz.",
-  "Die Datei muss 2 bis 26 Schaltungsknoten enthalten.":
-    "The file must contain 2 to 26 circuit nodes.",
+  "Die Datei muss 2 bis 42 Schaltungsknoten enthalten.":
+    "The file must contain 2 to 42 circuit nodes.",
   "Ungültige oder doppelte Schaltungsknoten.":
     "Circuit nodes are invalid or duplicated.",
   "Ein Tor darf kein Bauelement sein.": "A port cannot be a component.",
@@ -49,20 +51,20 @@ const english: Record<string, string> = {
     "These Cauer specifications could not be synthesized reliably. Increase the stopband attenuation or reduce the order.",
   "Diese Prototyp-Struktur kann nicht als Bandfilter transformiert werden.":
     "This prototype topology cannot be transformed into a band filter.",
-  "Der Filtergrad muss zwischen 1 und 10 liegen.":
-    "The filter order must be between 1 and 10.",
+  "Der Filtergrad muss zwischen 1 und 20 liegen.":
+    "The filter order must be between 1 and 20.",
   "Frequenz und Impedanz müssen positiv sein.":
     "Frequency and impedance must be positive.",
   "Die Welligkeit muss zwischen 0,01 und 3 dB liegen.":
     "Ripple must be between 0.01 and 3 dB.",
   "Für Bandfilter muss eine endliche, positive Bandbreite in Hz angegeben werden.":
     "Band filters require a finite, positive bandwidth in Hz.",
-  "Die Cauer-Synthese unterstützt die ungeraden Grade 3, 5 und 7.":
-    "Cauer synthesis supports odd orders 3, 5, and 7.",
+  "Die Cauer-Synthese unterstützt ungerade Grade von 3 bis 19.":
+    "Cauer synthesis supports odd orders from 3 to 19.",
   "Die Cauer-Sperrdämpfung muss zwischen 20 und 80 dB liegen.":
     "Cauer stopband attenuation must be between 20 and 80 dB.",
-  "Die Cauer-Leiterstruktur 7. Grades benötigt eine Sperrdämpfung zwischen 40 und 80 dB.":
-    "The order-7 Cauer ladder requires stopband attenuation between 40 and 80 dB.",
+  "Cauer-Leiterstrukturen ab Grad 7 benötigen eine Sperrdämpfung zwischen 40 und 80 dB.":
+    "Cauer ladders of order 7 and above require stopband attenuation between 40 and 80 dB.",
   "Die gewählten Frequenz- und Impedanzwerte überschreiten den numerischen Bereich der Bauteilsynthese.":
     "The selected frequency and impedance exceed the numerical range of component synthesis.",
   "Die beiden Bandgrenzen liegen bei −3,0103 dB.":
@@ -92,8 +94,6 @@ const english: Record<string, string> = {
   "Schaltung generiert. Alle Ergebnisse sind aktualisiert.":
     "Circuit generated. All results are up to date.",
   "Synthese nicht möglich.": "Synthesis is not possible.",
-  "Maximal 24 Zweitore pro Schaltung.":
-    "A circuit can contain up to 24 two-ports.",
   "Bauelement platziert. Verbinde die beiden Anschlüsse mit der Schaltung.":
     "Component placed. Connect both terminals to the circuit.",
   "Projekt als JSON heruntergeladen.": "Project downloaded as JSON.",

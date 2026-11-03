@@ -2,6 +2,8 @@ import type { CircuitNode, CircuitWire, FilterSettings, Project, Section } from 
 import { bandEdges, isBandResponse, MIN_RELATIVE_BANDWIDTH } from './frequency';
 import { parseTolerance } from './tolerance';
 import { CIRCUIT_INITIAL_Y, CIRCUIT_SPACING } from './circuit-layout';
+import { isComponentPrecision } from './component-rounding';
+import { CAUER_ORDERS, MAX_PROTOTYPE_ORDER, MAX_CIRCUIT_NODES, cauerMinimumAttenuation } from './filter-limits';
 
 export const defaultSettings: FilterSettings = { family: 'butterworth', response: 'lowpass', order: 5, cutoff: 1e6, impedance: 50, ripple: 0.5, attenuation: 40 };
 export function createCircuit(sections: Section[]): { nodes: CircuitNode[]; wires: CircuitWire[] } {
@@ -45,8 +47,8 @@ const identifier = (v: unknown): v is string => typeof v === 'string' && v.lengt
 export function parseProject(raw: unknown): Project {
   if (!object(raw) || raw.version !== 1 || typeof raw.name !== 'string' || raw.name.length > 120) throw new Error('Keine gültige Filterstudio-Datei (Version 1).');
   const s = raw.settings;
-  if (!object(s) || !oneOf(s.family, ['butterworth', 'chebyshev', 'cauer'] as const) || !oneOf(s.response, ['lowpass', 'highpass', 'bandpass', 'bandstop'] as const) || !range(s.order, 1, 9) || !Number.isInteger(s.order) || !range(s.cutoff, 1, 1e12) || !range(s.impedance, .01, 1e6) || !range(s.ripple, .1, 3) || !range(s.attenuation, 20, 80) || !range(raw.z2, .01, 1e9)) throw new Error('Ungültige Filterparameter in der Datei.');
-  if (s.family === 'cauer' && (![3, 5, 7].includes(s.order) || (s.order === 7 && s.attenuation < 40))) throw new Error('Cauer benötigt Grad 3, 5 oder 7; bei Grad 7 mindestens 40 dB Sperrdämpfung.');
+  if (!object(s) || !oneOf(s.family, ['butterworth', 'chebyshev', 'cauer'] as const) || !oneOf(s.response, ['lowpass', 'highpass', 'bandpass', 'bandstop'] as const) || !range(s.order, 1, MAX_PROTOTYPE_ORDER) || !Number.isInteger(s.order) || !range(s.cutoff, 1, 1e12) || !range(s.impedance, .01, 1e6) || !range(s.ripple, .1, 3) || !range(s.attenuation, 20, 80) || !range(raw.z2, .01, 1e9)) throw new Error('Ungültige Filterparameter in der Datei.');
+  if (s.family === 'cauer' && (!CAUER_ORDERS.includes(s.order) || s.attenuation < cauerMinimumAttenuation(s.order))) throw new Error('Cauer benötigt einen ungeraden Grad von 3 bis 19; ab Grad 7 mindestens 40 dB Sperrdämpfung.');
   const settings: FilterSettings = { family: s.family, response: s.response, order: s.order, cutoff: s.cutoff, impedance: s.impedance, ripple: s.ripple, attenuation: s.attenuation };
   if (s.bandwidth !== undefined) {
     if (!range(s.bandwidth, Number.MIN_VALUE, 1e12)) throw new Error('Die Bandbreite muss positiv, endlich und höchstens 1 THz sein.');
@@ -58,7 +60,7 @@ export function parseProject(raw: unknown): Project {
     // Roundoff in the quadratic roots must not reject a mathematically exact edge limit.
     if (!range(lower, 1 - 1e-12, 1e12) || !range(upper, 1, 1e12 * (1 + 1e-12)) || !(upper > lower)) throw new Error('Beide Bandgrenzen müssen zwischen 1 Hz und 1 THz liegen.');
   }
-  if (!Array.isArray(raw.nodes) || raw.nodes.length < 2 || raw.nodes.length > 26 || !Array.isArray(raw.wires) || raw.wires.length > 26) throw new Error('Die Datei muss 2 bis 26 Schaltungsknoten enthalten.');
+  if (!Array.isArray(raw.nodes) || raw.nodes.length < 2 || raw.nodes.length > MAX_CIRCUIT_NODES || !Array.isArray(raw.wires) || raw.wires.length > MAX_CIRCUIT_NODES) throw new Error('Die Datei muss 2 bis 42 Schaltungsknoten enthalten.');
   const ids = new Set<string>();
   const nodes: CircuitNode[] = [];
   let inputs = 0, outputs = 0;
@@ -95,7 +97,8 @@ export function parseProject(raw: unknown): Project {
   if (!object(sweep) || !range(sweep.min, .001, 1e15) || !range(sweep.max, .001, 1e15) || sweep.max <= sweep.min || !Number.isFinite(sweep.max / sweep.min) || !range(sweep.points, 50, 2001) || !Number.isInteger(sweep.points)) throw new Error('Ungültiger Frequenzbereich.');
   const tolerance = raw.tolerance === undefined ? undefined : parseTolerance(raw.tolerance);
   if (tolerance && tolerance.response !== settings.response) throw new Error('Ungültiges Toleranzschema in der Datei.');
-  return { version: 1, name: raw.name, settings, nodes, wires, z2: raw.z2, ...(tolerance ? { tolerance } : {}), sweep: { min: sweep.min, max: sweep.max, points: sweep.points } };
+  if (raw.componentPrecision !== undefined && !isComponentPrecision(raw.componentPrecision)) throw new Error('Ungültige Anzeigegenauigkeit für Bauteilwerte.');
+  return { version: 1, name: raw.name, settings, nodes, wires, z2: raw.z2, ...(tolerance ? { tolerance } : {}), ...(raw.componentPrecision !== undefined ? { componentPrecision: raw.componentPrecision } : {}), sweep: { min: sweep.min, max: sweep.max, points: sweep.points } };
 }
 export function downloadFile(name: string, text: string, type = 'text/plain') {
   const url = URL.createObjectURL(new Blob([text], { type }));

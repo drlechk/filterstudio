@@ -36,6 +36,9 @@ describe("component value units", () => {
     expect(formatComponentValue(47000, 1e6, "en")).toBe("0.047");
     expect(parseComponentValue("4700", 1e-12)! / 4.7e-9).toBeCloseTo(1, 14);
     expect(parseComponentValue("0,0047", 1e-6)! / 4.7e-9).toBeCloseTo(1, 14);
+    expect(parseComponentValue("5.15", 1e-9)).toBe(5.15e-9);
+    expect(parseComponentValue("5150", 1e-12)).toBe(5.15e-9);
+    expect(parseComponentValue("0,00515", 1e-6)).toBe(5.15e-9);
   });
 
   it("rejects invalid values and checks limits after conversion to the base unit", () => {

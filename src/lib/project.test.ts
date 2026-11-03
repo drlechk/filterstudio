@@ -33,10 +33,23 @@ describe('JSON import boundary', () => {
     }
   });
   it('rejects unsupported Cauer settings and accepts supported boundary settings', () => {
-    for (const patch of [{ order: 2 }, { order: 7, attenuation: 30 }, { ripple: .01 }, { ripple: 99 }, { attenuation: .01 }, { attenuation: 81 }]) {
+    for (const patch of [{ order: 2 }, { order: 20 }, { order: 7, attenuation: 30 }, { order: 19, attenuation: 39 }, { ripple: .01 }, { ripple: 99 }, { attenuation: .01 }, { attenuation: 81 }]) {
       expect(() => parseProject({ ...project, settings: { ...project.settings, family: 'cauer', ...patch } })).toThrow();
     }
     expect(parseProject({ ...project, settings: { ...project.settings, family: 'cauer', order: 7, ripple: .1, attenuation: 40 } }).settings.order).toBe(7);
+  });
+  it('round-trips the highest orders for every family and response, including large Cauer band circuits', () => {
+    for (const family of ['butterworth', 'chebyshev', 'cauer'] as const) for (const response of ['lowpass', 'highpass', 'bandpass', 'bandstop'] as const) {
+      const settings = { ...defaultSettings, family, response, order: family === 'cauer' ? 19 : 20, bandwidth: .5e6 };
+      const result = synthesize(settings);
+      const generated = { ...project, settings, ...createCircuit(result.sections), z2: result.z2 };
+      const reopened = parseProject(JSON.parse(JSON.stringify(generated)));
+      expect(reopened).toEqual(generated);
+      expect(orderedSections(reopened.nodes, reopened.wires)).toEqual(result.sections);
+      if (family === 'cauer' && response.startsWith('band')) expect(reopened.nodes).toHaveLength(30);
+    }
+    expect(() => parseProject({ ...project, settings: { ...defaultSettings, order: 21 } })).toThrow();
+    expect(() => parseProject({ ...project, nodes: Array.from({ length: 43 }, (_, i) => ({ id: `node-${i}`, x: i, y: 0 })) })).toThrow('42');
   });
   it('rejects physical parameters outside the supported input ranges', () => {
     for (const patch of [{ cutoff: .1 }, { cutoff: 1e13 }, { impedance: .001 }, { impedance: 1e7 }]) {

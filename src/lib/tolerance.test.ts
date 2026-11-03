@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { analyzeNetwork, decibels } from "./network";
 import { bandEdges, isBandResponse } from "./frequency";
 import { createCircuit, defaultSettings, parseProject } from "./project";
-import { synthesize } from "./synthesis";
+import { ellipticPrototype, synthesize } from "./synthesis";
 import {
   defaultTolerance,
   designTolerance,
@@ -186,7 +186,7 @@ describe("analog tolerance-mask design", () => {
       );
       expect(design.issue).toBe("order");
       expect(design.settings).toBeNull();
-      expect(design.minimumOrder).toBeGreaterThan(family === "cauer" ? 7 : 9);
+      expect(design.minimumOrder).toBeGreaterThan(family === "cauer" ? 19 : 20);
     }
     const narrow = {
       ...masks.bandpass,
@@ -201,6 +201,24 @@ describe("analog tolerance-mask design", () => {
         50,
       ).settings,
     ).toBeNull();
+  });
+
+  it("selects and realizes orders 20 and 19 when the mask requires them", () => {
+    const passbandLoss = .5, stopbandLoss = 40;
+    const ratio = Math.expm1(stopbandLoss * Math.LN10 / 10) / Math.expm1(passbandLoss * Math.LN10 / 10);
+    for (const family of families) {
+      const stopRatio = family === 'butterworth' ? Math.exp(Math.log(ratio) / (2 * 19.5))
+        : family === 'chebyshev' ? Math.cosh(Math.acosh(Math.sqrt(ratio)) / 19.5)
+        : (ellipticPrototype(17, passbandLoss, stopbandLoss).stopbandRatio + ellipticPrototype(19, passbandLoss, stopbandLoss).stopbandRatio) / 2;
+      const spec = { ...masks.lowpass, passbandLoss, stopbandLoss, stopband: [1e6 * stopRatio] };
+      const design = designTolerance(spec, family, 50);
+      expect(design.issue).toBeNull();
+      expect(design.settings?.order).toBe(family === 'cauer' ? 19 : 20);
+      const settings = design.settings!, result = synthesize(settings);
+      const network = analyzeNetwork(result.sections, { fRef: settings.cutoff, z1: 50, z2: result.z2 });
+      expect(decibels(network.evaluate(1e6).s21)).toBeCloseTo(-passbandLoss, 5);
+      expect(decibels(network.evaluate(spec.stopband[0]).s21)).toBeLessThanOrEqual(-stopbandLoss + 1e-5);
+    }
   });
 
   it("never creates a seventh-order Cauer below the solver’s attenuation range", () => {

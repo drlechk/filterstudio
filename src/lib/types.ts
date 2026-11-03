@@ -34,6 +34,7 @@ export type ToleranceSpec = {
   passbandLoss: number;
   stopbandLoss: number;
 };
+export type ComponentPrecision = number | "full";
 export type Project = {
   version: 1;
   name: string;
@@ -42,5 +43,7 @@ export type Project = {
   wires: CircuitWire[];
   z2: number;
   tolerance?: ToleranceSpec;
+  /** Significant digits for component labels; omitted in legacy projects (4). */
+  componentPrecision?: ComponentPrecision;
   sweep: { min: number; max: number; points: number };
 };

@@ -32,8 +32,6 @@ export function chebyshevPolynomial(order: number): Polynomial {
   return current;
 }
 
-const atOne = (polynomial: Polynomial) =>
-  polynomial.reduce((sum, value) => sum + value, 0);
 const scalarLatex = (value: number) => polynomialLatex([value]);
 
 /**
@@ -68,12 +66,16 @@ export function filterApproximation(
     const prototype = ellipticPrototype(order, ripple, attenuation);
     stopbandRatio = prototype.stopbandRatio;
     numerator = [0, 1];
+    let normalization = 1;
     for (const pole of prototype.zeros) {
       const root = stopbandRatio / pole;
       numerator = polyMultiply(numerator, [-root * root, 0, 1]);
       denominator = polyMultiply(denominator, [1, 0, -1 / (pole * pole)]);
+      // Evaluate the normalization in factored form: expanded high-order
+      // polynomials lose precision when their alternating terms nearly cancel.
+      normalization *= ((1 - 1 / pole) * (1 + 1 / pole)) / ((1 - root) * (1 + root));
     }
-    numerator = polyScale(numerator, atOne(denominator) / atOne(numerator));
+    numerator = polyScale(numerator, normalization);
     symbol = `F_{${order}}(\\Omega)=R_{${order}}(\\Omega)`;
   }
   const expression =

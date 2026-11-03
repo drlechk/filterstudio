@@ -1,4 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   Activity,
   ArrowDownToLine,
@@ -28,7 +40,15 @@ import {
   X,
 } from "lucide-react";
 import { CircuitEditor } from "./components/CircuitEditor";
+import { ProjectTabs } from "./components/ProjectTabs";
+import { createFilterTab, workspaceReducer, type Workspace } from "./lib/workspace";
+import { MAX_PROTOTYPE_ORDER, MAX_CAUER_ORDER, MAX_CIRCUIT_NODES, MAX_CIRCUIT_SECTIONS, nearestFilterOrder, cauerMinimumAttenuation } from "./lib/filter-limits";
+import { useRemoteWorkspace } from "./lib/use-remote-workspace";
+import { checkRevision, RemoteError, type RemoteController, type RemoteTab } from "./lib/remote-protocol";
 import { ComponentValueInput } from "./components/ComponentValueInput";
+import { ComponentRoundingControls } from "./components/ComponentRoundingControls";
+import { DEFAULT_COMPONENT_PRECISION } from "./lib/component-rounding";
+import { formatComponentLabel } from "./lib/component-units";
 import { ResponsePlot } from "./components/ResponsePlot";
 import { Formula, MathView } from "./components/MathView";
 import { ApproximationView } from "./components/ApproximationView";
@@ -44,7 +64,6 @@ import {
   analyzeNetwork,
   decibels,
   formatEngineering as engineering,
-  polynomialLatex,
   sweepNetwork,
 } from "./lib/network";
 import { usePreferences } from "./lib/preferences";
@@ -74,6 +93,9 @@ import type {
   Section,
   ToleranceSpec,
 } from "./lib/types";
+
+const AcknowledgementsPage = lazy(() => import("./components/AcknowledgementsPage"));
+const isAcknowledgementsPage = () => window.location.hash.startsWith("#acknowledgements");
 
 const familyNames: Record<FilterFamily, string> = {
   butterworth: "Butterworth",
@@ -273,6 +295,161 @@ function dbReadout(db: number, language: "de" | "en") {
 }
 
 export default function App() {
+  const { t } = usePreferences();
+  const [showAcknowledgements, setShowAcknowledgements] = useState(isAcknowledgementsPage);
+  const acknowledgementsReturnFocus = useRef<HTMLElement | null>(null);
+  const openAcknowledgements = useCallback(() => {
+    acknowledgementsReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    window.location.hash = "acknowledgements";
+  }, []);
+  const closeAcknowledgements = useCallback(() => {
+    window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+    setShowAcknowledgements(false);
+  }, []);
+  useEffect(() => {
+    const update = () => setShowAcknowledgements(isAcknowledgementsPage());
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
+  useEffect(() => {
+    if (showAcknowledgements || !acknowledgementsReturnFocus.current) return;
+    const frame = requestAnimationFrame(() => acknowledgementsReturnFocus.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [showAcknowledgements]);
+  const [workspace, dispatch] = useReducer(
+    workspaceReducer,
+    undefined,
+    (): Workspace => {
+      const tab = createFilterTab({
+        ...initialProject,
+        name: t("Mein erster Filter", "My first filter"),
+      });
+      return { tabs: [tab], activeId: tab.id };
+    },
+  );
+  const nextNumber = useRef(2);
+  const [windowId] = useState(() => crypto.randomUUID());
+  const controllers = useRef(new Map<string, RemoteController>());
+  const registerRemote = useCallback((id: string, controller: RemoteController | null) => {
+    if (controller) controllers.current.set(id, controller);
+    else controllers.current.delete(id);
+  }, []);
+  const remote = useRemoteWorkspace(
+    () => ({ id: windowId, activeTabId: workspace.activeId, tabs: workspace.tabs.flatMap(tab => {
+      const controller = controllers.current.get(tab.id);
+      return controller ? [controller.snapshot()] : [];
+    }) }),
+    command => {
+      if (command.action === "open") {
+        const tab = createFilterTab(parseProject(command.project));
+        dispatch({ type: "open", tab: { ...tab, dirty: true } });
+      } else {
+        const controller = controllers.current.get(command.tabId);
+        if (!controller) throw new RemoteError(404, "Tab no longer exists.");
+        if (command.action === "select") dispatch({ type: "select", id: command.tabId });
+        else controller.execute(command);
+      }
+    },
+  );
+  useEffect(() => { remote.publish(); }, [workspace, remote.publish]);
+  const newTab = () =>
+    createFilterTab({
+      ...initialProject,
+      name: `Filter ${nextNumber.current++}`,
+    });
+  const openProject = useCallback((project: Project) => {
+    dispatch({ type: "open", tab: createFilterTab(project) });
+  }, []);
+  const updateTab = useCallback((id: string, name: string, dirty: boolean) => {
+    dispatch({ type: "update", id, name, dirty });
+  }, []);
+  const hasUnsavedChanges = workspace.tabs.some((tab) => tab.dirty);
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [hasUnsavedChanges]);
+  function closeTab(id: string) {
+    const tab = workspace.tabs.find((tab) => tab.id === id);
+    if (!tab) return;
+    if (
+      tab.dirty &&
+      !window.confirm(
+        t(
+          `„${tab.name || "Unbenannter Filter"}“ enthält ungesicherte Änderungen oder einen noch nicht generierten Entwurf. Tab wirklich schließen?`,
+          `“${tab.name || "Untitled filter"}” has unsaved changes or a design that has not been generated yet. Close this tab?`,
+        ),
+      )
+    ) return;
+    dispatch({
+      type: "close",
+      id,
+      replacement: workspace.tabs.length === 1 ? newTab() : undefined,
+    });
+  }
+  return <>
+    {showAcknowledgements && <Suspense fallback={<main className="acknowledgements-page" aria-busy="true">{t("Danksagung wird geladen …", "Loading acknowledgements …")}</main>}>
+      <AcknowledgementsPage onBack={closeAcknowledgements} />
+    </Suspense>}
+    {workspace.tabs.map((tab) => (
+    // Keep each editor mounted to retain its drafts, undo history and viewport.
+    <FilterWorkspace
+      key={tab.id}
+      tabId={tab.id}
+      active={!showAcknowledgements && tab.id === workspace.activeId}
+      startingProject={tab.initialProject}
+      startingDirty={tab.dirty}
+      registerRemote={registerRemote}
+      publishRemote={remote.publish}
+      remoteConnected={remote.connected}
+      onOpenProject={openProject}
+      onTabChange={updateTab}
+      onOpenAcknowledgements={openAcknowledgements}
+      navigation={
+        tab.id === workspace.activeId && (
+          <ProjectTabs
+            tabs={workspace.tabs}
+            activeId={workspace.activeId}
+            onSelect={(id) => dispatch({ type: "select", id })}
+            onNew={() => dispatch({ type: "open", tab: newTab() })}
+            onClose={closeTab}
+          />
+        )
+      }
+    />
+  ))}
+  </>;
+}
+
+const FilterWorkspace = memo(function FilterWorkspace({
+  tabId,
+  active,
+  startingProject,
+  startingDirty,
+  registerRemote,
+  publishRemote,
+  remoteConnected,
+  onOpenProject,
+  onTabChange,
+  onOpenAcknowledgements,
+  navigation,
+}: {
+  tabId: string;
+  active: boolean;
+  startingProject: Project;
+  startingDirty: boolean;
+  registerRemote: (id: string, controller: RemoteController | null) => void;
+  publishRemote: () => void;
+  remoteConnected: boolean;
+  onOpenProject: (project: Project) => void;
+  onTabChange: (id: string, name: string, dirty: boolean) => void;
+  onOpenAcknowledgements: () => void;
+  navigation: ReactNode;
+}) {
   const { language, setLanguage, theme, setTheme, t, translate, number } =
     usePreferences();
   const familyDescriptions = getFamilyDescriptions(t);
@@ -288,16 +465,15 @@ export default function App() {
         };
   const formatEngineering = (value: number, unit = "", digits = 4) =>
     engineering(value, unit, digits, language === "de" ? "de-DE" : "en-US");
-  const [project, setProject] = useState<Project>(() => ({
-    ...initialProject,
-    name: t("Mein erster Filter", "My first filter"),
-  }));
-  const [settings, setSettings] = useState<FilterSettings>(defaultSettings);
+  const [project, setProject] = useState<Project>(startingProject);
+  const [settings, setSettings] = useState<FilterSettings>(
+    startingProject.settings,
+  );
   const [designMode, setDesignMode] = useState<"parameters" | "tolerance">(
-    "parameters",
+    startingProject.tolerance ? "tolerance" : "parameters",
   );
   const [toleranceDraft, setToleranceDraft] = useState<ToleranceSpec>(() =>
-    defaultTolerance(defaultSettings),
+    startingProject.tolerance ?? defaultTolerance(startingProject.settings),
   );
   const [history, setHistory] = useState<Project[]>([]),
     [future, setFuture] = useState<Project[]>([]);
@@ -306,7 +482,7 @@ export default function App() {
   );
   const [resultTab, setResultTab] = useState<
     "response" | "chain" | "polynomials" | "bom" | "tolerance"
-  >("response");
+  >(startingProject.tolerance ? "tolerance" : "response");
   const [plotMode, setPlotMode] = useState<"magnitude" | "phase">("magnitude");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fitKey, setFitKey] = useState(0);
@@ -317,7 +493,9 @@ export default function App() {
   const [generating, setGenerating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const changeStamp = useRef(0);
-  const [edited, setEdited] = useState(false);
+  const [edited, setEdited] = useState(startingDirty);
+  const [showRounding, setShowRounding] = useState(false);
+  const componentPrecision = project.componentPrecision ?? DEFAULT_COMPONENT_PRECISION;
   useEffect(() => {
     if (toast) {
       const timer = setTimeout(() => setToast(""), 4200);
@@ -325,7 +503,7 @@ export default function App() {
     }
   }, [toast]);
   useEffect(() => {
-    if (!showHelp && !showExport) return;
+    if (!active || (!showHelp && !showExport)) return;
     const listener = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setShowHelp(false);
@@ -334,7 +512,13 @@ export default function App() {
     };
     window.addEventListener("keydown", listener);
     return () => window.removeEventListener("keydown", listener);
-  }, [showHelp, showExport]);
+  }, [active, showHelp, showExport]);
+  useEffect(() => {
+    if (!active) {
+      setShowHelp(false);
+      setShowExport(false);
+    }
+  }, [active]);
   function commit(next: Project, coalesce = false) {
     if (!coalesce || Date.now() - changeStamp.current > 700) {
       setHistory((h) => [...h.slice(-39), project]);
@@ -471,6 +655,40 @@ export default function App() {
     JSON.stringify(settings) !== JSON.stringify(project.settings) ||
     (designMode === "tolerance" &&
       JSON.stringify(toleranceDraft) !== JSON.stringify(project.tolerance));
+  useEffect(() => {
+    onTabChange(tabId, project.name, edited || generatorDirty);
+  }, [onTabChange, tabId, project.name, edited, generatorDirty]);
+  const remoteRevision = useRef({ revision: 0, project, settings, toleranceDraft, designMode });
+  const previous = remoteRevision.current;
+  if (previous.project !== project || previous.settings !== settings || previous.toleranceDraft !== toleranceDraft || previous.designMode !== designMode) {
+    remoteRevision.current = { revision: previous.revision + 1, project, settings, toleranceDraft, designMode };
+  }
+  useLayoutEffect(() => {
+    const snapshot = (): RemoteTab => ({ id: tabId, revision: remoteRevision.current.revision, project, dirty: edited || generatorDirty, canUndo: history.length > 0, canRedo: future.length > 0,
+      draft: { mode: designMode, settings, tolerance: toleranceDraft, pending: generatorDirty },
+    });
+    registerRemote(tabId, { snapshot, execute: command => {
+      checkRevision(snapshot(), command.expectedRevision);
+      if (generating) throw new RemoteError(409, "Filter generation is in progress. Read the tab and retry.");
+      if (command.action === "replace") {
+        const next = parseProject(command.project);
+        commit(next);
+        restoreDesign(next);
+        setSelectedId(null);
+        setNotes([]);
+        setFitKey(key => key + 1);
+      } else if (command.action === "undo") {
+        if (!history.length) throw new RemoteError(409, "Nothing to undo.");
+        undo();
+      } else if (command.action === "redo") {
+        if (!future.length) throw new RemoteError(409, "Nothing to redo.");
+        redo();
+      } else throw new RemoteError(400, "Unknown command.");
+      setToast(t("Änderung über API/MCP übernommen", "API/MCP change applied"));
+    } });
+  });
+  useLayoutEffect(() => () => registerRemote(tabId, null), [registerRemote, tabId]);
+  useEffect(() => { publishRemote(); }, [publishRemote, project, settings, toleranceDraft, designMode, edited, generatorDirty, history, future]);
   function restoreDesign(next: Project) {
     setSettings(next.settings);
     setToleranceDraft(next.tolerance ?? defaultTolerance(next.settings));
@@ -492,8 +710,9 @@ export default function App() {
       next.cutoff = Math.max(2, Math.min(5e11, next.cutoff));
       next.bandwidth = next.cutoff / 2;
     }
-    if (next.family === "cauer" && next.order === 7)
-      next.attenuation = Math.max(40, next.attenuation);
+    next.order = nearestFilterOrder(next.family, next.order);
+    if (next.family === "cauer")
+      next.attenuation = Math.max(cauerMinimumAttenuation(next.order), next.attenuation);
     if (patch.response && patch.response !== toleranceDraft.response) {
       setToleranceDraft({
         ...defaultTolerance(next),
@@ -553,8 +772,8 @@ export default function App() {
     }
   }
   function addSection(key: string, position?: { x: number; y: number }) {
-    if (project.nodes.length >= 26) {
-      setToast("Maximal 24 Zweitore pro Schaltung.");
+    if (project.nodes.length >= MAX_CIRCUIT_NODES) {
+      setToast(t(`Maximal ${MAX_CIRCUIT_SECTIONS} Zweitore pro Schaltung.`, `A circuit can contain up to ${MAX_CIRCUIT_SECTIONS} two-ports.`));
       return;
     }
     const [kind, connection, resonator] = key.split("-");
@@ -684,13 +903,7 @@ export default function App() {
     try {
       if (file.size > 1e6) throw new Error("Die Datei ist größer als 1 MB.");
       const next = parseProject(JSON.parse(await file.text()));
-      commit(next);
-      restoreDesign(next);
-      setNotes([]);
-      setSelectedId(null);
-      setFitKey((k) => k + 1);
-      setToast("Projekt geöffnet.");
-      setEdited(false);
+      onOpenProject(next);
     } catch (e) {
       setToast(
         e instanceof Error
@@ -718,6 +931,8 @@ export default function App() {
         ...analysis.latex.sections,
         analysis.latex.abcd,
         analysis.latex.s,
+        ...Object.values(analysis.latex.numerators),
+        analysis.latex.denominator,
         analysis.latex.characteristic,
         analysis.latex.characteristicResponse,
       ]
@@ -771,7 +986,7 @@ export default function App() {
     setShowExport(false);
   }
   return (
-    <div className="app-shell">
+    <div className="app-shell" hidden={!active}>
       <header className="app-header">
         <a
           className="brand"
@@ -826,7 +1041,7 @@ export default function App() {
             </button>
           </div>
           <span className="local-status">
-            <i /> {t("Lokal im Browser", "Runs in your browser")}
+            <i /> {remoteConnected ? t("API/MCP verbunden", "API/MCP connected") : t("Lokal im Browser", "Runs in your browser")}
           </span>
           <button
             className="icon-button help-button"
@@ -897,6 +1112,13 @@ export default function App() {
           onChange={(e) => void importFile(e.target.files?.[0])}
         />
       </header>
+      {navigation}
+      <section
+        role="tabpanel"
+        id={`filter-panel-${tabId}`}
+        aria-labelledby={`filter-tab-${tabId}`}
+        tabIndex={0}
+      >
       <div className="project-header">
         <div>
           <div className="breadcrumb">
@@ -984,10 +1206,6 @@ export default function App() {
                       onClick={() =>
                         updateSettings({
                           family,
-                          ...(family === "cauer" &&
-                          ![3, 5, 7].includes(settings.order)
-                            ? { order: 5 }
-                            : {}),
                         })
                       }
                     >
@@ -1071,7 +1289,7 @@ export default function App() {
               ) : (
                 <>
                   <div className="order-label">
-                    <label htmlFor="order">
+                    <label htmlFor={`order-${tabId}`}>
                       {bandMode
                         ? t("Prototypordnung", "Prototype order")
                         : t("Filterordnung", "Filter order")}{" "}
@@ -1105,7 +1323,7 @@ export default function App() {
                         )}
                         disabled={
                           settings.order >=
-                          (settings.family === "cauer" ? 7 : 9)
+                          (settings.family === "cauer" ? MAX_CAUER_ORDER : MAX_PROTOTYPE_ORDER)
                         }
                         onClick={() =>
                           updateSettings({
@@ -1120,7 +1338,7 @@ export default function App() {
                     </div>
                   </div>
                   <input
-                    id="order"
+                    id={`order-${tabId}`}
                     aria-label={
                       bandMode
                         ? t("Prototypordnung", "Prototype order")
@@ -1129,7 +1347,7 @@ export default function App() {
                     className="order-range"
                     type="range"
                     min={settings.family === "cauer" ? 3 : 1}
-                    max={settings.family === "cauer" ? 7 : 9}
+                    max={settings.family === "cauer" ? MAX_CAUER_ORDER : MAX_PROTOTYPE_ORDER}
                     step={settings.family === "cauer" ? 2 : 1}
                     value={settings.order}
                     onChange={(e) =>
@@ -1138,7 +1356,7 @@ export default function App() {
                   />
                   <div className="range-labels">
                     <span>{settings.family === "cauer" ? "3" : "1"}</span>
-                    <span>{settings.family === "cauer" ? "7" : "9"}</span>
+                    <span>{settings.family === "cauer" ? MAX_CAUER_ORDER : MAX_PROTOTYPE_ORDER}</span>
                   </div>
                   {draftBand ? (
                     <>
@@ -1289,7 +1507,7 @@ export default function App() {
                     )}
                     value={settings.attenuation}
                     unit="dB"
-                    min={settings.order === 7 ? 40 : 20}
+                    min={cauerMinimumAttenuation(settings.order)}
                     max={80}
                     onChange={(n) => updateSettings({ attenuation: n })}
                   />
@@ -1393,6 +1611,12 @@ export default function App() {
               </button>
             </div>
           </div>
+          <div className="sidebar-footer">
+            <button className="acknowledgements-button" onClick={onOpenAcknowledgements}>
+              <BookOpen size={14} aria-hidden="true" /> Acknowledgements
+              <ArrowRight size={12} aria-hidden="true" />
+            </button>
+          </div>
         </aside>
         <div className="workspace">
           <section
@@ -1423,6 +1647,15 @@ export default function App() {
                     "Select, move, connect",
                   )}
                 </span>
+                <button
+                  className="circuit-rounding-button"
+                  aria-expanded={showRounding}
+                  aria-controls={`component-rounding-${tabId}`}
+                  onClick={() => setShowRounding((show) => !show)}
+                >
+                  <SlidersHorizontal size={15} />
+                  {t("Rundung", "Rounding")}
+                </button>
                 <button
                   className="circuit-clear-button"
                   onClick={clearCircuit}
@@ -1465,9 +1698,27 @@ export default function App() {
                 </button>
               </div>
             </div>
+            <ComponentRoundingControls
+              id={`component-rounding-${tabId}`}
+              open={showRounding}
+              nodes={project.nodes}
+              precision={componentPrecision}
+              disabled={generating}
+              onPrecisionChange={(componentPrecision) => commit({ ...project, componentPrecision })}
+              onRound={(nodes) => {
+                commit({ ...project, nodes });
+                setToast(t(
+                  "Bauteilwerte gerundet. Rückgängig stellt die vorherigen Werte wieder her.",
+                  "Component values rounded. Undo restores the previous values.",
+                ));
+              }}
+            />
             <div className={`canvas-area ${selected ? "has-inspector" : ""}`}>
               <div className="canvas-inner">
                 <CircuitEditor
+                  id={tabId}
+                  active={active}
+                  precision={componentPrecision}
                   nodes={project.nodes}
                   wires={project.wires}
                   selectedId={selectedId}
@@ -1976,14 +2227,26 @@ export default function App() {
                 <MathView
                   title={t("Streumatrix S(p)", "Scattering matrix S(p)")}
                   latex={analysis.latex.s}
-                  description={`${t("Leistungswellen", "Power waves")} · Z₁ = ${formatEngineering(analysis.z1, "Ω")} · Z₂ = ${formatEngineering(analysis.z2, "Ω")}`}
+                  description={`${t("Jeder Eintrag ist Sᵢⱼ(p) = Nᵢⱼ(p)/D(p). Die Zählerpolynome und der gemeinsame Nenner sind unten einzeln angegeben. Für diese reziproke Schaltung gilt N₁₂(p) = N₂₁(p).", "Each entry is Sᵢⱼ(p) = Nᵢⱼ(p)/D(p). The numerator polynomials and common denominator are listed separately below. For this reciprocal circuit, N₁₂(p) = N₂₁(p).")} ${t("Leistungswellen", "Power waves")} · Z₁ = ${formatEngineering(analysis.z1, "Ω")} · Z₂ = ${formatEngineering(analysis.z2, "Ω")}`}
                 />
+                {([
+                  ["s11", "N₁₁(p)"],
+                  ["s12", "N₁₂(p)"],
+                  ["s21", "N₂₁(p)"],
+                  ["s22", "N₂₂(p)"],
+                ] as const).map(([key, label]) => (
+                  <MathView
+                    key={key}
+                    title={`${t("Zählerpolynom", "Numerator polynomial")} ${label}`}
+                    latex={analysis.latex.numerators[key]}
+                  />
+                ))}
                 <MathView
                   title={t(
                     "Gemeinsames Nennerpolynom D(p)",
                     "Common denominator polynomial D(p)",
                   )}
-                  latex={`D(p)=${polynomialLatex(analysis.denominator)}`}
+                  latex={analysis.latex.denominator}
                 />
                 <div className="polynomial-table">
                   <h3>
@@ -1996,7 +2259,8 @@ export default function App() {
                           <th>{t("Potenz", "Power")}</th>
                           <th>D(p)</th>
                           <th>N₁₁(p)</th>
-                          <th>N₂₁(p) = N₁₂(p)</th>
+                          <th>N₁₂(p)</th>
+                          <th>N₂₁(p)</th>
                           <th>N₂₂(p)</th>
                         </tr>
                       </thead>
@@ -2018,6 +2282,7 @@ export default function App() {
                               {[
                                 analysis.denominator,
                                 analysis.numerators.s11,
+                                analysis.numerators.s12,
                                 analysis.numerators.s21,
                                 analysis.numerators.s22,
                               ].map((p, j) => (
@@ -2130,12 +2395,14 @@ export default function App() {
                               : t("Querzweig", "Shunt branch")}
                           </td>
                           <td>
-                            {formatEngineering(
+                            {formatComponentLabel(
                               s.value,
-                              s.kind === "C" ? "F" : s.kind === "R" ? "Ω" : "H",
+                              s.kind === "LC" ? "L" : s.kind,
+                              language,
+                              componentPrecision,
                             )}
                             {s.kind === "LC" &&
-                              ` / ${formatEngineering(s.value2!, "F")}`}
+                              ` / ${formatComponentLabel(s.value2!, "C", language, componentPrecision)}`}
                           </td>
                         </tr>
                       ))}
@@ -2167,7 +2434,7 @@ export default function App() {
               <ArrowRight size={12} />
             </button>
             <span>
-              {t(
+              {remoteConnected ? t("Mit lokalem Server verbunden.", "Connected to the local server.") : t(
                 "Kein Server. Deine Daten bleiben hier.",
                 "No server. Your data stays here.",
               )}
@@ -2175,7 +2442,8 @@ export default function App() {
           </footer>
         </div>
       </main>
-      {toast && (
+      </section>
+      {active && toast && (
         <div className="toast" role="status">
           <Info size={17} />
           <span>{translate(toast)}</span>
@@ -2187,7 +2455,7 @@ export default function App() {
           </button>
         </div>
       )}
-      {showHelp && (
+      {active && showHelp && (
         <div className="modal-backdrop" onClick={() => setShowHelp(false)}>
           <section
             className="help-modal"
@@ -2260,8 +2528,8 @@ export default function App() {
               </p>
               <p>
                 {t(
-                  "Beim Tief- und Hochpass ist f₀ bei Butterworth die −3,01-dB-Grenze; bei Chebyshev I und Cauer die Durchlassgrenze mit der gewählten Welligkeit. Bei Chebyshev gerader Ordnung wird die erforderliche Ausgangsimpedanz automatisch eingestellt. Cauer unterstützt Prototypordnung 3, 5 und 7; die LC-Werte werden numerisch synthetisiert und geprüft.",
-                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth and the specified passband edge for Chebyshev I and elliptic filters. Even-order Chebyshev filters automatically receive the required output impedance. Elliptic filters support prototype orders 3, 5, and 7; their LC values are numerically synthesized and verified.",
+                  "Beim Tief- und Hochpass ist f₀ bei Butterworth die −3,01-dB-Grenze; bei Chebyshev I und Cauer die Durchlassgrenze mit der gewählten Welligkeit. Bei Chebyshev gerader Ordnung wird die erforderliche Ausgangsimpedanz automatisch eingestellt. Butterworth und Chebyshev unterstützen n = 1–20, Cauer die ungeraden Prototypordnungen 3–19. Die LC-Werte werden numerisch synthetisiert und geprüft.",
+                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth and the specified passband edge for Chebyshev I and elliptic filters. Even-order Chebyshev filters automatically receive the required output impedance. Butterworth and Chebyshev support n = 1–20; elliptic filters support odd prototype orders 3–19. LC values are numerically synthesized and verified.",
                 )}
               </p>
               <p>
@@ -2314,4 +2582,4 @@ export default function App() {
       )}
     </div>
   );
-}
+});

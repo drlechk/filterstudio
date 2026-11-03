@@ -240,12 +240,12 @@ export function ToleranceControls({
         <small>
           {family === "cauer"
             ? t(
-                "Verfügbare Cauer-Prototypgrade: 3, 5, 7; bei n = 7 mindestens 40 dB.",
-                "Available Cauer prototype orders: 3, 5, 7; at least 40 dB for n = 7.",
+                "Verfügbare Cauer-Prototypgrade: ungerade 3–19; ab n = 7 mindestens 40 dB.",
+                "Available Cauer prototype orders: odd 3–19; at least 40 dB for n ≥ 7.",
               )
             : t(
-                "Verfügbare Prototypgrade: 1–9.",
-                "Available prototype orders: 1–9.",
+                "Verfügbare Prototypgrade: 1–20.",
+                "Available prototype orders: 1–20.",
               )}
         </small>
         {design.settings?.family === "butterworth" && (

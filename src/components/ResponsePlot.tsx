@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import type { NetworkAnalysis } from "../lib/network";
 import {
   sweepNetwork,
@@ -36,6 +36,7 @@ export function ResponsePlot({
   onExport?: (text: string) => void;
 }) {
   const { language, t, translate, number } = usePreferences();
+  const id = useId();
   const formatEngineering = (value: number, unit = "") =>
     engineering(value, unit, 4, language === "de" ? "de-DE" : "en-US");
   const [enabled, setEnabled] = useState<Key[]>(["s21", "s11"]);
@@ -251,7 +252,7 @@ export function ResponsePlot({
         onPointerLeave={() => setHover(null)}
       >
         <defs>
-          <clipPath id="plot-area">
+          <clipPath id={`${id}-plot-area`}>
             <rect
               x={margin.left}
               y={margin.top - 1}
@@ -259,7 +260,7 @@ export function ResponsePlot({
               height={ph + 2}
             />
           </clipPath>
-          <linearGradient id="passband" x1="0" x2="0" y1="0" y2="1">
+          <linearGradient id={`${id}-passband`} x1="0" x2="0" y1="0" y2="1">
             <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.055" />
             <stop offset="100%" stopColor="var(--accent)" stopOpacity="0" />
           </linearGradient>
@@ -303,7 +304,7 @@ export function ResponsePlot({
             </text>
           </g>
         ))}
-        <g clipPath="url(#plot-area)">
+        <g clipPath={`url(#${id}-plot-area)`}>
           {markers
             .filter(
               (marker) => marker.frequency >= min && marker.frequency <= max,

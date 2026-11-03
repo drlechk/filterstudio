@@ -17,7 +17,7 @@ export type NetworkAnalysis = {
   numerators: Scattering<Polynomial>;
   characteristic: Rational;
   lossless: boolean;
-  latex: { abcd: string; s: string; sections: string[]; characteristic: string; characteristicResponse?: string };
+  latex: { abcd: string; s: string; numerators: Scattering<string>; denominator: string; sections: string[]; characteristic: string; characteristicResponse?: string };
   evaluate: (frequency: number) => NumericNetwork;
 };
 
@@ -371,7 +371,14 @@ export function analyzeNetwork(sections: Section[], options: { fRef: number; z1:
   const lossless = sections.every(section => section.kind !== 'R');
   const latex = {
     abcd: `\\mathbf{M}(p)=${matrixLatex(rationalLatex(abcd.A), rationalLatex(abcd.B), rationalLatex(abcd.C), rationalLatex(abcd.D))}`,
-    s: `\\mathbf{S}(p)=\\frac{1}{${polynomialLatex(denominator)}}${matrixLatex(polynomialLatex(numerators.s11), polynomialLatex(numerators.s12), polynomialLatex(numerators.s21), polynomialLatex(numerators.s22))}`,
+    s: `\\mathbf{S}(p)=\\frac{1}{D(p)}${matrixLatex('N_{1,1}(p)', 'N_{1,2}(p)', 'N_{2,1}(p)', 'N_{2,2}(p)')}`,
+    numerators: {
+      s11: `N_{1,1}(p)=${polynomialLatex(numerators.s11)}`,
+      s12: `N_{1,2}(p)=${polynomialLatex(numerators.s12)}`,
+      s21: `N_{2,1}(p)=${polynomialLatex(numerators.s21)}`,
+      s22: `N_{2,2}(p)=${polynomialLatex(numerators.s22)}`,
+    },
+    denominator: `D(p)=${polynomialLatex(denominator)}`,
     sections: sectionLatex,
     characteristic: `\\begin{gathered}\\Psi(p)=\\frac{S_{11}(p)}{S_{21}(p)}=\\frac{N_{11}(p)}{N_{21}(p)}\\\\\\Psi(p)=${rationalLatex(characteristic)}\\end{gathered}`,
     ...(lossless ? { characteristicResponse: '\\begin{gathered}p=jx,\\quad x=f/f_0\\\\|S_{21}(jx)|^2=\\frac{1}{1+|\\Psi(jx)|^2},\\qquad |S_{11}(jx)|^2=\\frac{|\\Psi(jx)|^2}{1+|\\Psi(jx)|^2}\\\\A(f)=10\\log_{10}\\!\\left(1+|\\Psi(jf/f_0)|^2\\right)\\,\\mathrm{dB}\\end{gathered}' } : {}),

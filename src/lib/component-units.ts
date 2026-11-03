@@ -1,4 +1,5 @@
 import type { Language } from "./preference-storage";
+import type { ComponentPrecision } from "./types";
 
 export type ComponentQuantity = "R" | "L" | "C";
 export type ComponentUnit = { symbol: string; scale: number };
@@ -42,15 +43,47 @@ export function initialComponentUnit(
   return [...units].reverse().find((unit) => value >= unit.scale) ?? units[0];
 }
 
+/** Shift decimal digits directly so 5.15 nF does not display as 5.1499999999999995. */
+function shiftDecimal(value: number, exponent: number): string {
+  const [coefficient, originalExponent] = value.toExponential().split("e");
+  const shiftedExponent = Number(originalExponent) + exponent;
+  if (shiftedExponent < -6 || shiftedExponent >= 21)
+    return `${coefficient}e${shiftedExponent >= 0 ? "+" : ""}${shiftedExponent}`;
+  const digits = coefficient.replace(".", "");
+  const point = shiftedExponent + 1;
+  if (point <= 0) return `0.${"0".repeat(-point)}${digits}`;
+  if (point >= digits.length) return digits + "0".repeat(point - digits.length);
+  return `${digits.slice(0, point)}.${digits.slice(point)}`;
+}
+
 export function formatComponentValue(
   value: number,
   scale: number,
   language: Language,
+  precision: ComponentPrecision = "full",
 ): string {
+  const rounded = precision === "full" ? value : Number(value.toPrecision(precision));
+  const scaleExponent = Math.log10(scale);
+  const scaled = Number.isInteger(scaleExponent) && Number.isFinite(rounded) && rounded > 0
+    ? shiftDecimal(rounded, -scaleExponent)
+    : String(rounded / scale);
+  if (precision === "full")
+    return scaled.replace(".", language === "de" ? "," : ".");
   return new Intl.NumberFormat(language === "de" ? "de-DE" : "en-US", {
     useGrouping: false,
-    maximumSignificantDigits: 10,
-  }).format(value / scale);
+    maximumSignificantDigits: precision,
+  }).format(Number(scaled));
+}
+
+/** Shared by circuit labels and the component list; never changes the SI value. */
+export function formatComponentLabel(
+  value: number,
+  quantity: ComponentQuantity,
+  language: Language,
+  precision: ComponentPrecision = 4,
+): string {
+  const unit = initialComponentUnit(quantity, value);
+  return `${formatComponentValue(value, unit.scale, language, precision)} ${unit.symbol}`;
 }
 
 /** Accept either decimal separator and scientific notation, but no grouping. */
@@ -61,7 +94,11 @@ export function parseComponentValue(
   const normalized = draft.trim().replace(",", ".");
   if (!/^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(normalized))
     return null;
-  const value = Number(normalized) * scale;
+  const entered = Number(normalized);
+  const scaleExponent = Math.log10(scale);
+  const value = Number.isInteger(scaleExponent) && Number.isFinite(entered) && entered > 0
+    ? Number(shiftDecimal(entered, scaleExponent))
+    : entered * scale;
   return Number.isFinite(scale) &&
     scale > 0 &&
     Number.isFinite(value) &&
