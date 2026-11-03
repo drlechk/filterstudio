@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { CircuitEditor } from "./components/CircuitEditor";
 import { ProjectTabs } from "./components/ProjectTabs";
+import { SiteFooter } from "./components/SiteFooter";
 import { createFilterTab, workspaceReducer, type Workspace } from "./lib/workspace";
 import { MAX_PROTOTYPE_ORDER, MAX_CAUER_ORDER, MAX_CIRCUIT_NODES, MAX_CIRCUIT_SECTIONS, nearestFilterOrder, cauerMinimumAttenuation } from "./lib/filter-limits";
 import { useRemoteWorkspace } from "./lib/use-remote-workspace";
@@ -430,6 +431,7 @@ export default function App() {
       }
     />
   ))}
+    <SiteFooter />
   </>;
 }
 
@@ -458,7 +460,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
   onOpenAcknowledgements: () => void;
   navigation: ReactNode;
 }) {
-  const { language, setLanguage, theme, setTheme, t, translate, number } =
+  const { language, setLanguage, theme, setTheme, circuitSymbols, setCircuitSymbols, showSourceAndLoad, setShowSourceAndLoad, t, translate, number } =
     usePreferences();
   const familyDescriptions = getFamilyDescriptions(t);
   const palette = getPalette(t);
@@ -1682,6 +1684,29 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     "Select, move, connect",
                   )}
                 </span>
+                <label className="circuit-symbols-control">
+                  {t("Schaltzeichen", "Circuit symbols")}
+                  <select
+                    value={circuitSymbols}
+                    onChange={event => setCircuitSymbols(event.target.value as typeof circuitSymbols)}
+                  >
+                    <option value="european">{t("Europäisch (IEC)", "European (IEC)")}</option>
+                    <option value="american">{t("Amerikanisch (ANSI)", "American (ANSI)")}</option>
+                  </select>
+                </label>
+                <label
+                  className="circuit-terminations-control"
+                  title={t("Spannungsquelle, R1 und R2 ein- oder ausblenden", "Show or hide voltage source, R1 and R2")}
+                >
+                  {t("Quelle und Last", "Source and load")}
+                  <input
+                    className="circuit-visibility-switch"
+                    type="checkbox"
+                    role="switch"
+                    checked={showSourceAndLoad}
+                    onChange={event => setShowSourceAndLoad(event.target.checked)}
+                  />
+                </label>
                 <button
                   className="circuit-align-button"
                   onClick={alignCircuit}

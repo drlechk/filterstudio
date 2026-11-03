@@ -75,6 +75,8 @@ function Glyph({
   rotation?: number;
   scale?: number;
 }) {
+  const { circuitSymbols } = usePreferences();
+  const european = circuitSymbols === "european";
   return (
     <g
       transform={`translate(${x} ${y}) rotate(${rotation}) scale(${scale})`}
@@ -83,13 +85,16 @@ function Glyph({
       {kind === "R" && (
         <>
           <path d="M-30 0H-23M23 0H30" />
-          <rect x="-23" y="-8" width="46" height="16" />
+          {european
+            ? <rect x="-23" y="-8" width="46" height="16" />
+            : <path d="M-23 0l2.3-8 4.6 16 4.6-16 4.6 16 4.6-16 4.6 16 4.6-16 4.6 16 4.6-16 4.6 16 2.3-8" />}
         </>
       )}
       {kind === "C" && <path d="M-30 0H-5M5 0H30M-5-13V13M5-13V13" />}
-      {kind === "L" && (
-        <path d="M-30 0h2c0-15 14-15 14 0c0-15 14-15 14 0c0-15 14-15 14 0c0-15 14-15 14 0h2" />
-      )}
+      {kind === "L" && (european ? <>
+        <path d="M-30 0H-23M23 0H30" />
+        <path d="M-23-8H23V8H-23Z" fill="currentColor" />
+      </> : <path d="M-30 0h2c0-15 14-15 14 0c0-15 14-15 14 0c0-15 14-15 14 0c0-15 14-15 14 0h2" />)}
     </g>
   );
 }
@@ -186,7 +191,7 @@ function PortTermination({ input, returnY }: { input: boolean; returnY: number }
 }
 
 function CircuitComponent({ data, selected }: NodeProps<FlowNode>) {
-  const { t, language } = usePreferences();
+  const { t, language, showSourceAndLoad } = usePreferences();
   if (data.port) {
     const input = data.port === "input",
       terminalX = input ? 24 : 52,
@@ -199,13 +204,19 @@ function CircuitComponent({ data, selected }: NodeProps<FlowNode>) {
         style={{ height: portHeight }}
         aria-label={
           input
-            ? t(
+            ? showSourceAndLoad ? t(
                 "Tor 1, Eingang mit Signal- und Masseanschluss sowie Spannungsquelle und Innenwiderstand R1",
                 "Port 1, input with signal and return terminals, voltage source and source resistance R1",
+              ) : t(
+                "Tor 1, Eingang mit Signal- und Masseanschluss",
+                "Port 1, input with signal and return terminals",
               )
-            : t(
+            : showSourceAndLoad ? t(
                 "Tor 2, Ausgang mit Signal- und Masseanschluss sowie Lastwiderstand R2",
                 "Port 2, output with signal and return terminals and load resistance R2",
+              ) : t(
+                "Tor 2, Ausgang mit Signal- und Masseanschluss",
+                "Port 2, output with signal and return terminals",
               )
         }
       >
@@ -221,7 +232,7 @@ function CircuitComponent({ data, selected }: NodeProps<FlowNode>) {
           viewBox={`0 0 ${PORT_WIDTH} ${portHeight}`}
           aria-hidden="true"
         >
-          <PortTermination input={input} returnY={returnY} />
+          {showSourceAndLoad && <PortTermination input={input} returnY={returnY} />}
           <path
             className="port-conductor"
             d={input ? "M29 48H76" : "M0 48H47"}
@@ -386,17 +397,17 @@ function Canvas(props: CircuitEditorProps) {
     onDropSection,
     fitKey,
   } = props;
-  const { t, theme, number } = usePreferences();
+  const { t, theme, number, showSourceAndLoad } = usePreferences();
   const { screenToFlowPosition, fitView } = useReactFlow<FlowNode>();
   const [selectedEdges, setSelectedEdges] = useState<string[]>([]);
-  const lastFitKey = useRef<number | null>(null);
+  const lastFit = useRef<{ key: number; showSourceAndLoad: boolean } | null>(null);
   const modelRef = useRef({ nodes, wires });
   modelRef.current = { nodes, wires };
   const commit = (nextNodes: CircuitNode[], nextWires: CircuitWire[]) => {
     modelRef.current = { nodes: nextNodes, wires: nextWires };
     onChange(nextNodes, nextWires);
   };
-  const ground = useMemo(() => groundGeometry(nodes), [nodes]);
+  const ground = useMemo(() => groundGeometry(nodes, showSourceAndLoad), [nodes, showSourceAndLoad]);
   const boundsId = useMemo(() => {
     let id = "__filterstudio_ground_bounds";
     while (nodes.some((node) => node.id === id)) id += "_";
@@ -477,9 +488,9 @@ function Canvas(props: CircuitEditorProps) {
     }));
   }, [wires, selectedEdges, nodes, t]);
   useEffect(() => {
-    if (!active || lastFitKey.current === fitKey) return;
+    if (!active || (lastFit.current?.key === fitKey && lastFit.current.showSourceAndLoad === showSourceAndLoad)) return;
     const timer = window.setTimeout(() => {
-      lastFitKey.current = fitKey;
+      lastFit.current = { key: fitKey, showSourceAndLoad };
       void fitView({
         duration: 320,
         padding: 0.18,
@@ -488,7 +499,7 @@ function Canvas(props: CircuitEditorProps) {
       });
     }, 80);
     return () => window.clearTimeout(timer);
-  }, [active, fitKey, fitView]);
+  }, [active, fitKey, fitView, showSourceAndLoad]);
 
   const isValidConnection = useCallback(
     (connection: Connection | Edge) => {

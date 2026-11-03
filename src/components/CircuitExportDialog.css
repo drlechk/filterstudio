@@ -19,12 +19,6 @@
 .circuit-export-options select { width: 100%; padding: 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-subtle); font: inherit; }
 .circuit-export-terminations { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; font-size: 12px; cursor: pointer; }
 .circuit-export-terminations small { display: block; margin-top: 4px; color: var(--text-muted); }
-.circuit-export-terminations input { appearance: none; position: relative; flex: 0 0 36px; width: 36px; height: 20px; padding: 0; margin: 0; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-subtle); cursor: pointer; }
-.circuit-export-terminations input::before { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-muted); }
-.circuit-export-terminations input:checked { background: var(--accent-solid); border-color: var(--accent-solid); }
-.circuit-export-terminations input:checked::before { transform: translateX(16px); background: white; }
-.circuit-export-terminations input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.circuit-export-terminations input:disabled { opacity: .5; cursor: wait; }
 .circuit-export-preview { margin: 20px 0; padding: 12px; background: white; border-radius: 8px; overflow: auto; }
 .circuit-export-preview > svg { display: block; width: 100%; height: auto; min-height: 120px; max-height: 300px; }
 .circuit-export-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 12px; margin-top: 22px; }

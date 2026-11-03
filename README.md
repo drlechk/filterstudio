@@ -245,7 +245,11 @@ The editor models a **cascade of two-port networks with a common ground**. Each 
 
 The diagram shows separate signal and ground terminals at each port. The lower port terminals sit directly on the straight, continuous ground rail connecting both ports and all shunt branches. No additional ground symbol is drawn. The rail follows panning and zooming and is included when fitting the circuit to the viewport.
 
+**Circuit symbols** above the designer switches between **European (IEC)** and **American (ANSI)** symbols, including the inductors in LC blocks and the source/load resistors R1 and R2. European symbols use rectangular resistors and filled rectangular inductors; American symbols use zigzag resistors and coil inductors. Capacitors use the same two-plate symbol. The choice is saved in the browser, applies across filter tabs and initializes the export dialog, where it can still be overridden. It only changes the drawing; component values, positions, connections and calculations stay the same.
+
 A subdued gray voltage source with series source resistance **R1** appears to the left of port 1, and the load resistance **R2** connects port 2 to the common return on the right. These symbols illustrate the source and load represented by the port reference impedances; they are not additional filter sections. They move with the ports and are included when fitting the entire circuit into view.
+
+The **Source and load** switch above the designer shows or hides the voltage source, R1, R2 and their external leads together. The view fits the visible circuit after switching. Port terminals and the common return remain visible, and reference impedances and calculations are unchanged. This display preference is saved in the browser across filter tabs and initializes the corresponding export switch; the export setting can still be changed independently.
 
 The visible grid, generated layouts, and component placement use the same spacing. Dropped and moved components snap to it, so their signal terminals can align horizontally with both ports. Near an existing signal row, components also align to that exact height, including off-grid port positions in older JSON projects. Imported layouts are preserved until individual elements are moved or **Straighten circuit** is selected. Drop placement accounts for the current zoom and pan.
 
@@ -405,9 +409,13 @@ The **Source and load** switch includes or hides the voltage source, R1 and R2 t
 
 **Download PDF** creates vector graphics and equations entirely in the browser using bundled MathJax, svg2pdf and jsPDF. It works with static hosting, without a server, remote compilation service or upload. It draws the same circuit directly rather than compiling the `.tex` file, so typography and symbol details can differ from CircuiTikZ. Typeset matrices and selected plots receive their own PDF pages; comments-only matrices are omitted from the PDF. Pages are cropped to their content rather than forced onto A4.
 
+The PDF schematic and preview show component references without numeric values, with half the horizontal spacing of the LaTeX drawing. Symbol sizes and vertical spacing are preserved; long custom labels retain additional space. The designer keeps its wider spacing and visible values. A separate component list follows the circuit, before any matrices or plots, with matching references, branch locations and values at the selected display precision. LC blocks have separate rows for their inductor and capacitor. Source R1 and load R2 appear in the list only when **Source and load** is enabled. Long lists continue on additional pages with repeated headers. The LaTeX circuit continues to include values directly in the drawing.
+
 ## GitHub and deployment
 
 The project is hosted at [github.com/drlechk/filterstudio](https://github.com/drlechk/filterstudio). The published application is available at **[drlechk.github.io/filterstudio/](https://drlechk.github.io/filterstudio/)**.
+
+A shared footer at the bottom of the studio and Credits page shows the deployment build's date and time in UTC and links to the GitHub repository. The Pages workflow records `DEPLOY_TIME` when building the deployment artifact; local builds use their build time, and the development server labels its startup timestamp as a development build. The timestamp is embedded in the bundle and stays unchanged when the page reloads. Other deployment pipelines can supply an ISO timestamp through `DEPLOY_TIME`.
 
 The workflow in [`.github/workflows/pages.yml`](.github/workflows/pages.yml) uses Node.js 24 and installs locked dependencies with `npm ci`. It runs all tests, TypeScript checks, and the Vite production build:
 

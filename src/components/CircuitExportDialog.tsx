@@ -15,10 +15,10 @@ export default function CircuitExportDialog({ project, analysis, plotContext, on
   plotContext: ExportPlotContext;
   onClose: () => void;
 }) {
-  const { t } = usePreferences();
-  const [symbols, setSymbols] = useState<CircuitExportOptions["symbols"]>("european");
+  const { t, language, circuitSymbols, showSourceAndLoad } = usePreferences();
+  const [symbols, setSymbols] = useState<CircuitExportOptions["symbols"]>(circuitSymbols);
   const [matrices, setMatrices] = useState<CircuitExportOptions["matrices"]>("none");
-  const [includeSourceAndLoad, setIncludeSourceAndLoad] = useState(true);
+  const [includeSourceAndLoad, setIncludeSourceAndLoad] = useState(showSourceAndLoad);
   const [plots, setPlots] = useState<ExportPlotSelection>({});
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const dialog = useRef<HTMLDialogElement>(null), id = useId();
@@ -33,7 +33,7 @@ export default function CircuitExportDialog({ project, analysis, plotContext, on
   }, []);
   const filename = `${project.name.replace(/[^\p{L}\p{N} _-]/gu, "").trim() || "filter"}-circuit`;
   const toleranceAvailable = !plotContext.tolerance || !!plotContext.tolerance.preview || plotContext.tolerance.showActual;
-  const options = { symbols, matrices, includeSourceAndLoad, plots: {
+  const options = { symbols, matrices, includeSourceAndLoad, language, plots: {
     ...plots, attenuation: toleranceAvailable && plots.attenuation, transmissionPhase: toleranceAvailable && plots.transmissionPhase,
   } };
   async function downloadPdf() {
@@ -79,7 +79,7 @@ export default function CircuitExportDialog({ project, analysis, plotContext, on
     </div>
     <label className="circuit-export-terminations">
       <span>{t("Quelle und Last", "Source and load")}<small>{t("Spannungsquelle, R1 und R2 anzeigen", "Show voltage source, R1 and R2")}</small></span>
-      <input type="checkbox" role="switch" checked={includeSourceAndLoad} onChange={event => setIncludeSourceAndLoad(event.target.checked)} disabled={busy} />
+      <input className="circuit-visibility-switch" type="checkbox" role="switch" checked={includeSourceAndLoad} onChange={event => setIncludeSourceAndLoad(event.target.checked)} disabled={busy} />
     </label>
     <p className="circuit-export-note">{matrices === "typeset"
       ? t("Gesamtmatrix und Teilkettenmatrizen werden auf eigenen Seiten gesetzt, einschließlich der eingesetzten Bauteilwerte.", "The overall matrix and section matrices are typeset on separate pages, including the component-value substitutions.")
@@ -90,6 +90,10 @@ export default function CircuitExportDialog({ project, analysis, plotContext, on
           : t("Das Dokument enthält die Schaltung zwischen Tor 1 und Tor 2.", "The document contains the circuit between Port 1 and Port 2.")}</p>
     {preview.error ? <p role="status">{t("Vorschau nicht verfügbar.", "Preview unavailable.")}</p>
       : <div className="circuit-export-preview" role="img" aria-label={t("Vorschau der exportierten Schaltung", "Exported circuit preview")} dangerouslySetInnerHTML={{ __html: preview.source }} />}
+    <p className="circuit-export-note">{t(
+      "Im PDF stehen nur die Bauteilbezeichnungen in der Schaltung. Eine separate Bauteilliste enthält alle Werte mit der gewählten Anzeigepräzision, einschließlich beider Bauteile jedes LC-Glieds. Der LaTeX-Export enthält die Werte weiterhin direkt in der Zeichnung.",
+      "The PDF schematic shows component references only. A separate component list contains all values at the selected display precision, including both components of each LC block. The LaTeX export still includes values in the drawing.",
+    )}</p>
     <fieldset className="circuit-export-plots">
       <legend>{t("Diagramme hinzufügen", "Include plots")}</legend>
       {([

@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   CIRCUIT_NODE_HEIGHT,
+  COMPONENT_WIDTH,
   groundGeometry,
   GROUND_CLEARANCE,
+  PORT_WIDTH,
+  SOURCE_BRANCH_X,
+  LOAD_BRANCH_X,
   SIGNAL_Y,
 } from "./ground-geometry";
 import type { CircuitNode } from "./types";
@@ -122,5 +126,24 @@ describe("implicit continuous return conductor", () => {
     groundGeometry(nodes);
     expect(nodes).toEqual(original);
     expect(groundGeometry([])).toBeNull();
+  });
+  it("fits visible source/load branches only, keeping the ports, shunts and common return intact", () => {
+    const nodes = [...ports, series, shunt], original = structuredClone(nodes);
+    const visible = groundGeometry(nodes, true)!;
+    const hidden = groundGeometry(nodes, false)!;
+    expect(visible.bounds.x).toBeLessThan(ports[0].x + SOURCE_BRANCH_X);
+    expect(visible.bounds.x + visible.bounds.width).toBeGreaterThan(ports[1].x + LOAD_BRANCH_X);
+    expect(hidden.bounds.x).toBe(ports[0].x - 12);
+    expect(hidden.bounds.x + hidden.bounds.width).toBe(ports[1].x + PORT_WIDTH + 12);
+    expect(hidden.rail).toEqual(visible.rail);
+    expect(hidden.connections).toEqual(visible.connections);
+    expect(hidden.bounds.y).toBe(visible.bounds.y);
+    expect(hidden.bounds.height).toBe(visible.bounds.height);
+    expect(nodes).toEqual(original);
+    const withLooseParts = groundGeometry([
+      ...nodes, { ...series, id: "left", x: -500 }, { ...shunt, id: "right", x: 1200 },
+    ], false)!;
+    expect(withLooseParts.bounds.x).toBe(-512);
+    expect(withLooseParts.bounds.x + withLooseParts.bounds.width).toBe(1200 + COMPONENT_WIDTH + 12);
   });
 });

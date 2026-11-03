@@ -30,6 +30,7 @@ export type GroundGeometry = {
 /** The common return is implicit; no ground nodes or wires enter the saved model. */
 export function groundGeometry(
   nodes: readonly CircuitNode[],
+  includeSourceAndLoad = true,
 ): GroundGeometry | null {
   if (!nodes.length) return null;
   const y =
@@ -71,12 +72,12 @@ export function groundGeometry(
     right = center + 32;
   }
   const boundsLeft = Math.min(left - 12, ...nodes.map((node) =>
-    node.x + (node.port === "input" ? SOURCE_BRANCH_X - 48 : -12),
+    node.x + (includeSourceAndLoad && node.port === "input" ? SOURCE_BRANCH_X - 48 : -12),
   ));
   const boundsRight = Math.max(
     right + 12,
     ...nodes.map(
-      (node) => node.x + (node.port === "output" ? LOAD_BRANCH_X + 48 : (node.port ? PORT_WIDTH : COMPONENT_WIDTH) + 12),
+      (node) => node.x + (includeSourceAndLoad && node.port === "output" ? LOAD_BRANCH_X + 48 : (node.port ? PORT_WIDTH : COMPONENT_WIDTH) + 12),
     ),
   );
   const boundsTop = Math.min(...nodes.map((node) => node.y - 12));

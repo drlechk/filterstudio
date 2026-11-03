@@ -28,7 +28,7 @@ jobs:
       - name: Test
         run: npm test
       - name: Build static app
-        run: npm run build -- --base=/filterstudio/
+        run: DEPLOY_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)" npm run build -- --base=/filterstudio/
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4

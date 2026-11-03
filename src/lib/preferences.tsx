@@ -16,6 +16,8 @@ import {
   themeColors,
   validLanguage,
   validTheme,
+  validCircuitSymbols,
+  type CircuitSymbols,
   type Language,
   type PreferenceSnapshot,
   type PreferenceStorage,
@@ -23,13 +25,17 @@ import {
 } from "./preference-storage";
 import { translateMessage } from "./messages";
 
-export type { Language, Theme } from "./preference-storage";
+export type { Language, Theme, CircuitSymbols } from "./preference-storage";
 export type Translator = (de: string, en: string) => string;
 export type Preferences = {
   language: Language;
   setLanguage: (language: Language) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
+  circuitSymbols: CircuitSymbols;
+  setCircuitSymbols: (symbols: CircuitSymbols) => void;
+  showSourceAndLoad: boolean;
+  setShowSourceAndLoad: (show: boolean) => void;
   t: Translator;
   translate: (message: string) => string;
   /** Locale-aware formatting with up to `digits` significant digits (default 4). */
@@ -54,7 +60,7 @@ const initialPreferences = () =>
 export function PreferencesProvider({ children }: { children: ReactNode }) {
   const [preferences, setPreferences] =
     useState<PreferenceSnapshot>(initialPreferences);
-  const { language, theme, themeIsExplicit } = preferences;
+  const { language, theme, themeIsExplicit, circuitSymbols, showSourceAndLoad } = preferences;
   const setLanguage = useCallback((value: Language) => {
     if (!validLanguage(value)) return;
     setPreferences((previous) => ({ ...previous, language: value }));
@@ -68,6 +74,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       themeIsExplicit: true,
     }));
     savePreference(storage(), preferenceKeys.theme, value);
+  }, []);
+  const setCircuitSymbols = useCallback((value: CircuitSymbols) => {
+    if (!validCircuitSymbols(value)) return;
+    setPreferences((previous) => ({ ...previous, circuitSymbols: value }));
+    savePreference(storage(), preferenceKeys.circuitSymbols, value);
+  }, []);
+  const setShowSourceAndLoad = useCallback((value: boolean) => {
+    setPreferences((previous) => ({ ...previous, showSourceAndLoad: value }));
+    savePreference(storage(), preferenceKeys.showSourceAndLoad, String(value));
   }, []);
 
   useLayoutEffect(() => {
@@ -124,6 +139,16 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
           ...previous,
           language: validLanguage(event.newValue) ? event.newValue : "en",
         }));
+      } else if (event.key === preferenceKeys.circuitSymbols) {
+        setPreferences((previous) => ({
+          ...previous,
+          circuitSymbols: validCircuitSymbols(event.newValue) ? event.newValue : "european",
+        }));
+      } else if (event.key === preferenceKeys.showSourceAndLoad) {
+        setPreferences((previous) => ({
+          ...previous,
+          showSourceAndLoad: event.newValue !== "false",
+        }));
       } else if (event.key === preferenceKeys.theme) {
         const explicit = validTheme(event.newValue);
         const nextTheme = explicit
@@ -148,11 +173,15 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
       theme,
       setLanguage,
       setTheme,
+      circuitSymbols,
+      setCircuitSymbols,
+      showSourceAndLoad,
+      setShowSourceAndLoad,
       t: (de, en) => (language === "de" ? de : en),
       translate: (message) => translateMessage(message, language),
       number: (value, digits) => formatNumber(value, language, digits),
     }),
-    [language, theme, setLanguage, setTheme],
+    [language, theme, setLanguage, setTheme, circuitSymbols, setCircuitSymbols, showSourceAndLoad, setShowSourceAndLoad],
   );
   return (
     <PreferencesContext.Provider value={value}>

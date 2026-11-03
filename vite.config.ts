@@ -13,7 +13,10 @@ export default defineConfig({
     },
   }],
   // MathJax's source modules otherwise try to discover their version via Node's require().
-  define: { PACKAGE_VERSION: JSON.stringify(mathjaxPackage.version) },
+  define: {
+    PACKAGE_VERSION: JSON.stringify(mathjaxPackage.version),
+    __DEPLOY_TIME__: JSON.stringify(new Date(process.env.DEPLOY_TIME || Date.now()).toISOString()),
+  },
   base: "./",
   server: {
     proxy: {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { circuitDrawing, circuitLatex, matrixExportBlocks, type DrawingItem, type Point } from "./circuit-export";
-import { circuitSvg, matrixBlockSvg } from "./circuit-export-svg";
+import { circuitDrawing, circuitLatex, componentListEntries, matrixExportBlocks, type DrawingItem, type Point } from "./circuit-export";
+import { circuitSvg, componentListSvgs, matrixBlockSvg } from "./circuit-export-svg";
 import { createCircuit, defaultSettings } from "./project";
 import { analyzeNetwork } from "./network";
 import { synthesize } from "./synthesis";
@@ -45,9 +45,9 @@ describe("standalone circuit export", () => {
     expect(expected).toContain("R_2=75");
   });
 
-  for (const connection of ["series", "shunt"] as const) for (const resonator of ["series", "parallel"] as const) {
-    it(`preserves ${resonator} LC connectivity in a ${connection} branch`, () => {
-      const drawing = circuitDrawing(project([{ id: "lc", kind: "LC", connection, resonator, value: 1e-6, value2: 1e-9 }]));
+  for (const connection of ["series", "shunt"] as const) for (const resonator of ["series", "parallel"] as const) for (const includeValues of [true, false]) {
+    it(`preserves ${resonator} LC connectivity in a ${connection} branch (${includeValues ? "values" : "compact references"})`, () => {
+      const drawing = circuitDrawing(project([{ id: "lc", kind: "LC", connection, resonator, value: 1e-6, value2: 1e-9 }]), { includeValues });
       const net = nets(drawing.items);
       const elements = drawing.items.filter(item => item.type === "element").filter(item => !item.muted);
       const [l, c] = elements;
@@ -92,6 +92,72 @@ describe("standalone circuit export", () => {
     expect(source).toContain("% \\begin{tikzpicture}");
     for (const formula of [n.latex.abcdDenominator, ...Object.values(n.latex.abcdEntries)]) expect(typeset).toContain(formula);
     expect(() => circuitLatex(p, { symbols: "european", matrices: "typeset" })).toThrow(/analysis/);
+  });
+
+  it("keeps references in the PDF drawing and moves every R/L/C value into the matching list", () => {
+    const sections: Section[] = [
+      { id: "r", kind: "R", connection: "series", value: 1234, label: "R_test & 1" },
+      ...(["series", "shunt"] as const).flatMap(connection => (["series", "parallel"] as const).map(resonator => ({
+        id: `${connection}-${resonator}`, kind: "LC" as const, connection, resonator, value: 2e-6, value2: 3e-9,
+      }))),
+    ];
+    const p = project(sections), options = { symbols: "european" as const, matrices: "none" as const, language: "de" as const };
+    const labels = circuitDrawing(p, { includeValues: false }).items.filter(item => item.type === "label").map(item => item.latex);
+    const entries = componentListEntries(p, options);
+    expect(labels.every(label => !label.includes("="))).toBe(true);
+    expect(entries.map(entry => entry.reference)).toEqual(["R_1", "\\text{R\\_test \\& 1}", "L_{2}", "C_{2}", "L_{3}", "C_{3}", "L_{4}", "C_{4}", "L_{5}", "C_{5}", "R_2"]);
+    expect(entries.every(entry => labels.includes(entry.reference))).toBe(true);
+    expect(entries[0]).toMatchObject({ description: "\\text{Quelle}", value: "50\\,\\mathrm{\\Omega }" });
+    expect(entries[1].value).toBe("1.234\\,\\mathrm{k\\Omega }");
+    expect(entries[2].value).toBe("2\\,\\mathrm{\\mu H}");
+    expect(entries[3].value).toBe("3\\,\\mathrm{nF}");
+    expect(entries.at(-1)).toMatchObject({ description: "\\text{Last}", value: "75\\,\\mathrm{\\Omega }" });
+    const hidden = componentListEntries(p, { includeSourceAndLoad: false, language: "de" });
+    expect(hidden).toEqual(entries.slice(1, -1));
+    p.nodes.reverse(); p.wires.reverse();
+    expect(componentListEntries(p, options)).toEqual(entries);
+    expect(circuitLatex(p, options)).toContain("R_1=50");
+  });
+
+  it("halves PDF spacing independently of the designer and the LaTeX drawing", () => {
+    const p = project([
+      { id: "l", kind: "L", connection: "series", value: 1e-6 },
+      { id: "lc", kind: "LC", connection: "shunt", resonator: "parallel", value: 2e-6, value2: 3e-9 },
+    ]);
+    const original = structuredClone(p);
+    for (const includeSourceAndLoad of [true, false]) {
+      const normal = circuitDrawing(p, { includeSourceAndLoad });
+      const compact = circuitDrawing(p, { includeSourceAndLoad, includeValues: false });
+      expect(compact.width).toBe(normal.width / 2);
+      expect(compact.bottom).toBe(normal.bottom);
+      expect(compact.items.filter(item => item.type === "element").map(item => item.kind))
+        .toEqual(normal.items.filter(item => item.type === "element").map(item => item.kind));
+    }
+    expect(p).toEqual(original);
+  });
+
+  it("keeps full precision in the list without enlarging or adding values to the PDF schematic", () => {
+    const p = project([{ id: "l", kind: "L", connection: "series", value: 1.23456789e-6 }]);
+    const options = { symbols: "american" as const, matrices: "none" as const, includeSourceAndLoad: false };
+    const roundedDrawing = circuitSvg(p, options);
+    expect(componentListEntries(p, options)[0].value).toBe("1.235\\,\\mathrm{\\mu H}");
+    p.componentPrecision = "full";
+    expect(componentListEntries(p, options)[0].value).toBe("1.23456789\\,\\mathrm{\\mu H}");
+    expect(circuitSvg(p, options)).toEqual(roundedDrawing);
+  });
+
+  it("paginates long component lists and renders empty circuits without invalid vector content", () => {
+    const p = project(Array.from({ length: 20 }, (_, i) => ({ id: `lc-${i}`, kind: "LC", connection: "series", resonator: "parallel", value: 1e-6, value2: 1e-9 })));
+    const options = { symbols: "european" as const, matrices: "none" as const, language: "de" as const };
+    const pages = componentListSvgs(p, options);
+    expect(pages).toHaveLength(2);
+    for (const page of [...pages, ...componentListSvgs(project([]), { ...options, includeSourceAndLoad: false })]) {
+      expect(page.width).toBeGreaterThan(0);
+      expect(page.height).toBeGreaterThan(0);
+      expect(page.height).toBeLessThan(800);
+      expect(page.source).not.toMatch(/merror|NaN|Infinity|<image|<text/);
+      expect(page.source).toContain("<path");
+    }
   });
 
   it("renders vector formulas for every filter family and response without missing glyphs or non-finite bounds", () => {

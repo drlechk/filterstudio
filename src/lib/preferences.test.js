@@ -27,15 +27,21 @@ describe("persistent display preferences", () => {
     expect(loadPreferences(storage, true)).toEqual({
       language: "en",
       theme: "dark",
+      circuitSymbols: "european",
+      showSourceAndLoad: true,
       themeIsExplicit: false,
     });
     expect(loadPreferences(storage, false)).toEqual({
       language: "en",
       theme: "light",
+      circuitSymbols: "european",
+      showSourceAndLoad: true,
       themeIsExplicit: false,
     });
     expect(storage.getItem(preferenceKeys.theme)).toBeNull();
     expect(storage.getItem(preferenceKeys.language)).toBeNull();
+    expect(storage.getItem(preferenceKeys.circuitSymbols)).toBeNull();
+    expect(storage.getItem(preferenceKeys.showSourceAndLoad)).toBeNull();
   });
 
   it.each(["de", "en"])(
@@ -46,13 +52,21 @@ describe("persistent display preferences", () => {
         true,
       );
       expect(savePreference(storage, preferenceKeys.theme, "light")).toBe(true);
+      expect(savePreference(storage, preferenceKeys.circuitSymbols, "american")).toBe(true);
+      expect(savePreference(storage, preferenceKeys.showSourceAndLoad, "false")).toBe(true);
       expect(loadPreferences(storage, true)).toEqual({
         language,
         theme: "light",
+        circuitSymbols: "american",
+        showSourceAndLoad: false,
         themeIsExplicit: true,
       });
       savePreference(storage, preferenceKeys.theme, "dark");
       expect(loadPreferences(storage, false).theme).toBe("dark");
+      savePreference(storage, preferenceKeys.circuitSymbols, "european");
+      expect(loadPreferences(storage, false).circuitSymbols).toBe("european");
+      savePreference(storage, preferenceKeys.showSourceAndLoad, "true");
+      expect(loadPreferences(storage, false).showSourceAndLoad).toBe(true);
     },
   );
 
@@ -62,10 +76,12 @@ describe("persistent display preferences", () => {
         memoryStorage({
           [preferenceKeys.language]: "fr",
           [preferenceKeys.theme]: "sepia",
+          [preferenceKeys.circuitSymbols]: "unknown",
+          [preferenceKeys.showSourceAndLoad]: "unknown",
         }),
         true,
       ),
-    ).toEqual({ language: "en", theme: "dark", themeIsExplicit: false });
+    ).toEqual({ language: "en", theme: "dark", circuitSymbols: "european", showSourceAndLoad: true, themeIsExplicit: false });
     const denied = {
       getItem: () => {
         throw new Error("SecurityError");
@@ -77,6 +93,8 @@ describe("persistent display preferences", () => {
     expect(loadPreferences(denied, true)).toEqual({
       language: "en",
       theme: "dark",
+      circuitSymbols: "european",
+      showSourceAndLoad: true,
       themeIsExplicit: false,
     });
     expect(savePreference(denied, preferenceKeys.theme, "light")).toBe(false);

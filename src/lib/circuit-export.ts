@@ -2,13 +2,15 @@ import type { NetworkAnalysis } from "./network";
 import { orderedSections } from "./project";
 import { initialComponentUnit, formatComponentValue } from "./component-units";
 import type { ComponentPrecision, Project, Section } from "./types";
+import type { CircuitSymbols, Language } from "./preference-storage";
 import { exportPlots, plotLatex, type ExportPlotContext, type ExportPlotSelection } from "./export-plots";
 
 export type CircuitExportOptions = {
-  symbols: "european" | "american";
+  symbols: CircuitSymbols;
   matrices: "none" | "typeset" | "source";
   includeSourceAndLoad?: boolean;
   plots?: ExportPlotSelection;
+  language?: Language;
 };
 export type Point = { x: number; y: number };
 export type DrawingItem =
@@ -19,6 +21,7 @@ export type DrawingItem =
   | { type: "label"; at: Point; latex: string; anchor: "center" | "west" | "east"; muted?: boolean };
 export type CircuitDrawing = { items: DrawingItem[]; width: number; bottom: number; top: number };
 export type MatrixExportBlock = { title: string; formulas: string[] };
+export type ComponentListEntry = { reference: string; description: string; value: string };
 
 /** User labels are always literal text, never executable TeX. */
 export function escapeLatexText(text: string): string {
@@ -38,8 +41,31 @@ function valueLatex(value: number, kind: "R" | "L" | "C", precision: ComponentPr
   return `${numeric}\\,\\mathrm{${symbol}}`;
 }
 
+const sectionName = (section: Section, index: number) => section.label
+  ? `\\text{${escapeLatexText(section.label)}}` : `${section.kind}_{${index + 1}}`;
+
+/** References match the drawing; LC blocks contribute one row for each physical component. */
+export function componentListEntries(project: Project, { includeSourceAndLoad = true, language = "en" }: Pick<CircuitExportOptions, "includeSourceAndLoad" | "language"> = {}): ComponentListEntry[] {
+  const precision = project.componentPrecision ?? 4;
+  const entries: ComponentListEntry[] = [];
+  if (includeSourceAndLoad) entries.push({ reference: "R_1", description: language === "de" ? "\\text{Quelle}" : "\\text{Source}", value: valueLatex(project.settings.impedance, "R", precision) });
+  orderedSections(project.nodes, project.wires).forEach((section, index) => {
+    const name = sectionName(section, index);
+    const branch = section.connection === "series"
+      ? (language === "de" ? "Serienzweig" : "Series branch")
+      : (language === "de" ? "Querzweig" : "Shunt branch");
+    if (section.kind === "LC") {
+      const description = `${name}\\; (\\text{${branch}})`;
+      entries.push({ reference: `L_{${index + 1}}`, description, value: valueLatex(section.value, "L", precision) });
+      entries.push({ reference: `C_{${index + 1}}`, description, value: valueLatex(section.value2!, "C", precision) });
+    } else entries.push({ reference: name, description: `\\text{${branch}}`, value: valueLatex(section.value, section.kind, precision) });
+  });
+  if (includeSourceAndLoad) entries.push({ reference: "R_2", description: language === "de" ? "\\text{Last}" : "\\text{Load}", value: valueLatex(project.z2, "R", precision) });
+  return entries;
+}
+
 /** A tidy ladder layout follows electrical connection order, independently of canvas positions. */
-export function circuitDrawing(project: Project, { includeSourceAndLoad = true }: Pick<CircuitExportOptions, "includeSourceAndLoad"> = {}): CircuitDrawing {
+export function circuitDrawing(project: Project, { includeSourceAndLoad = true, includeValues = true }: Pick<CircuitExportOptions, "includeSourceAndLoad"> & { includeValues?: boolean } = {}): CircuitDrawing {
   const sections = orderedSections(project.nodes, project.wires);
   const precision = project.componentPrecision ?? 4;
   const items: DrawingItem[] = [];
@@ -48,25 +74,30 @@ export function circuitDrawing(project: Project, { includeSourceAndLoad = true }
   const element = (kind: "R" | "L" | "C" | "sV", from: Point, to: Point, muted = false) => items.push({ type: "element", kind, from, to, muted });
   const label = (x: number, y: number, latex: string, anchor: "center" | "west" | "east" = "center", muted = false) =>
     items.push({ type: "label", at: at(x, y), latex, anchor, muted });
+  const componentLabel = (name: string, value: number, kind: "R" | "L" | "C") =>
+    includeValues ? `${name}=${valueLatex(value, kind, precision)}` : name;
   const bottom = -4;
-  const input = includeSourceAndLoad ? 3 : 0;
+  // The PDF uses reference-only labels and a separate value list, so its horizontal
+  // spacing can be halved without shrinking symbols or changing the designer.
+  const spacing = includeValues ? 1 : .5;
+  const input = includeSourceAndLoad ? 3 * spacing : 0;
   if (includeSourceAndLoad) {
     element("sV", at(0, bottom), at(0, 0), true);
     label(-.65, -2, "V_s", "east", true);
     element("R", at(0, 0), at(input, 0), true);
-    label(1.5, .65, `R_1=${valueLatex(project.settings.impedance, "R", precision)}`, "center", true);
+    label(input / 2, .65, componentLabel("R_1", project.settings.impedance, "R"), "center", true);
   }
   items.push({ type: "terminal", at: at(input, 0) }, { type: "terminal", at: at(input, bottom) });
   label(input, 1.25, "\\text{Port 1}");
-  let x = input + 1;
+  let x = input + spacing;
   wire([at(input, 0), at(x, 0)]);
   sections.forEach((section, index) => {
     const i = index + 1;
-    const name = section.label ? `\\text{${escapeLatexText(section.label)}}` : `${section.kind}_{${i}}`;
-    const value = (kind: "R" | "L" | "C", number: number) => `${kind}_{${i}}=${valueLatex(number, kind, precision)}`;
+    const name = sectionName(section, index);
+    const value = (kind: "R" | "L" | "C", number: number) => componentLabel(`${kind}_{${i}}`, number, kind);
     // Extra room for resonator branches and full-precision labels.
-    const baseWidth = section.kind === "LC" ? 7 : 4.5;
-    const width = Math.max(baseWidth, (section.label?.length ?? 0) * .17 + 1, precision === "full" || precision > 8 ? 7 : 0);
+    const baseWidth = (section.kind === "LC" ? 7 : 4.5) * spacing;
+    const width = Math.max(baseWidth, (section.label?.length ?? 0) * .17 + 1, includeValues && (precision === "full" || precision > 8) ? 7 : 0);
     const end = x + width, center = (x + end) / 2;
     const shunt = section.connection === "shunt";
     if (shunt) {
@@ -76,7 +107,7 @@ export function circuitDrawing(project: Project, { includeSourceAndLoad = true }
     if (section.kind !== "LC") {
       element(section.kind, shunt ? at(center, 0) : at(x, 0), shunt ? at(center, bottom) : at(end, 0));
       label(shunt ? center + .65 : center, shunt ? -2 : .65,
-        `${name}=${valueLatex(section.value, section.kind, precision)}`, shunt ? "west" : "center");
+        componentLabel(name, section.value, section.kind), shunt ? "west" : "center");
     } else {
       label(center, 1.65, name);
       if (section.resonator === "series") {
@@ -106,7 +137,7 @@ export function circuitDrawing(project: Project, { includeSourceAndLoad = true }
     }
     x = end;
   });
-  const output = x + 1, load = output + 2;
+  const output = x + spacing, load = output + 2 * spacing;
   wire([at(x, 0), at(output, 0)]);
   wire([at(input, bottom), at(output, bottom)]);
   if (includeSourceAndLoad) {
@@ -114,7 +145,7 @@ export function circuitDrawing(project: Project, { includeSourceAndLoad = true }
     wire([at(output, 0), at(load, 0)], true);
     wire([at(output, bottom), at(load, bottom)], true);
     element("R", at(load, 0), at(load, bottom), true);
-    label(load + .65, -2, `R_2=${valueLatex(project.z2, "R", precision)}`, "west", true);
+    label(load + .65, -2, componentLabel("R_2", project.z2, "R"), "west", true);
   }
   items.push({ type: "terminal", at: at(output, 0) }, { type: "terminal", at: at(output, bottom) });
   label(output, 1.25, "\\text{Port 2}");

@@ -3,14 +3,14 @@ import "svg2pdf.js";
 import type { Project } from "./types";
 import type { NetworkAnalysis } from "./network";
 import { matrixExportBlocks, type CircuitExportOptions } from "./circuit-export";
-import { circuitSvg, matrixBlockSvg, plotSvg } from "./circuit-export-svg";
+import { circuitSvg, componentListSvgs, matrixBlockSvg, plotSvg } from "./circuit-export-svg";
 import { orderedSections } from "./project";
 import { exportPlots, type ExportPlotContext } from "./export-plots";
 
 /** All drawing, formula layout and PDF serialization run locally; there is no compilation service. */
 export async function circuitPdf(project: Project, options: CircuitExportOptions, analysis?: NetworkAnalysis | null, plotContext?: ExportPlotContext): Promise<Blob> {
   if (options.matrices === "typeset" && !analysis) throw new Error("Matrix analysis is required for this export.");
-  const pages = [circuitSvg(project, options)];
+  const pages = [circuitSvg(project, options), ...componentListSvgs(project, options)];
   if (options.matrices === "typeset") {
     for (const block of matrixExportBlocks(analysis!, orderedSections(project.nodes, project.wires))) pages.push(matrixBlockSvg(block));
   }
@@ -21,7 +21,7 @@ export async function circuitPdf(project: Project, options: CircuitExportOptions
   };
   const first = dimensions(pages[0]);
   const pdf = new jsPDF({ unit: "pt", format: [first.width, first.height], orientation: first.width > first.height ? "landscape" : "portrait", compress: true });
-  pdf.setProperties({ title: project.name, creator: "Filterstudio", subject: "Circuit, matrices and selected response plots" });
+  pdf.setProperties({ title: project.name, creator: "Filterstudio", subject: "Circuit, component list, matrices and selected response plots" });
   for (const [i, page] of pages.entries()) {
     const { width, height } = dimensions(page);
     if (i) pdf.addPage([width, height], width > height ? "landscape" : "portrait");

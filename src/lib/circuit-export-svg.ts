@@ -1,4 +1,4 @@
-import { circuitDrawing, escapeLatexText, type CircuitExportOptions, type Point, type MatrixExportBlock } from "./circuit-export";
+import { circuitDrawing, componentListEntries, escapeLatexText, type CircuitExportOptions, type Point, type MatrixExportBlock } from "./circuit-export";
 import type { Project } from "./types";
 import { mathSvg } from "./export-math-svg";
 import type { ExportPlot, PlotShape } from "./export-plots";
@@ -12,7 +12,7 @@ const svgPage = (content: string[], x: number, y: number, width: number, height:
 });
 
 export function circuitSvg(project: Project, options: CircuitExportOptions) {
-  const drawing = circuitDrawing(project, options), content: string[] = [];
+  const drawing = circuitDrawing(project, { ...options, includeValues: false }), content: string[] = [];
   let left = -.5 * cm, right = drawing.width * cm + .5 * cm;
   let top = -drawing.top * cm, bottom = -drawing.bottom * cm + .5 * cm;
   for (const item of drawing.items) {
@@ -44,6 +44,43 @@ export function circuitSvg(project: Project, options: CircuitExportOptions) {
   }
   const margin = 10;
   return svgPage(content, left - margin, top - margin, right - left + margin * 2, bottom - top + margin * 2);
+}
+
+/** Separate, paginated vector tables keep long values out of the schematic. */
+export function componentListSvgs(project: Project, options: CircuitExportOptions) {
+  const german = options.language === "de";
+  const entries = componentListEntries(project, options);
+  const headers = (german ? ["Bauteil", "Zuordnung", "Wert"] : ["Component", "Location", "Value"])
+    .map(label => mathSvg(`\\text{${label}}`, 10));
+  const rows = entries.map(entry => [entry.reference, entry.description, entry.value].map(value => mathSvg(value, 10)));
+  const padding = 12, margin = 18, rowsPerPage = 24;
+  const widths = headers.map((header, column) => Math.max(header.width, ...rows.map(row => row[column].width)) + padding * 2);
+  const tableWidth = widths.reduce((sum, width) => sum + width, 0);
+  const pageCount = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+  return Array.from({ length: pageCount }, (_, pageIndex) => {
+    const title = mathSvg(`\\text{${german ? "Bauteilliste" : "Component list"}${pageCount > 1 ? ` (${pageIndex + 1}/${pageCount})` : ""}}`, 14);
+    const content = [title.source.replace("<svg ", `<svg x="${margin}" y="${margin}" `)];
+    let y = margin + title.height + 18;
+    const renderRow = (cells: typeof headers, header = false) => {
+      const height = Math.max(...cells.map(cell => cell.height), 12) + padding;
+      if (header) content.push(`<rect x="${margin}" y="${y}" width="${tableWidth}" height="${height}" fill="#eeeeee"/>`);
+      let x = margin;
+      for (const [column, cell] of cells.entries()) {
+        content.push(cell.source.replace("<svg ", `<svg x="${x + padding}" y="${y + (height - cell.height) / 2}" `));
+        x += widths[column];
+      }
+      y += height;
+      content.push(`<path d="M${margin},${y}H${margin + tableWidth}" stroke="#cccccc" stroke-width=".5"/>`);
+    };
+    renderRow(headers, true);
+    rows.slice(pageIndex * rowsPerPage, (pageIndex + 1) * rowsPerPage).forEach(row => renderRow(row));
+    if (!rows.length) {
+      const empty = mathSvg(`\\text{${german ? "Keine Bauteile." : "No components."}}`, 10);
+      content.push(empty.source.replace("<svg ", `<svg x="${margin + padding}" y="${y + padding}" `));
+      y += empty.height + padding * 2;
+    }
+    return svgPage(content, 0, 0, Math.max(tableWidth, title.width) + margin * 2, y + margin);
+  });
 }
 
 export function matrixBlockSvg(block: MatrixExportBlock) {
