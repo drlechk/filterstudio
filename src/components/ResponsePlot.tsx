@@ -44,7 +44,7 @@ export function ResponsePlot({
   const id = useId();
   const formatEngineering = (value: number, unit = "") =>
     engineering(value, unit, 4, language === "de" ? "de-DE" : "en-US");
-  const [enabled, setEnabled] = useState<Key[]>(["s21", "s11"]);
+  const [enabled, setEnabled] = useState<Key[]>(["s11", "s12"]);
   const [hover, setHover] = useState<number | null>(null);
   const [dbRange, setDbRange] = useState(100);
   const sweep = useMemo(() => {

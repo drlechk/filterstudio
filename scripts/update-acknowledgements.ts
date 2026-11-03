@@ -29,8 +29,8 @@ const packageLabel = (name: string) => {
   return `[\`${name}@${entry.version}\`](https://www.npmjs.com/package/${name}/v/${entry.version})`;
 };
 const section = [
-  "## Acknowledgements", "",
-  "Filterstudio is built with the following open-source projects. Thank you to their authors and maintainers. The same overview is available through **Acknowledgements** at the bottom of the editor's left sidebar, or directly at `#acknowledgements`.", "",
+  "## Credits", "",
+  "Filterstudio is built with the following open-source projects. Thank you to their authors and maintainers. The same overview is available through **Credits** at the bottom of the editor's left sidebar, or directly at `#acknowledgements`.", "",
   ...acknowledgementGroups.flatMap(group => [
     `### ${group.en}`, "", "| Project | Packages used | Purpose | License identifiers |", "| --- | --- | --- | --- |",
     ...acknowledgements.filter(project => project.group === group.id).map(project => `| [${project.name}](${project.url}) · [Source](${project.source}) | ${project.packages.map(packageLabel).join(", ")} | ${project.en} | ${[...new Set(project.packages.map(name => lock.packages[`node_modules/${name}`].license ?? "Not declared"))].join(", ")} |`), "",
@@ -40,7 +40,7 @@ const section = [
   "| Project | Version | Purpose | License identifier |", "| --- | --- | --- | --- |",
   ...referenceLibraries.map(project => `| [${project.name}](${project.url}) · [Source](${project.source}) | ${project.version} | ${project.en} | ${project.license} |`), "",
   "### Complete dependency inventory", "",
-  `All **${packages.length} package/version combinations** recorded in the lockfile, including transitive, development and platform-specific dependencies, are listed with package links and license identifiers in [THIRD_PARTY_PACKAGES.md](THIRD_PARTY_PACKAGES.md). They can also be searched on the Acknowledgements page. This inventory includes build/server tools that are not shipped in the browser bundle. License identifiers come from package metadata in \`package-lock.json\`; the upstream packages contain the full license texts and notices.`, "",
+  `All **${packages.length} package/version combinations** recorded in the lockfile, including transitive, development and platform-specific dependencies, are listed with package links and license identifiers in [THIRD_PARTY_PACKAGES.md](THIRD_PARTY_PACKAGES.md). They can also be searched on the Credits page. This inventory includes build/server tools that are not shipped in the browser bundle. License identifiers come from package metadata in \`package-lock.json\`; the upstream packages contain the full license texts and notices.`, "",
   "The runtime and package manager are [Node.js](https://nodejs.org/) and [npm](https://www.npmjs.com/). Mathematical references are credited separately in the filter synthesis and network analysis sections above.", "",
   "After changing dependencies, run `npm run acknowledgements`. It updates this section, the complete inventory and the frontend data from the shared project catalogue and lockfile. The development server and browser build also run this command automatically. `npm run acknowledgements:check` checks that these files are current and every direct dependency is credited.",
 ].join("\n");

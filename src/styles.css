@@ -875,6 +875,24 @@ h1 {
 .number-field.invalid {
   border-color: var(--danger);
 }
+.frequency-unit-select {
+  flex: 0 0 67px;
+  width: 67px;
+  height: 100%;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0 4px 4px 0;
+  padding: 0 5px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--text);
+  background: var(--surface-hover);
+  cursor: pointer;
+}
+.frequency-unit-select:focus-visible {
+  outline: 2px solid var(--accent-border);
+  outline-offset: -2px;
+}
 .field-error {
   position: absolute;
   top: 100%;
@@ -1266,7 +1284,8 @@ h1 {
   padding: 0 5px;
   color: var(--text);
 }
-.component-value-control .field-error {
+.component-value-control .field-error,
+.frequency-value-control .field-error {
   position: static;
   display: block;
   margin-top: 4px;
@@ -1341,6 +1360,26 @@ h1 {
 }
 .response-content {
   padding: 21px 22px 0;
+}
+.frequency-response-section {
+  border-top: 1px solid var(--border);
+  margin-top: 18px;
+  padding: 22px 0 14px;
+}
+.frequency-response-section .response-heading {
+  flex-wrap: wrap;
+}
+.frequency-response-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.frequency-response-legend i {
+  width: 15px;
+  height: 2px;
+  background: var(--accent);
 }
 .design-mode {
   margin: 14px 0 20px;
@@ -1760,6 +1799,14 @@ h1 {
   font-size: 11px;
   padding: 0 7px 0 0;
 }
+.sweep-settings .frequency-value-control {
+  min-width: 0;
+  max-width: 100%;
+}
+.sweep-settings .frequency-value-control .number-field {
+  width: 165px;
+  max-width: 100%;
+}
 .cutoff-readout {
   font-size: 11px;
   color: var(--text-faint);
@@ -2135,23 +2182,13 @@ td:last-child {
 .help-methods {
   border-top: 1px solid var(--border);
   padding-top: 22px;
+  margin-bottom: 24px;
 }
 .help-methods p {
   font-size: 12px;
   line-height: 1.85;
   color: var(--text-muted);
   margin-top: 10px;
-}
-.source-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 20px;
-  font-size: 11px;
-  color: var(--accent-text);
-  margin: 18px 0 25px;
-}
-.source-links a:hover {
-  text-decoration: underline;
 }
 @media (min-width: 1600px) {
   .studio-layout {

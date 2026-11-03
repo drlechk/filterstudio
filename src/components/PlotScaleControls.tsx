@@ -8,7 +8,7 @@ export type PlotScaleProps = {
   onMagnitudeScaleChange: (scale: MagnitudeScale) => void;
 };
 
-export function PlotScaleControls({ frequencyScale, magnitudeScale, onFrequencyScaleChange, onMagnitudeScaleChange, quantity }: PlotScaleProps & { quantity: "scattering" | "attenuation" | "phase" }) {
+export function PlotScaleControls({ frequencyScale, magnitudeScale, onFrequencyScaleChange, onMagnitudeScaleChange, quantity }: PlotScaleProps & { quantity: "scattering" | "attenuation" | "transfer" | "phase" }) {
   const { t } = usePreferences();
   return <div className="plot-scale-controls">
     <label>
@@ -19,10 +19,10 @@ export function PlotScaleControls({ frequencyScale, magnitudeScale, onFrequencyS
       </select>
     </label>
     {quantity !== "phase" && <label>
-      <span>{quantity === "attenuation" ? t("Dämpfung", "Attenuation") : t("S-Parameter", "S-parameters")}</span>
+      <span>{quantity === "attenuation" ? t("Dämpfung", "Attenuation") : quantity === "transfer" ? t("Übertragung S₂₁", "Transmission S₂₁") : t("S-Parameter", "S-parameters")}</span>
       <select value={magnitudeScale} onChange={event => onMagnitudeScaleChange(event.target.value as MagnitudeScale)}>
         <option value="db">{t("Logarithmisch · dB", "Logarithmic · dB")}</option>
-        <option value="linear">{quantity === "attenuation" ? "Linear · 1/|S₂₁|" : "Linear · |S|"}</option>
+        <option value="linear">{quantity === "attenuation" ? "Linear · 1/|S₂₁|" : quantity === "transfer" ? "Linear · |S₂₁|" : "Linear · |S|"}</option>
       </select>
     </label>}
     {quantity === "phase" && <span className="plot-scale-note">{t("Phase in Grad", "Phase in degrees")}</span>}

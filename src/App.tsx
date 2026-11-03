@@ -46,10 +46,13 @@ import { MAX_PROTOTYPE_ORDER, MAX_CAUER_ORDER, MAX_CIRCUIT_NODES, MAX_CIRCUIT_SE
 import { useRemoteWorkspace } from "./lib/use-remote-workspace";
 import { checkRevision, RemoteError, type RemoteController, type RemoteTab } from "./lib/remote-protocol";
 import { ComponentValueInput } from "./components/ComponentValueInput";
+import { FrequencyInput } from "./components/FrequencyInput";
+import type { FrequencyUnit } from "./lib/frequency-units";
 import { ComponentRoundingControls } from "./components/ComponentRoundingControls";
 import { DEFAULT_COMPONENT_PRECISION } from "./lib/component-rounding";
 import { formatComponentLabel } from "./lib/component-units";
 import { ResponsePlot } from "./components/ResponsePlot";
+import { FrequencyResponsePlot } from "./components/FrequencyResponsePlot";
 import type { FrequencyScale, MagnitudeScale } from "./lib/plot-scales";
 import { Formula, MathView } from "./components/MathView";
 import { SectionMatrixView } from "./components/SectionMatrixView";
@@ -396,7 +399,7 @@ export default function App() {
     });
   }
   return <>
-    {showAcknowledgements && <Suspense fallback={<main className="acknowledgements-page" aria-busy="true">{t("Danksagung wird geladen …", "Loading acknowledgements …")}</main>}>
+    {showAcknowledgements && <Suspense fallback={<main className="acknowledgements-page" aria-busy="true">{t("Credits werden geladen …", "Loading credits …")}</main>}>
       <AcknowledgementsPage onBack={closeAcknowledgements} />
     </Suspense>}
     {workspace.tabs.map((tab) => (
@@ -488,7 +491,11 @@ const FilterWorkspace = memo(function FilterWorkspace({
     "response" | "chain" | "polynomials" | "bom" | "tolerance"
   >(startingProject.tolerance ? "tolerance" : "response");
   const [plotMode, setPlotMode] = useState<"magnitude" | "phase">("magnitude");
+  const [transferPlotMode, setTransferPlotMode] = useState<"magnitude" | "phase">("magnitude");
+  const [transferMagnitudeScale, setTransferMagnitudeScale] = useState<MagnitudeScale>("db");
   const [frequencyScale, setFrequencyScale] = useState<FrequencyScale>("log");
+  const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit>("MHz");
+  const frequencyInputUnit = { unit: frequencyUnit, onUnitChange: setFrequencyUnit };
   const [magnitudeScale, setMagnitudeScale] = useState<MagnitudeScale>("db");
   const plotScales = { frequencyScale, magnitudeScale, onFrequencyScaleChange: setFrequencyScale, onMagnitudeScaleChange: setMagnitudeScale };
   const scatteringReadout = (value?: Complex) => !value ? "—" : magnitudeScale === "db"
@@ -1294,6 +1301,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   spec={toleranceDraft}
                   design={toleranceDesign}
                   family={settings.family}
+                  frequencyUnit={frequencyUnit}
+                  onFrequencyUnitChange={setFrequencyUnit}
                   onChange={setToleranceDraft}
                 />
               ) : (
@@ -1381,19 +1390,16 @@ const FilterWorkspace = memo(function FilterWorkspace({
                           {t("Untere Bandgrenze", "Lower band edge")}{" "}
                           <span>f₁</span>
                         </label>
-                        <PositiveInput
-                          label={t(
-                            "Untere Bandgrenze in MHz",
-                            "Lower band edge in MHz",
-                          )}
-                          value={draftBand.lower / 1e6}
-                          unit="MHz"
-                          min={1e-6}
-                          max={(draftBand.upper / 1e6) * (1 - 1e-8)}
+                        <FrequencyInput
+                          {...frequencyInputUnit}
+                          label={t("Untere Bandgrenze", "Lower band edge")}
+                          value={draftBand.lower}
+                          min={1}
+                          max={draftBand.upper * (1 - 1e-8)}
                           onChange={(n) =>
                             updateSettings({
-                              cutoff: Math.sqrt(n * 1e6 * draftBand.upper),
-                              bandwidth: draftBand.upper - n * 1e6,
+                              cutoff: Math.sqrt(n * draftBand.upper),
+                              bandwidth: draftBand.upper - n,
                             })
                           }
                         />
@@ -1403,19 +1409,16 @@ const FilterWorkspace = memo(function FilterWorkspace({
                           {t("Obere Bandgrenze", "Upper band edge")}{" "}
                           <span>f₂</span>
                         </label>
-                        <PositiveInput
-                          label={t(
-                            "Obere Bandgrenze in MHz",
-                            "Upper band edge in MHz",
-                          )}
-                          value={draftBand.upper / 1e6}
-                          unit="MHz"
-                          min={(draftBand.lower / 1e6) * (1 + 1e-8)}
-                          max={1e6}
+                        <FrequencyInput
+                          {...frequencyInputUnit}
+                          label={t("Obere Bandgrenze", "Upper band edge")}
+                          value={draftBand.upper}
+                          min={draftBand.lower * (1 + 1e-8)}
+                          max={1e12}
                           onChange={(n) =>
                             updateSettings({
-                              cutoff: Math.sqrt(n * 1e6 * draftBand.lower),
-                              bandwidth: n * 1e6 - draftBand.lower,
+                              cutoff: Math.sqrt(n * draftBand.lower),
+                              bandwidth: n - draftBand.lower,
                             })
                           }
                         />
@@ -1454,16 +1457,13 @@ const FilterWorkspace = memo(function FilterWorkspace({
                           : t("Durchlassgrenze", "Passband edge")}{" "}
                         <span>f₀</span>
                       </label>
-                      <PositiveInput
-                        label={t(
-                          "Grenzfrequenz in MHz",
-                          "Cutoff frequency in MHz",
-                        )}
-                        value={settings.cutoff / 1e6}
-                        unit="MHz"
-                        min={1e-6}
-                        max={1e6}
-                        onChange={(n) => updateSettings({ cutoff: n * 1e6 })}
+                      <FrequencyInput
+                        {...frequencyInputUnit}
+                        label={settings.family === "butterworth"
+                          ? t("Grenzfrequenz", "Cutoff frequency")
+                          : t("Durchlassgrenze", "Passband edge")}
+                        value={settings.cutoff}
+                        onChange={(n) => updateSettings({ cutoff: n })}
                       />
                     </div>
                   )}
@@ -1623,7 +1623,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
           </div>
           <div className="sidebar-footer">
             <button className="acknowledgements-button" onClick={onOpenAcknowledgements}>
-              <BookOpen size={14} aria-hidden="true" /> Acknowledgements
+              <BookOpen size={14} aria-hidden="true" /> Credits
               <ArrowRight size={12} aria-hidden="true" />
             </button>
           </div>
@@ -2029,7 +2029,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
               <div className="response-content">
                 <div className="response-heading">
                   <div>
-                    <h2>{t("Frequenzgang", "Frequency response")}</h2>
+                    <h2>{t("S-Parameter", "S-parameters")}</h2>
                     <p>
                       {t(
                         "Transmission und Reflexion deiner Schaltung.",
@@ -2070,33 +2070,30 @@ const FilterWorkspace = memo(function FilterWorkspace({
                 <div className="response-footer">
                   <div className="sweep-settings">
                     <span>{t("Frequenzbereich", "Frequency range")}</span>
-                    <PositiveInput
-                      label={t(
-                        "Startfrequenz in MHz",
-                        "Start frequency in MHz",
-                      )}
-                      value={project.sweep.min / 1e6}
-                      unit="MHz"
-                      min={1e-9}
-                      max={(project.sweep.max / 1e6) * 0.999}
+                    <FrequencyInput
+                      {...frequencyInputUnit}
+                      label={t("Startfrequenz", "Start frequency")}
+                      value={project.sweep.min}
+                      min={1e-3}
+                      max={project.sweep.max * 0.999}
                       onChange={(n) =>
                         commit({
                           ...project,
-                          sweep: { ...project.sweep, min: n * 1e6 },
+                          sweep: { ...project.sweep, min: n },
                         })
                       }
                     />
                     <span>–</span>
-                    <PositiveInput
-                      label={t("Endfrequenz in MHz", "End frequency in MHz")}
-                      value={project.sweep.max / 1e6}
-                      unit="MHz"
-                      min={(project.sweep.min / 1e6) * 1.001}
-                      max={1e9}
+                    <FrequencyInput
+                      {...frequencyInputUnit}
+                      label={t("Endfrequenz", "End frequency")}
+                      value={project.sweep.max}
+                      min={project.sweep.min * 1.001}
+                      max={1e15}
                       onChange={(n) =>
                         commit({
                           ...project,
-                          sweep: { ...project.sweep, max: n * 1e6 },
+                          sweep: { ...project.sweep, max: n },
                         })
                       }
                     />
@@ -2120,6 +2117,18 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     </span>
                   </div>
                 </div>
+                <FrequencyResponsePlot
+                  {...plotScales}
+                  magnitudeScale={transferMagnitudeScale}
+                  onMagnitudeScaleChange={setTransferMagnitudeScale}
+                  analysis={analysis}
+                  {...project.sweep}
+                  cutoff={project.settings.cutoff}
+                  band={projectBand}
+                  mode={transferPlotMode}
+                  onModeChange={setTransferPlotMode}
+                  onExport={text => downloadFile("filterstudio-frequency-response.csv", text, "text/csv")}
+                />
               </div>
             ) : resultTab === "chain" ? (
               <div className="math-content">
@@ -2566,25 +2575,6 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   "This is a floating-point model calculation, not validation of physical components. Download a JSON project to save your circuit changes permanently.",
                 )}
               </p>
-              <div className="source-links">
-                <a
-                  href="https://eceweb1.rutgers.edu/~orfanidi/intro2sp/2e/orfanidis-isp2e-1up.pdf"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Orfanidis · Elliptic Filter Design ↗
-                </a>
-                <a
-                  href="https://eng.libretexts.org/Bookshelves/Electrical_Engineering/Electronics/Microwave_and_RF_Design_III_-_Networks_(Steer)/02%3A_Chapter_2/2.7%3A_Scattering_Parameter_Two-Port_Relationships"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {t(
-                    "Steer · Zweitorparameter ↗",
-                    "Steer · Two-port parameters ↗",
-                  )}
-                </a>
-              </div>
             </div>
             <button
               className="button primary"

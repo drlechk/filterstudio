@@ -27,9 +27,9 @@ export default function AcknowledgementsPage({ onBack }: { onBack: () => void })
       <div className="acknowledgements-intro">
         <span className="acknowledgements-icon"><Heart size={24} aria-hidden="true" /></span>
         <p className="section-eyebrow">FILTERSTUDIO · OPEN SOURCE</p>
-        <h1 ref={heading} tabIndex={-1}>Acknowledgements</h1>
+        <h1 ref={heading} tabIndex={-1}>Credits</h1>
         <p>{t("Diese Projekte machen Filterstudio möglich. Vielen Dank an die Menschen, die diese Bibliotheken, Schriften und Werkzeuge entwickeln und pflegen.", "These projects make Filterstudio possible. Thank you to the people who build and maintain these libraries, fonts and tools.")}</p>
-        <nav aria-label={t("Bereiche der Danksagung", "Acknowledgements sections")}>
+        <nav aria-label={t("Credits-Bereiche", "Credits sections")}>
           {acknowledgementGroups.map(group => <a key={group.id} href={`#acknowledgements-${group.id}`}>{t(group.de, group.en)}</a>)}
           <a href="#acknowledgements-packages">{t("Alle Pakete", "All packages")}</a>
         </nav>

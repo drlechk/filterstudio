@@ -265,6 +265,8 @@ For even-order Chebyshev filters, the normalized termination resistances may dif
 
 ## Designing with a tolerance mask
 
+Frequency inputs support **Hz, kHz, MHz, and GHz** for the cutoff/passband edge, both band edges, and the plot's start/end frequencies. Select the unit beside a field; it is shared with the tolerance controls within that filter tab and retained when switching views or tabs. Existing values are converted automatically (for example, `1 MHz = 1000 kHz = 0.001 GHz`), with no rounding of the stored frequency or change to the filter. Inputs accept decimal points, decimal commas, and scientific notation. Project files, API/MCP requests, and calculations continue to use Hz.
+
 The generator can switch between **Parameters** and **Tolerance mask**. In tolerance mode, sliders specify passband edges `fp`, stopband edges `fs`, maximum passband attenuation `Ap`, and minimum stopband attenuation `As`. Frequency sliders are logarithmic; adjacent fields accept exact values in Hz, kHz, MHz, or GHz. The boundary lines and circular handles in the plot can also be dragged or moved with the arrow keys. Frequency boundaries cannot cross one another.
 
 By default, the plot shows positive insertion loss in dB, `A(f) = −20 log10 |S21(f)|`. The **Attenuation** selector switches between **Logarithmic · dB** and the **linear amplitude loss factor `1/|S21|`**: 0 dB corresponds to a factor of 1, and 20 dB to a factor of 10. Hatched regions are forbidden: the passband must satisfy `A ≤ Ap`, and the stopband must satisfy `A ≥ As`. Transition regions are unconstrained. Mask limits, their handles, labels and comparison curves are converted together; dragging a boundary converts back to the dB specification used by the synthesis controls and project files.
@@ -310,6 +312,8 @@ M_Y=\begin{bmatrix}1&0\\Y&1\end{bmatrix}.
 In the **ABCD matrices** view, each section identifies its component type, circuit label, and series/shunt placement before showing its matrix. The explanation includes the actual stored R, L and/or C values, the impedance `Z(s)`, the admittance `Y(s) = 1/Z(s)` for shunt branches, and the substitution `s = 2πf0 p` with numeric SI values. It then shows how the resulting expression enters `B = Z(p)` or `C = Y(p)`, alongside the evaluated section matrix. LC resonators explicitly distinguish their internal series/parallel connection from the placement of the whole block in the ladder.
 
 Component values in these derivations retain the full stored numeric precision regardless of the label-rounding setting. The `≈` sign marks matrix coefficients shortened to seven significant digits for display; calculations still use the original component values. Subscripts `Ri`, `Li` and `Ci` refer to the section-matrix index in signal-path order. **Copy LaTeX**, the LaTeX file export, and API/MCP analysis (`latex.sections`) include the same value substitutions and derivations.
+
+Below the S-parameter plot, a second **Frequency response S₂₁** plot shows transmission from port 1 to port 2. It always displays S21 independently of the trace selection above, with its own magnitude/phase and linear/dB controls. Both plots share the frequency range and linear/log frequency axis. The second plot includes cursor readouts and CSV export of S21's real/imaginary parts, magnitude, dB value, and phase. Undefined values and phase discontinuities leave gaps; the phase at S21 = 0 is undefined, and displayed/exported dB values have a −160 dB floor.
 
 S-parameters use power waves referenced to real, positive port impedances. The conversion also accounts for different input and output reference impedances. For the reciprocal RLC two-port blocks used here, `S12 = S21`; for a lossless LC network, the S-matrix is unitary. These relationships follow [Michael Steer's two-port relationships](https://eng.libretexts.org/Bookshelves/Electrical_Engineering/Electronics/Microwave_and_RF_Design_III_-_Networks_(Steer)/02%3A_Chapter_2/2.7%3A_Scattering_Parameter_Two-Port_Relationships).
 
@@ -382,9 +386,9 @@ The process follows the [Vite guide to static deployment](https://vite.dev/guide
 - `src/lib/*.test.ts`: filter calculation and project tests.
 
 <!-- acknowledgements:start -->
-## Acknowledgements
+## Credits
 
-Filterstudio is built with the following open-source projects. Thank you to their authors and maintainers. The same overview is available through **Acknowledgements** at the bottom of the editor's left sidebar, or directly at `#acknowledgements`.
+Filterstudio is built with the following open-source projects. Thank you to their authors and maintainers. The same overview is available through **Credits** at the bottom of the editor's left sidebar, or directly at `#acknowledgements`.
 
 ### Interface and fonts
 
@@ -430,7 +434,7 @@ These optional Python libraries generate the checked-in numerical test fixtures.
 
 ### Complete dependency inventory
 
-All **293 package/version combinations** recorded in the lockfile, including transitive, development and platform-specific dependencies, are listed with package links and license identifiers in [THIRD_PARTY_PACKAGES.md](THIRD_PARTY_PACKAGES.md). They can also be searched on the Acknowledgements page. This inventory includes build/server tools that are not shipped in the browser bundle. License identifiers come from package metadata in `package-lock.json`; the upstream packages contain the full license texts and notices.
+All **293 package/version combinations** recorded in the lockfile, including transitive, development and platform-specific dependencies, are listed with package links and license identifiers in [THIRD_PARTY_PACKAGES.md](THIRD_PARTY_PACKAGES.md). They can also be searched on the Credits page. This inventory includes build/server tools that are not shipped in the browser bundle. License identifiers come from package metadata in `package-lock.json`; the upstream packages contain the full license texts and notices.
 
 The runtime and package manager are [Node.js](https://nodejs.org/) and [npm](https://www.npmjs.com/). Mathematical references are credited separately in the filter synthesis and network analysis sections above.
 

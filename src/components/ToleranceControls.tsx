@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { usePreferences } from "../lib/preferences";
 import { formatEngineering } from "../lib/network";
 import { filterDegree, isBandResponse } from "../lib/frequency";
@@ -9,6 +9,8 @@ import {
   type ToleranceIssue,
 } from "../lib/tolerance";
 import type { FilterFamily, ToleranceSpec } from "../lib/types";
+import { frequencyUnits, frequencyUnitScale, isFrequencyUnit, type FrequencyUnit } from "../lib/frequency-units";
+import { formatUnitValue, parseUnitValue } from "../lib/unit-values";
 
 export const toleranceIssueLabels: Record<ToleranceIssue, [string, string]> = {
   frequencies: [
@@ -54,25 +56,26 @@ function SpecSlider({
 }) {
   const { language, t, number } = usePreferences();
   const id = useId();
-  const format = (value: number) =>
-    Number((value / scale).toPrecision(8))
-      .toString()
-      .replace(".", language === "de" ? "," : ".");
+  const format = (value: number) => formatUnitValue(value, scale, language);
   const [draft, setDraft] = useState(() => format(value));
   const [invalid, setInvalid] = useState(false);
+  const dirty = useRef(false);
   useEffect(() => {
     setDraft(format(value));
     setInvalid(false);
+    dirty.current = false;
   }, [value, scale, language]);
   const commit = () => {
-    const next = Number(draft.trim().replace(",", ".")) * scale;
-    if (!draft.trim() || !Number.isFinite(next) || next < min || next > max) {
+    if (!dirty.current) return;
+    const next = parseUnitValue(draft, scale, min, max);
+    if (next === null) {
       setInvalid(true);
       return;
     }
     setInvalid(false);
-    setDraft(format(value));
-    onChange(next);
+    dirty.current = false;
+    setDraft(format(next));
+    if (next !== value) onChange(next);
   };
   return (
     <div className={`spec-slider ${invalid ? "is-invalid" : ""}`}>
@@ -86,11 +89,16 @@ function SpecSlider({
           aria-invalid={invalid}
           inputMode="decimal"
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            dirty.current = true;
+            setDraft(e.target.value);
+            setInvalid(false);
+          }}
           onBlur={commit}
           onKeyDown={(e) => {
             if (e.key === "Enter") e.currentTarget.blur();
             if (e.key === "Escape") {
+              dirty.current = false;
               setDraft(format(value));
               setInvalid(false);
             }
@@ -127,21 +135,18 @@ export function ToleranceControls({
   spec,
   design,
   family,
+  frequencyUnit,
+  onFrequencyUnitChange,
   onChange,
 }: {
   spec: ToleranceSpec;
   design: ToleranceDesign;
   family: FilterFamily;
+  frequencyUnit: FrequencyUnit;
+  onFrequencyUnitChange: (unit: FrequencyUnit) => void;
   onChange: (spec: ToleranceSpec) => void;
 }) {
   const { t, language } = usePreferences();
-  const [unit, setUnit] = useState(1e6);
-  const units = [
-    { scale: 1, label: "Hz" },
-    { scale: 1e3, label: "kHz" },
-    { scale: 1e6, label: "MHz" },
-    { scale: 1e9, label: "GHz" },
-  ];
   const band = isBandResponse(spec.response);
   return (
     <div className="tolerance-controls">
@@ -149,12 +154,14 @@ export function ToleranceControls({
         <span>{t("Frequenzgrenzen", "Frequency edges")}</span>
         <select
           aria-label={t("Frequenzeinheit", "Frequency unit")}
-          value={unit}
-          onChange={(e) => setUnit(Number(e.target.value))}
+          value={frequencyUnit}
+          onChange={(e) => {
+            if (isFrequencyUnit(e.target.value)) onFrequencyUnitChange(e.target.value);
+          }}
         >
-          {units.map((u) => (
-            <option key={u.scale} value={u.scale}>
-              {u.label}
+          {frequencyUnits.map((u) => (
+            <option key={u.symbol} value={u.symbol}>
+              {u.symbol}
             </option>
           ))}
         </select>
@@ -180,8 +187,8 @@ export function ToleranceControls({
           min={1}
           max={1e12}
           step={0.001}
-          unit={units.find((u) => u.scale === unit)!.label}
-          scale={unit}
+          unit={frequencyUnit}
+          scale={frequencyUnitScale(frequencyUnit)}
           logarithmic
           onChange={(f) =>
             onChange(moveToleranceEdge(spec, edge.band, edge.index, f))

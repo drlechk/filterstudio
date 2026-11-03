@@ -8,12 +8,12 @@ import { ResponsePlot } from "./ResponsePlot";
 import { TolerancePlot } from "./TolerancePlot";
 import type { PlotScaleProps } from "./PlotScaleControls";
 
-// A 900-ohm series resistor between 50-ohm ports has S21=0.1: -20 dB,
+// A 900-ohm series resistor between 50-ohm ports has S12=S21=0.1: -20 dB,
 // or a linear attenuation factor of 10, at every frequency.
 const analysis = analyzeNetwork([{ id: "R1", kind: "R", connection: "series", value: 900 }], { fRef: 1e6, z1: 50 });
 const scales: PlotScaleProps = { frequencyScale: "linear", magnitudeScale: "linear", onFrequencyScaleChange: () => {}, onMagnitudeScaleChange: () => {} };
 const spec: ToleranceSpec = { response: "lowpass", passband: [1e6], stopband: [2e6], passbandLoss: 1, stopbandLoss: 40 };
-const traceY = (markup: string) => [...markup.match(/<path d="([^"]+)" stroke="var\(--trace-s21\)"/)![1].matchAll(/[ML][\d.-]+,([\d.-]+)/g)].map(match => Number(match[1]));
+const traceY = (markup: string) => [...markup.match(/<path d="([^"]+)" stroke="var\(--trace-s12\)"/)![1].matchAll(/[ML][\d.-]+,([\d.-]+)/g)].map(match => Number(match[1]));
 
 describe("plot scale rendering", () => {
   it("renders S-parameter magnitudes in linear units or dB with matching axis geometry", () => {
