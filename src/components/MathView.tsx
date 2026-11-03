@@ -21,10 +21,12 @@ export function MathView({
   latex,
   title,
   description,
+  formulaGroups,
 }: {
   latex: string;
   title: string;
   description?: string;
+  formulaGroups?: string[][];
 }) {
   const { t } = usePreferences();
   const [copied, setCopied] = useState(false);
@@ -71,7 +73,15 @@ export function MathView({
           </button>
         </div>
       </div>
-      <Formula latex={latex} />
+      {formulaGroups ? (
+        <div className="math-formula-groups">
+          {formulaGroups.map((group, i) => (
+            <div className="math-formula-group" key={i}>
+              {group.map((formula, j) => <Formula key={j} latex={formula} />)}
+            </div>
+          ))}
+        </div>
+      ) : <Formula latex={latex} />}
       {showCode && (
         <textarea
           className="latex-code"

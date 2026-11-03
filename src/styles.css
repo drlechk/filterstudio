@@ -1882,6 +1882,7 @@ h1 {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 4px;
+  line-height: 1.6;
 }
 .math-actions {
   display: flex;
@@ -1898,6 +1899,25 @@ h1 {
 .katex-display {
   margin: 1.2em 0 !important;
   text-align: left !important;
+}
+.math-formula-groups {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.math-formula-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 22px;
+  min-width: 0;
+}
+.math-formula-group > .math-render {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.math-formula-groups .katex-display {
+  margin: 0.35em 0 !important;
 }
 /* Give automatically sized matrix/vector/cases delimiters a little headroom.
    Compensate for the larger font's math axis to keep both ends centered. */

@@ -82,6 +82,9 @@ describe("REST/OpenAPI", () => {
     const response = await request(server.httpServer).post("/api/filters/analyze").send({ project, frequencies: [0, 1e6, 2e6] }).expect(200);
     expect(response.body.samples[1].db.s21).toBeCloseTo(-3.0102999566, 7);
     expect(response.body.samples[0].s21.re).toBeCloseTo(1, 7);
+    expect(response.body.latex.sections[0]).toContain("L_{1}=");
+    expect(response.body.latex.sections[0]).toContain("Z_{1}(s)=s\\,L_{1}");
+    expect(response.body.latex.sections[0]).toContain("\\mathbf{M}_{1}(p)");
     expect(response.body.normalization).toContain("ascending powers");
     const rounded = await request(server.httpServer).post("/api/filters/round").send({ project, digits: 3 }).expect(200);
     expect(rounded.body.changedValues).toBeGreaterThan(0);

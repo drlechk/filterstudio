@@ -52,6 +52,7 @@ import { formatComponentLabel } from "./lib/component-units";
 import { ResponsePlot } from "./components/ResponsePlot";
 import type { FrequencyScale, MagnitudeScale } from "./lib/plot-scales";
 import { Formula, MathView } from "./components/MathView";
+import { SectionMatrixView } from "./components/SectionMatrixView";
 import { ApproximationView } from "./components/ApproximationView";
 import { ToleranceControls } from "./components/ToleranceControls";
 import { TolerancePlot } from "./components/TolerancePlot";
@@ -2147,6 +2148,12 @@ const FilterWorkspace = memo(function FilterWorkspace({
                       ") · currents enter the network at both ports",
                     )}
                   </span>
+                  <p>
+                    {t(
+                      "Die Teilmatrizen zeigen die gespeicherten Bauteilwerte und deren Einsetzung in SI-Einheiten. ≈ kennzeichnet zur Anzeige auf sieben signifikante Stellen gerundete Koeffizienten; gerechnet wird mit voller Zahlenpräzision. Die Indizes Rᵢ, Lᵢ und Cᵢ beziehen sich auf die jeweilige Teilmatrix.",
+                      "Section matrices show the stored component values and their substitution in SI units. ≈ marks coefficients rounded to seven significant digits for display; calculations use full numeric precision. The indices Rᵢ, Lᵢ and Cᵢ refer to the corresponding section matrix.",
+                    )}
+                  </p>
                 </div>
                 <MathView
                   title={t(
@@ -2159,11 +2166,12 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     "A and D dimensionless · B in Ω · C in S",
                   )}
                 />
-                {analysis.latex.sections.map((latex, i) => (
-                  <MathView
-                    key={i}
-                    title={`${evaluation.sections[i].label ?? t(`Zweitor ${i + 1}`, `Section ${i + 1}`)} · ${evaluation.sections[i].connection === "series" ? t("Serienzweig", "Series branch") : t("Querzweig", "Shunt branch")}`}
-                    latex={latex}
+                {analysis.sectionDerivations.map((derivation, i) => (
+                  <SectionMatrixView
+                    key={evaluation.sections[i].id}
+                    section={evaluation.sections[i]}
+                    index={i + 1}
+                    derivation={derivation}
                   />
                 ))}
               </div>

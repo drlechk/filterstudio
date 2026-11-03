@@ -1,5 +1,6 @@
 import type { Section } from './types';
 import { frequencyAt, type FrequencyScale } from './plot-scales';
+import { sectionMatrixDerivation, type SectionMatrixDerivation } from './section-matrix';
 
 /** Coefficients in ascending powers of p = s / (2 pi fRef). */
 export type Polynomial = number[];
@@ -18,6 +19,7 @@ export type NetworkAnalysis = {
   numerators: Scattering<Polynomial>;
   characteristic: Rational;
   lossless: boolean;
+  sectionDerivations: SectionMatrixDerivation[];
   latex: { abcd: string; s: string; numerators: Scattering<string>; denominator: string; sections: string[]; characteristic: string; characteristicResponse?: string };
   evaluate: (frequency: number) => NumericNetwork;
 };
@@ -314,7 +316,7 @@ export function analyzeNetwork(sections: Section[], options: { fRef: number; z1:
   const { fRef, z1 } = options, z2 = options.z2 ?? z1;
   positive(fRef, 'Bezugsfrequenz'); positive(z1, 'Eingangsimpedanz'); positive(z2, 'Ausgangsimpedanz');
   let a = [1], b = [0], c = [0], d = [1], q = [1];
-  const sectionLatex: string[] = [];
+  const sectionDerivations: SectionMatrixDerivation[] = [];
   const numericSections: NumericSection[] = [];
   for (const [index, section] of sections.entries()) {
     const v = sectionImmittance(section, fRef);
@@ -325,13 +327,12 @@ export function analyzeNetwork(sections: Section[], options: { fRef: number; z1:
       b = polyAdd(bq, polyMultiply(a, v.num));
       d = polyAdd(dq, polyMultiply(c, v.num));
       a = aq; c = cq;
-      sectionLatex.push(`\\mathbf{M}_{${index + 1}}(p)=${matrixLatex('1', rationalLatex(v), '0', '1')}`);
     } else {
       a = polyAdd(aq, polyMultiply(b, v.num));
       c = polyAdd(cq, polyMultiply(d, v.num));
       b = bq; d = dq;
-      sectionLatex.push(`\\mathbf{M}_{${index + 1}}(p)=${matrixLatex('1', '0', rationalLatex(v), '1')}`);
     }
+    sectionDerivations.push(sectionMatrixDerivation(section, fRef, index + 1, rationalLatex(v)));
     q = polyMultiply(q, v.den);
     // Pure p factors can otherwise accumulate for adjacent capacitive/inductive sections.
     while ([a, b, c, d, q].every((p) => p[0] === 0)) {
@@ -380,12 +381,12 @@ export function analyzeNetwork(sections: Section[], options: { fRef: number; z1:
       s22: `N_{2,2}(p)=${polynomialLatex(numerators.s22)}`,
     },
     denominator: `D(p)=${polynomialLatex(denominator)}`,
-    sections: sectionLatex,
+    sections: sectionDerivations.map(derivation => derivation.latex),
     characteristic: `\\begin{gathered}\\Psi(p)=\\frac{S_{11}(p)}{S_{21}(p)}=\\frac{N_{11}(p)}{N_{21}(p)}\\\\\\Psi(p)=${rationalLatex(characteristic)}\\end{gathered}`,
     ...(lossless ? { characteristicResponse: '\\begin{gathered}p=jx,\\quad x=f/f_0\\\\|S_{21}(jx)|^2=\\frac{1}{1+|\\Psi(jx)|^2},\\qquad |S_{11}(jx)|^2=\\frac{|\\Psi(jx)|^2}{1+|\\Psi(jx)|^2}\\\\A(f)=10\\log_{10}\\!\\left(1+|\\Psi(jf/f_0)|^2\\right)\\,\\mathrm{dB}\\end{gathered}' } : {}),
   };
   return {
-    fRef, z1, z2, abcd, scattering, denominator, numerators, characteristic, lossless, latex,
+    fRef, z1, z2, abcd, scattering, denominator, numerators, characteristic, lossless, latex, sectionDerivations,
     evaluate(frequency: number): NumericNetwork {
       if (frequency < 0 || !Number.isFinite(frequency)) throw new Error('Die Frequenz muss endlich und nicht negativ sein.');
       const omega = frequency / fRef;

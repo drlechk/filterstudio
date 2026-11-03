@@ -307,6 +307,10 @@ M_Z=\begin{bmatrix}1&Z\\0&1\end{bmatrix},
 M_Y=\begin{bmatrix}1&0\\Y&1\end{bmatrix}.
 ```
 
+In the **ABCD matrices** view, each section identifies its component type, circuit label, and series/shunt placement before showing its matrix. The explanation includes the actual stored R, L and/or C values, the impedance `Z(s)`, the admittance `Y(s) = 1/Z(s)` for shunt branches, and the substitution `s = 2πf0 p` with numeric SI values. It then shows how the resulting expression enters `B = Z(p)` or `C = Y(p)`, alongside the evaluated section matrix. LC resonators explicitly distinguish their internal series/parallel connection from the placement of the whole block in the ladder.
+
+Component values in these derivations retain the full stored numeric precision regardless of the label-rounding setting. The `≈` sign marks matrix coefficients shortened to seven significant digits for display; calculations still use the original component values. Subscripts `Ri`, `Li` and `Ci` refer to the section-matrix index in signal-path order. **Copy LaTeX**, the LaTeX file export, and API/MCP analysis (`latex.sections`) include the same value substitutions and derivations.
+
 S-parameters use power waves referenced to real, positive port impedances. The conversion also accounts for different input and output reference impedances. For the reciprocal RLC two-port blocks used here, `S12 = S21`; for a lossless LC network, the S-matrix is unitary. These relationships follow [Michael Steer's two-port relationships](https://eng.libretexts.org/Bookshelves/Electrical_Engineering/Electronics/Microwave_and_RF_Design_III_-_Networks_(Steer)/02%3A_Chapter_2/2.7%3A_Scattering_Parameter_Two-Port_Relationships).
 
 The polynomials use the dimensionless variable
