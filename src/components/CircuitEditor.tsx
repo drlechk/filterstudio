@@ -30,9 +30,11 @@ import {
   COMPONENT_WIDTH,
   GROUND_CLEARANCE,
   groundGeometry,
+  LOAD_BRANCH_X,
   PORT_WIDTH,
   shuntGeometry,
   SIGNAL_Y,
+  SOURCE_BRANCH_X,
   type GroundGeometry,
 } from "../lib/ground-geometry";
 import "@xyflow/react/dist/style.css";
@@ -163,6 +165,26 @@ function ComponentSymbol({
   );
 }
 
+function PortTermination({ input, returnY }: { input: boolean; returnY: number }) {
+  const centerY = (SIGNAL_Y + returnY) / 2;
+  if (input) {
+    const resistorX = (SOURCE_BRANCH_X + 24) / 2;
+    return <g className="port-termination">
+      <path d={`M${SOURCE_BRANCH_X} ${centerY - 18}V${SIGNAL_Y}H${resistorX - 24}M${resistorX + 24} ${SIGNAL_Y}H19M${SOURCE_BRANCH_X} ${centerY + 18}V${returnY}H19`} />
+      <Glyph kind="R" x={resistorX} y={SIGNAL_Y} scale={0.8} />
+      <text x={resistorX} y={SIGNAL_Y - 18} textAnchor="middle">R1</text>
+      <circle className="voltage-source" cx={SOURCE_BRANCH_X} cy={centerY} r="18" />
+      <path d={`M${SOURCE_BRANCH_X - 10} ${centerY}c3-9 7-9 10 0s7 9 10 0`} />
+      <text x={SOURCE_BRANCH_X - 27} y={centerY + 4} textAnchor="end">Vₛ</text>
+    </g>;
+  }
+  return <g className="port-termination">
+    <path d={`M57 ${SIGNAL_Y}H${LOAD_BRANCH_X}V${centerY - 24}M${LOAD_BRANCH_X} ${centerY + 24}V${returnY}H57`} />
+    <Glyph kind="R" x={LOAD_BRANCH_X} y={centerY} rotation={90} scale={0.8} />
+    <text x={LOAD_BRANCH_X + 18} y={centerY + 4}>R2</text>
+  </g>;
+}
+
 function CircuitComponent({ data, selected }: NodeProps<FlowNode>) {
   const { t, language } = usePreferences();
   if (data.port) {
@@ -178,12 +200,12 @@ function CircuitComponent({ data, selected }: NodeProps<FlowNode>) {
         aria-label={
           input
             ? t(
-                "Tor 1, Eingang mit Signal- und Masseanschluss",
-                "Port 1, input with signal and return terminals",
+                "Tor 1, Eingang mit Signal- und Masseanschluss sowie Spannungsquelle und Innenwiderstand R1",
+                "Port 1, input with signal and return terminals, voltage source and source resistance R1",
               )
             : t(
-                "Tor 2, Ausgang mit Signal- und Masseanschluss",
-                "Port 2, output with signal and return terminals",
+                "Tor 2, Ausgang mit Signal- und Masseanschluss sowie Lastwiderstand R2",
+                "Port 2, output with signal and return terminals and load resistance R2",
               )
         }
       >
@@ -199,6 +221,7 @@ function CircuitComponent({ data, selected }: NodeProps<FlowNode>) {
           viewBox={`0 0 ${PORT_WIDTH} ${portHeight}`}
           aria-hidden="true"
         >
+          <PortTermination input={input} returnY={returnY} />
           <path
             className="port-conductor"
             d={input ? "M29 48H76" : "M0 48H47"}

@@ -5,6 +5,9 @@ export const COMPONENT_WIDTH = 126;
 export const PORT_WIDTH = 76;
 export const SIGNAL_Y = 48;
 export const GROUND_CLEARANCE = 28;
+// External source/load positions, relative to their port nodes.
+export const SOURCE_BRANCH_X = -120;
+export const LOAD_BRANCH_X = 124;
 
 /** Local coordinates keep each shunt body halfway down its actual return path. */
 export function shuntGeometry(returnY: number) {
@@ -67,11 +70,13 @@ export function groundGeometry(
     left = center - 32;
     right = center + 32;
   }
-  const boundsLeft = Math.min(left - 12, ...nodes.map((node) => node.x - 12));
+  const boundsLeft = Math.min(left - 12, ...nodes.map((node) =>
+    node.x + (node.port === "input" ? SOURCE_BRANCH_X - 48 : -12),
+  ));
   const boundsRight = Math.max(
     right + 12,
     ...nodes.map(
-      (node) => node.x + (node.port ? PORT_WIDTH : COMPONENT_WIDTH) + 12,
+      (node) => node.x + (node.port === "output" ? LOAD_BRANCH_X + 48 : (node.port ? PORT_WIDTH : COMPONENT_WIDTH) + 12),
     ),
   );
   const boundsTop = Math.min(...nodes.map((node) => node.y - 12));

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ExternalLink, Heart, Search } from "lucide-react";
+import { ArrowLeft, Download, ExternalLink, Heart, Search } from "lucide-react";
 import { acknowledgements, acknowledgementGroups, referenceLibraries } from "../lib/acknowledgements";
 import packages from "../data/third-party-packages.json";
 import { usePreferences } from "../lib/preferences";
+import { downloadFile } from "../lib/project";
+import licenseText from "../../LICENSE?raw";
 import "./AcknowledgementsPage.css";
 
 export default function AcknowledgementsPage({ onBack }: { onBack: () => void }) {
@@ -26,14 +28,44 @@ export default function AcknowledgementsPage({ onBack }: { onBack: () => void })
       </header>
       <div className="acknowledgements-intro">
         <span className="acknowledgements-icon"><Heart size={24} aria-hidden="true" /></span>
-        <p className="section-eyebrow">FILTERSTUDIO · OPEN SOURCE</p>
+        <p className="section-eyebrow">FILTERSTUDIO · {t("LIZENZ & CREDITS", "LICENSE & CREDITS")}</p>
         <h1 ref={heading} tabIndex={-1}>Credits</h1>
         <p>{t("Diese Projekte machen Filterstudio möglich. Vielen Dank an die Menschen, die diese Bibliotheken, Schriften und Werkzeuge entwickeln und pflegen.", "These projects make Filterstudio possible. Thank you to the people who build and maintain these libraries, fonts and tools.")}</p>
         <nav aria-label={t("Credits-Bereiche", "Credits sections")}>
+          <a href="#acknowledgements-license">{t("Filterstudio-Lizenz", "Filterstudio license")}</a>
           {acknowledgementGroups.map(group => <a key={group.id} href={`#acknowledgements-${group.id}`}>{t(group.de, group.en)}</a>)}
           <a href="#acknowledgements-packages">{t("Alle Pakete", "All packages")}</a>
         </nav>
       </div>
+      <section className="acknowledgements-section" id="acknowledgements-license" aria-labelledby="acknowledgements-license-title">
+        <h2 id="acknowledgements-license-title">{t("Filterstudio-Lizenz", "Filterstudio license")}</h2>
+        <article className="acknowledgement-card acknowledgements-license">
+          <h3>Filterstudio No-Sale License 1.0</h3>
+          <p>{t(
+            "Du darfst Filterstudio kostenlos nutzen, untersuchen, kopieren, verändern und weitergeben, auch in Unternehmen. Die Software, veränderte Versionen und darin enthaltene Filterstudio-Codeanteile dürfen nicht verkauft oder gegen Bezahlung zugänglich gemacht werden. Weitergegebene Änderungen und übernommener Code behalten dieselbe Lizenz, das Verkaufsverbot und die Pflicht zur Namensnennung.",
+            "You may use, study, copy, modify, and share Filterstudio without license fees, including in a business. The software, modified versions, and included Filterstudio code must not be sold or made available for payment. Redistributed modifications and reused code retain the same license, no-sale condition, and attribution requirements.",
+          )}</p>
+          <p>{t("Urheberhinweis:", "Attribution:")} <a href="https://github.com/drlechk/filterstudio" target="_blank" rel="noopener noreferrer">Filterstudio by drlechk and contributors</a>. {t(
+            "Bei Weitergabe die Dateien LICENSE und NOTICE beilegen, Änderungen kennzeichnen und den Hinweis samt Projektlink und Lizenz in Credits, Info oder der Dokumentation zugänglich halten. Auch private Kopien müssen die Hinweise behalten; eigene Berechnungsergebnisse übernehmen die Softwarelizenz nicht.",
+            "Include LICENSE and NOTICE when redistributing, identify modifications, and keep this credit, project link, and license accessible in Credits, About, or the documentation. Private copies must also retain the notices; your own calculation results do not inherit the software license.",
+          )}</p>
+          <p>{t(
+            "Eigene Schaltungsentwürfe, Ergebnisse und Exporte darfst du auch kommerziell nutzen und verkaufen. Freiwillige Spenden und unabhängige Support- oder Schulungsleistungen sind erlaubt, sofern die Software ohne Zahlung zugänglich bleibt. Für die unten aufgeführten Bibliotheken, Schriften und Werkzeuge gelten deren eigene Lizenzen.",
+            "Your own circuit designs, results, and exports may be used commercially and sold. Voluntary donations and independent support or training are allowed if the software remains accessible without payment. The libraries, fonts, and tools below retain their own licenses.",
+          )}</p>
+          <p>{t(
+            "Projektspezifische Lizenz mit offen zugänglichem Quellcode und Verkaufsverbot. Maßgeblich ist der vollständige englische Lizenztext.",
+            "Custom source-available license with a no-sale restriction. The complete English license text is authoritative.",
+          )}</p>
+          <details>
+            <summary>{t("Vollständigen Lizenztext anzeigen (Englisch)", "Read the full license (English)")}</summary>
+            <pre>{licenseText}</pre>
+          </details>
+          <button className="small-button" onClick={() => downloadFile("Filterstudio-LICENSE.txt", licenseText, "text/plain;charset=utf-8")}>
+            <Download size={15} aria-hidden="true" /> {t("Lizenz herunterladen", "Download license")}
+          </button>
+        </article>
+      </section>
       {acknowledgementGroups.map(group => (
         <section className="acknowledgements-section" id={`acknowledgements-${group.id}`} key={group.id} aria-labelledby={`acknowledgements-heading-${group.id}`}>
           <h2 id={`acknowledgements-heading-${group.id}`}>{t(group.de, group.en)}</h2>

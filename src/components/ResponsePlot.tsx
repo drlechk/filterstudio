@@ -28,6 +28,8 @@ export function ResponsePlot({
   band,
   mode,
   onExport,
+  dbRange,
+  onDbRangeChange: setDbRange,
   ...scales
 }: {
   analysis: NetworkAnalysis;
@@ -38,6 +40,8 @@ export function ResponsePlot({
   band?: { lower: number; upper: number };
   mode: "magnitude" | "phase";
   onExport?: (text: string) => void;
+  dbRange: number;
+  onDbRangeChange: (value: number) => void;
 } & PlotScaleProps) {
   const { frequencyScale, magnitudeScale } = scales;
   const { language, t, translate, number } = usePreferences();
@@ -48,7 +52,6 @@ export function ResponsePlot({
     mode === "phase" ? traces.map((trace) => trace.key) : ["s11", "s12"],
   );
   const [hover, setHover] = useState<number | null>(null);
-  const [dbRange, setDbRange] = useState(100);
   const sweep = useMemo(() => {
     try {
       const data = sweepNetwork(analysis, min, max, points, frequencyScale);

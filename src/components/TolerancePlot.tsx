@@ -39,6 +39,10 @@ export function TolerancePlot({
   previewError,
   actual,
   onChange,
+  normalized,
+  onNormalizedChange: setNormalized,
+  showActual,
+  onShowActualChange: setShowActual,
   ...scales
 }: {
   spec: ToleranceSpec;
@@ -47,11 +51,13 @@ export function TolerancePlot({
   previewError: string | null;
   actual: NetworkAnalysis | null;
   onChange: (spec: ToleranceSpec) => void;
+  normalized: boolean;
+  onNormalizedChange: (value: boolean) => void;
+  showActual: boolean;
+  onShowActualChange: (value: boolean) => void;
 } & PlotScaleProps) {
   const { t, language, number, translate } = usePreferences();
   const { frequencyScale, magnitudeScale } = scales;
-  const [normalized, setNormalized] = useState(false),
-    [showActual, setShowActual] = useState(false);
   const [drag, setDrag] = useState<Drag | null>(null),
     [hover, setHover] = useState<number | null>(null);
   const svg = useRef<SVGSVGElement>(null),

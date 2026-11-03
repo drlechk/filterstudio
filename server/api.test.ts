@@ -85,6 +85,10 @@ describe("REST/OpenAPI", () => {
     expect(response.body.latex.sections[0]).toContain("L_{1}=");
     expect(response.body.latex.sections[0]).toContain("Z_{1}(s)=s\\,L_{1}");
     expect(response.body.latex.sections[0]).toContain("\\mathbf{M}_{1}(p)");
+    expect(response.body.latex.abcdDenominator).toBe("Q(p)=1");
+    for (const key of ["A", "B", "C", "D"]) {
+      expect(response.body.latex.abcdEntries[key]).toContain(`${key}(p)=\\frac{P_{${key}}(p)}{Q(p)}`);
+    }
     expect(response.body.normalization).toContain("ascending powers");
     const rounded = await request(server.httpServer).post("/api/filters/round").send({ project, digits: 3 }).expect(200);
     expect(rounded.body.changedValues).toBeGreaterThan(0);

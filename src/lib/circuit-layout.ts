@@ -1,5 +1,5 @@
-import { COMPONENT_WIDTH, SIGNAL_Y } from "./ground-geometry";
-import type { CircuitNode } from "./types";
+import { CIRCUIT_NODE_HEIGHT, COMPONENT_WIDTH, SIGNAL_Y } from "./ground-geometry";
+import type { CircuitNode, CircuitWire } from "./types";
 
 export const CIRCUIT_GRID = 12;
 export const CIRCUIT_SPACING = 13 * CIRCUIT_GRID;
@@ -49,4 +49,50 @@ export function droppedComponentPosition(
     { x: pointer.x - COMPONENT_WIDTH / 2, y: pointer.y - SIGNAL_Y },
     stationaryNodes,
   );
+}
+
+/** Follow the signal connections, keeping disconnected chains visibly separate.
+ * Only coordinates change; array order, IDs, component data and wires stay intact.
+ */
+export function straightenCircuit(nodes: CircuitNode[], wires: readonly CircuitWire[]): CircuitNode[] {
+  const byId = new Map(nodes.map(node => [node.id, node]));
+  const outgoing = new Map<string, string>();
+  const incoming = new Set<string>();
+  for (const wire of wires) {
+    if (!byId.has(wire.source) || !byId.has(wire.target)) continue;
+    if (!outgoing.has(wire.source)) outgoing.set(wire.source, wire.target);
+    incoming.add(wire.target);
+  }
+  const visited = new Set<string>(), chains: CircuitNode[][] = [];
+  const follow = (start: CircuitNode) => {
+    const chain: CircuitNode[] = [];
+    let node: CircuitNode | undefined = start;
+    while (node && !visited.has(node.id)) {
+      visited.add(node.id);
+      chain.push(node);
+      node = byId.get(outgoing.get(node.id) ?? "");
+    }
+    if (chain.length) chains.push(chain);
+  };
+  nodes.filter(node => !incoming.has(node.id)).forEach(follow);
+  // Imported invalid circuits may contain cycles: retain every node and terminate.
+  nodes.forEach(follow);
+  const priority = (chain: CircuitNode[]) => chain.some(node => node.port === "input") ? -1
+    : chain.some(node => node.port === "output") ? 1 : 0;
+  chains.sort((a, b) => priority(a) - priority(b));
+  const positions = new Map<string, Position>();
+  let column = 0, row = CIRCUIT_INITIAL_Y;
+  for (const chain of chains) {
+    for (const node of chain) positions.set(node.id, { x: column++ * CIRCUIT_SPACING, y: row });
+    if (chain.some(node => node.port === "input") && chain.some(node => node.port === "output")) {
+      // A complete signal path stays on its own row; loose parts cannot sit on its wires.
+      column = 0;
+      row += CIRCUIT_NODE_HEIGHT + 6 * CIRCUIT_GRID;
+    } else column++;
+  }
+  const result = nodes.map(node => {
+    const position = positions.get(node.id)!;
+    return node.x === position.x && node.y === position.y ? node : { ...node, ...position };
+  });
+  return result.every((node, i) => node === nodes[i]) ? nodes : result;
 }

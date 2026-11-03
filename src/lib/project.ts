@@ -100,8 +100,8 @@ export function parseProject(raw: unknown): Project {
   if (raw.componentPrecision !== undefined && !isComponentPrecision(raw.componentPrecision)) throw new Error('Ungültige Anzeigegenauigkeit für Bauteilwerte.');
   return { version: 1, name: raw.name, settings, nodes, wires, z2: raw.z2, ...(tolerance ? { tolerance } : {}), ...(raw.componentPrecision !== undefined ? { componentPrecision: raw.componentPrecision } : {}), sweep: { min: sweep.min, max: sweep.max, points: sweep.points } };
 }
-export function downloadFile(name: string, text: string, type = 'text/plain') {
-  const url = URL.createObjectURL(new Blob([text], { type }));
+export function downloadFile(name: string, content: string | Blob, type = 'text/plain') {
+  const url = URL.createObjectURL(content instanceof Blob ? content : new Blob([content], { type }));
   const a = document.createElement('a'); a.href = url; a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

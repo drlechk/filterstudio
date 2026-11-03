@@ -20,7 +20,7 @@ export type NetworkAnalysis = {
   characteristic: Rational;
   lossless: boolean;
   sectionDerivations: SectionMatrixDerivation[];
-  latex: { abcd: string; s: string; numerators: Scattering<string>; denominator: string; sections: string[]; characteristic: string; characteristicResponse?: string };
+  latex: { abcd: string; abcdEntries: ChainMatrix<string>; abcdDenominator: string; s: string; numerators: Scattering<string>; denominator: string; sections: string[]; characteristic: string; characteristicResponse?: string };
   evaluate: (frequency: number) => NumericNetwork;
 };
 
@@ -371,8 +371,14 @@ export function analyzeNetwork(sections: Section[], options: { fRef: number; z1:
   // satisfies |S21|² = 1/(1+|Ψ|²) on the imaginary frequency axis.
   const characteristic = rational(numerators.s11, numerators.s21);
   const lossless = sections.every(section => section.kind !== 'R');
+  // Keep the shared cascade denominator: individual rational entries may have
+  // cancelled different powers of p (or reduced a zero entry to 0/1).
+  const abcdEntryLatex = (key: keyof ChainMatrix<Polynomial>, numerator: Polynomial) =>
+    `\\begin{gathered}${key}(p)=\\frac{P_{${key}}(p)}{Q(p)}\\\\[5pt]P_{${key}}(p)=${polynomialLatex(numerator)}\\end{gathered}`;
   const latex = {
-    abcd: `\\mathbf{M}(p)=${matrixLatex(rationalLatex(abcd.A), rationalLatex(abcd.B), rationalLatex(abcd.C), rationalLatex(abcd.D))}`,
+    abcd: `\\mathbf{M}(p)=${matrixLatex('A(p)', 'B(p)', 'C(p)', 'D(p)')}=\\frac{1}{Q(p)}${matrixLatex('P_A(p)', 'P_B(p)', 'P_C(p)', 'P_D(p)')}`,
+    abcdEntries: { A: abcdEntryLatex('A', a), B: abcdEntryLatex('B', b), C: abcdEntryLatex('C', c), D: abcdEntryLatex('D', d) },
+    abcdDenominator: `Q(p)=${polynomialLatex(q)}`,
     s: `\\mathbf{S}(p)=\\frac{1}{D(p)}${matrixLatex('N_{1,1}(p)', 'N_{1,2}(p)', 'N_{2,1}(p)', 'N_{2,2}(p)')}`,
     numerators: {
       s11: `N_{1,1}(p)=${polynomialLatex(numerators.s11)}`,

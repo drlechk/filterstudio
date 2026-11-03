@@ -180,4 +180,31 @@ describe('ABCD and power-wave S analysis', () => {
     expect(() => sweepNetwork(n, 1e6, 1e3)).toThrow();
     expect(polyMultiply([1, 2], [1, 3])).toEqual([1, 5, 6]);
   });
+
+  it('keeps the common ABCD denominator when individual entries cancel powers of p', () => {
+    // M_C M_L = [[1 + 1/p², 1/p], [1/p, 1]]. With Q=p²,
+    // the common numerators are p²+1, p, p and p², even though D reduces to 1.
+    const n = analyzeNetwork([section('C', 'series', 1), section('L', 'shunt', 1)], { fRef: 1 / PI2, z1: 1 });
+    expect(n.abcd.D).toEqual({ num: [1], den: [1] });
+    expect(n.latex.abcdDenominator).toBe('Q(p)=p^{2}');
+    for (const [key, polynomial] of Object.entries({ A: 'p^{2} + 1', B: 'p', C: 'p', D: 'p^{2}' })) {
+      const entry = n.latex.abcdEntries[key as keyof typeof n.latex.abcdEntries];
+      expect(entry).toContain(`${key}(p)=\\frac{P_{${key}}(p)}{Q(p)}`);
+      expect(entry).toContain(`P_{${key}}(p)=${polynomial}\\end{gathered}`);
+    }
+  });
+
+  it('describes resonant ABCD entries with their shared polynomial denominator', () => {
+    // Z=2p/(1+p²/2), Y=3p gives M=[[1+ZY,Z],[Y,1]].
+    const n = analyzeNetwork([section('LC', 'series', 2, .25, 'parallel'), section('C', 'shunt', 3)], { fRef: 1 / PI2, z1: 1 });
+    expect(n.latex.abcdDenominator).toBe('Q(p)=0.5p^{2} + 1');
+    expect(n.latex.abcdEntries.A).toContain('P_{A}(p)=6.5p^{2} + 1');
+    expect(n.latex.abcdEntries.B).toContain('P_{B}(p)=2p');
+    expect(n.latex.abcdEntries.C).toContain('P_{C}(p)=1.5p^{3} + 3p');
+    expect(n.latex.abcdEntries.D).toContain('P_{D}(p)=0.5p^{2} + 1');
+    const through = analyzeNetwork([], { fRef: 1, z1: 1 });
+    expect(through.latex.abcdDenominator).toBe('Q(p)=1');
+    expect(through.latex.abcdEntries.B).toContain('P_{B}(p)=0');
+    expect(through.latex.abcdEntries.C).toContain('P_{C}(p)=0');
+  });
 });

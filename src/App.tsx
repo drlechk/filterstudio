@@ -13,6 +13,7 @@ import {
 } from "react";
 import {
   Activity,
+  AlignHorizontalDistributeCenter,
   ArrowDownToLine,
   ArrowRight,
   BookOpen,
@@ -75,7 +76,7 @@ import {
 import { usePreferences } from "./lib/preferences";
 type Translator = (de: string, en: string) => string;
 import { synthesize } from "./lib/synthesis";
-import { CIRCUIT_SPACING, snapCircuitCoordinate } from "./lib/circuit-layout";
+import { CIRCUIT_SPACING, snapCircuitCoordinate, straightenCircuit } from "./lib/circuit-layout";
 import {
   bandEdges,
   filterDegree,
@@ -101,6 +102,7 @@ import type {
 } from "./lib/types";
 
 const AcknowledgementsPage = lazy(() => import("./components/AcknowledgementsPage"));
+const CircuitExportDialog = lazy(() => import("./components/CircuitExportDialog"));
 const isAcknowledgementsPage = () => window.location.hash.startsWith("#acknowledgements");
 
 const familyNames: Record<FilterFamily, string> = {
@@ -493,6 +495,9 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit>("MHz");
   const frequencyInputUnit = { unit: frequencyUnit, onUnitChange: setFrequencyUnit };
   const [magnitudeScale, setMagnitudeScale] = useState<MagnitudeScale>("db");
+  const [sParameterDbRange, setSParameterDbRange] = useState(100);
+  const [toleranceNormalized, setToleranceNormalized] = useState(false);
+  const [toleranceShowActual, setToleranceShowActual] = useState(false);
   const plotScales = { frequencyScale, magnitudeScale, onFrequencyScaleChange: setFrequencyScale, onMagnitudeScaleChange: setMagnitudeScale };
   const scatteringReadout = (value?: Complex) => !value ? "—" : magnitudeScale === "db"
     ? `${dbReadout(decibels(value), language)} dB` : number(magnitude(value), 6);
@@ -501,6 +506,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const [toast, setToast] = useState("");
   const [showHelp, setShowHelp] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showCircuitExport, setShowCircuitExport] = useState(false);
   const [notes, setNotes] = useState<string[]>([]);
   const [generating, setGenerating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -529,6 +535,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
     if (!active) {
       setShowHelp(false);
       setShowExport(false);
+      setShowCircuitExport(false);
     }
   }, [active]);
   function commit(next: Project, coalesce = false) {
@@ -900,6 +907,19 @@ const FilterWorkspace = memo(function FilterWorkspace({
       ),
     );
   }
+  function alignCircuit() {
+    if (generating) return;
+    const nodes = straightenCircuit(project.nodes, project.wires);
+    if (nodes !== project.nodes) {
+      commit({ ...project, nodes });
+      // Keep a subsequent drag separate from this single undoable layout operation.
+      changeStamp.current = 0;
+    }
+    setFitKey(key => key + 1);
+    setToast(nodes === project.nodes
+      ? t("Die Schaltung ist bereits ausgerichtet.", "The circuit is already aligned.")
+      : t("Schaltung ausgerichtet. Rückgängig stellt die vorherigen Positionen wieder her.", "Circuit aligned. Undo restores the previous positions."));
+  }
   function save() {
     downloadFile(
       `${project.name.replace(/[^\p{L}\p{N} _-]/gu, "").trim() || "filter"}.filterstudio.json`,
@@ -942,6 +962,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
       `% Filterstudio; p = s/(2*pi*${analysis.fRef}); Z1=${analysis.z1} ohm; Z2=${analysis.z2} ohm\n\\documentclass{article}\n\\usepackage{amsmath}\n\\begin{document}\n${referenceLatex}${[
         ...analysis.latex.sections,
         analysis.latex.abcd,
+        analysis.latex.abcdDenominator,
+        ...Object.values(analysis.latex.abcdEntries),
         analysis.latex.s,
         ...Object.values(analysis.latex.numerators),
         analysis.latex.denominator,
@@ -1102,6 +1124,13 @@ const FilterWorkspace = memo(function FilterWorkspace({
                         "ABCD matrices & S-matrix",
                       )}
                     </small>
+                  </span>
+                </button>
+                <button onClick={() => { setShowExport(false); setShowCircuitExport(true); }} disabled={!analysis}>
+                  <Download size={17} />
+                  <span>
+                    {t("Schaltung als TikZ / PDF", "Circuit as TikZ / PDF")}
+                    <small>{t("Schaltzeichen, Matrizen und Diagramme auswählen", "Choose circuit symbols, matrices and plots")}</small>
                   </span>
                 </button>
                 <button onClick={exportTouchstone} disabled={!analysis}>
@@ -1654,6 +1683,15 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   )}
                 </span>
                 <button
+                  className="circuit-align-button"
+                  onClick={alignCircuit}
+                  disabled={generating}
+                  title={t("Bauelemente entlang der Verbindungen automatisch ausrichten.", "Automatically align components along their connections.")}
+                >
+                  <AlignHorizontalDistributeCenter size={15} />
+                  {t("Ausrichten", "Straighten circuit")}
+                </button>
+                <button
                   className="circuit-rounding-button"
                   aria-expanded={showRounding}
                   aria-controls={`component-rounding-${tabId}`}
@@ -1984,6 +2022,10 @@ const FilterWorkspace = memo(function FilterWorkspace({
                 previewError={tolerancePreview.error}
                 actual={analysis}
                 onChange={setToleranceDraft}
+                normalized={toleranceNormalized}
+                onNormalizedChange={setToleranceNormalized}
+                showActual={toleranceShowActual}
+                onShowActualChange={setToleranceShowActual}
               />
             ) : !analysis ? (
               <div className="empty-analysis">
@@ -2041,6 +2083,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   cutoff={project.settings.cutoff}
                   band={projectBand}
                   mode="magnitude"
+                  dbRange={sParameterDbRange}
+                  onDbRangeChange={setSParameterDbRange}
                   onExport={(text) =>
                     downloadFile(
                       "filterstudio-s-parameter.csv",
@@ -2121,6 +2165,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     cutoff={project.settings.cutoff}
                     band={projectBand}
                     mode="phase"
+                    dbRange={sParameterDbRange}
+                    onDbRangeChange={setSParameterDbRange}
                     onExport={text => downloadFile("filterstudio-s-parameter.csv", text, "text/csv")}
                   />
                 </section>
@@ -2166,10 +2212,27 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   )}
                   latex={analysis.latex.abcd}
                   description={t(
-                    "A und D dimensionslos · B in Ω · C in S",
-                    "A and D dimensionless · B in Ω · C in S",
+                    "Die verkettete Gesamtmatrix ist in einen gemeinsamen Nenner Q(p) und vier Zählerpolynome aufgeteilt. Die Einträge A, B, C und D stehen unten einzeln.",
+                    "The overall cascaded matrix is split into a common denominator Q(p) and four numerator polynomials. The entries A, B, C and D are listed separately below.",
                   )}
                 />
+                <MathView
+                  title={t("Gemeinsames Nennerpolynom Q(p)", "Common denominator polynomial Q(p)")}
+                  latex={analysis.latex.abcdDenominator}
+                />
+                {([
+                  ["A", "M₁₁", t("Dimensionslos", "Dimensionless")],
+                  ["B", "M₁₂", t("Impedanz in Ω", "Impedance in Ω")],
+                  ["C", "M₂₁", t("Admittanz in S", "Admittance in S")],
+                  ["D", "M₂₂", t("Dimensionslos", "Dimensionless")],
+                ] as const).map(([key, position, unit]) => (
+                  <MathView
+                    key={key}
+                    title={`${t("Matrixeintrag", "Matrix entry")} ${key}(p) = ${position}(p)`}
+                    description={unit}
+                    latex={analysis.latex.abcdEntries[key]}
+                  />
+                ))}
                 {analysis.sectionDerivations.map((derivation, i) => (
                   <SectionMatrixView
                     key={evaluation.sections[i].id}
@@ -2474,6 +2537,15 @@ const FilterWorkspace = memo(function FilterWorkspace({
             <X size={15} />
           </button>
         </div>
+      )}
+      {active && showCircuitExport && analysis && (
+        <Suspense fallback={<div className="toast" role="status">{t("Schaltungsexport wird geladen …", "Loading circuit export …")}</div>}>
+          <CircuitExportDialog project={project} analysis={analysis}
+            plotContext={{ language, frequencyScale, magnitudeScale, dbRange: sParameterDbRange,
+              ...(designMode === "tolerance" ? { tolerance: { spec: toleranceDraft, preview: tolerancePreview.analysis,
+                normalized: toleranceNormalized, showActual: toleranceShowActual } } : {}),
+            }} onClose={() => setShowCircuitExport(false)} />
+        </Suspense>
       )}
       {active && showHelp && (
         <div className="modal-backdrop" onClick={() => setShowHelp(false)}>

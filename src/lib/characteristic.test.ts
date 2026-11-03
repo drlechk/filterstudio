@@ -62,6 +62,8 @@ describe("characteristic function of the actual circuit", () => {
           network.latex.characteristic,
           network.latex.characteristicResponse!,
           network.latex.abcd,
+          network.latex.abcdDenominator,
+          ...Object.values(network.latex.abcdEntries),
           ...network.latex.sections,
         ]) {
           expect(() =>

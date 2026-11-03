@@ -18,7 +18,7 @@ const traceY = (markup: string) => [...markup.match(/<path d="([^"]+)" stroke="v
 describe("plot scale rendering", () => {
   it("renders S-parameter magnitudes in linear units or dB with matching axis geometry", () => {
     for (const magnitudeScale of ["linear", "db"] as const) {
-      const markup = renderToStaticMarkup(<PreferencesProvider><ResponsePlot {...scales} magnitudeScale={magnitudeScale} analysis={analysis} min={1e5} max={1e7} points={51} cutoff={1e6} mode="magnitude" /></PreferencesProvider>);
+      const markup = renderToStaticMarkup(<PreferencesProvider><ResponsePlot dbRange={100} onDbRangeChange={() => {}} {...scales} magnitudeScale={magnitudeScale} analysis={analysis} min={1e5} max={1e7} points={51} cutoff={1e6} mode="magnitude" /></PreferencesProvider>);
       expect(markup).toContain(magnitudeScale === "linear" ? "linear magnitude versus linear frequency" : "magnitude in dB versus linear frequency");
       expect(new Set(traceY(markup))).toEqual(new Set([magnitudeScale === "linear" ? 220.2 : 67.6]));
       expect(markup).not.toMatch(/NaN|Infinity/);
@@ -26,7 +26,7 @@ describe("plot scale rendering", () => {
   });
 
   it("renders phase in degrees while allowing a linear frequency axis", () => {
-    const markup = renderToStaticMarkup(<PreferencesProvider><ResponsePlot {...scales} analysis={analysis} min={1e5} max={1e7} points={51} cutoff={1e6} mode="phase" /></PreferencesProvider>);
+    const markup = renderToStaticMarkup(<PreferencesProvider><ResponsePlot dbRange={100} onDbRangeChange={() => {}} {...scales} analysis={analysis} min={1e5} max={1e7} points={51} cutoff={1e6} mode="phase" /></PreferencesProvider>);
     expect(markup).toContain("phase versus linear frequency");
     expect(markup).toContain("Phase in degrees");
     expect(markup).not.toContain("Logarithmic · dB");
@@ -35,7 +35,7 @@ describe("plot scale rendering", () => {
 
   it("renders attenuation factors and dB at their corresponding heights without changing the mask", () => {
     for (const magnitudeScale of ["linear", "db"] as const) {
-      const markup = renderToStaticMarkup(<PreferencesProvider><TolerancePlot {...scales} magnitudeScale={magnitudeScale} spec={spec} design={designTolerance(spec, "butterworth", 50)} preview={analysis} previewError={null} actual={null} onChange={() => {}} /></PreferencesProvider>);
+      const markup = renderToStaticMarkup(<PreferencesProvider><TolerancePlot normalized={false} onNormalizedChange={() => {}} showActual={false} onShowActualChange={() => {}} {...scales} magnitudeScale={magnitudeScale} spec={spec} design={designTolerance(spec, "butterworth", 50)} preview={analysis} previewError={null} actual={null} onChange={() => {}} /></PreferencesProvider>);
       // Insertion loss 20 dB sits at 20/60 of the dB axis, but at
       // (10-1)/(1000-1) of the amplitude-loss-factor axis.
       const path = markup.match(/<path d="([^"]+)" fill="none" stroke="var\(--trace-s21\)"/)![1];

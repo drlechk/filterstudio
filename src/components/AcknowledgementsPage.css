@@ -48,6 +48,10 @@
 .acknowledgement-card h3 a { color: var(--text); }
 .acknowledgement-card h3 svg { vertical-align: middle; color: var(--text-muted); }
 .acknowledgement-card > p { margin: 0 0 16px; font-size: 13px; line-height: 1.6; color: var(--text-muted); }
+.acknowledgements-license details { margin-bottom: 16px; font-size: 13px; }
+.acknowledgements-license summary { cursor: pointer; color: var(--accent-text); }
+.acknowledgements-license pre { margin-top: 14px; padding: 16px; max-height: 420px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-subtle); font-size: 12px; line-height: 1.6; }
+.acknowledgements-license > button { align-self: flex-start; }
 .acknowledgement-packages { list-style: none; padding: 0; margin: 0 0 20px; font-size: 11px; line-height: 1.8; overflow-wrap: anywhere; }
 .acknowledgement-packages span { color: var(--text-muted); }
 .acknowledgement-links { border-top: 1px solid var(--border); padding-top: 14px; margin-top: auto; font-size: 11px; }

@@ -1,0 +1,133 @@
+Filterstudio No-Sale License 1.0
+SPDX-License-Identifier: LicenseRef-Filterstudio-No-Sale-1.0
+
+Copyright (c) 2026 the Filterstudio authors and contributors.
+
+1. Scope
+
+"Software" means the original Filterstudio code, documentation, and other
+project materials supplied under this license, including copies, modified
+versions, and portions of those materials in source or compiled form.
+"Licensor" means each copyright holder who makes their contribution available
+under this license. Each Licensor grants rights only in their own contribution.
+Separately licensed third-party materials are excluded; see section 6.
+
+2. Permission to use, study, modify, and share
+
+Subject to the conditions below, each Licensor grants you a worldwide,
+non-exclusive, royalty-free copyright license to use, run, study, reproduce,
+modify, combine, and distribute the Software, in source or compiled form.
+These permissions include personal, educational, research, public-sector, and
+commercial use. Using the Software in a business is permitted.
+
+This grant lasts for the duration of the applicable copyright and is
+irrevocable while you comply with this license. It does not grant permission
+to sell the Software or charge for access to it.
+
+3. No sale or paid access
+
+You must not sell, rent, lease, or otherwise provide the Software in exchange
+for money or other consideration. This prohibition applies to the original
+Software, modified versions, and covered portions, whether distributed alone,
+embedded in another product, or included in a paid bundle.
+
+In particular, you must not charge for copies, downloads, distribution,
+licenses, activation, subscriptions, or hosted access to the Software or its
+functionality. Calling a required payment a donation, membership, handling
+fee, hosting fee, or support fee does not avoid this prohibition. No time
+limit or later conversion to a license allowing sale is provided by this
+license.
+
+Genuinely voluntary donations are permitted if payment is not a condition of
+obtaining, using, or accessing the Software or any covered functionality.
+You may charge for independent services such as support, training, or
+consulting, provided the Software remains available without payment and the
+service is neither a required purchase nor a disguised charge for the
+Software or access to it.
+
+4. Conditions for sharing and modifications
+
+The Software remains subject to this license when you use, copy, modify, or
+incorporate it into another program. Creating a modification, changing its
+name, or incorporating covered code into a larger work does not remove this
+license or the attribution requirements. This applies to each subsequent
+modified version and redistribution. Mere use as a tool does not make your
+independent work a derivative of the Software; see section 5.
+
+Whenever you distribute the Software or make a hosted version available:
+
+a. Provide a complete copy of this license and retain the applicable
+   copyright, attribution, and license notices, including the accompanying
+   NOTICE file. Identify Filterstudio and its original author, drlechk, and
+   contributors, and include the original project URL:
+   https://github.com/drlechk/filterstudio
+   In a modified or combined work, clearly identify the Filterstudio code
+   as the source of the reused material. A suitable attribution is:
+   "Based on Filterstudio by drlechk and contributors -
+   https://github.com/drlechk/filterstudio".
+   For an interactive application or hosted version, make this credit,
+   the copyright notices, and the license readily accessible in the user
+   interface, such as a Credits or About page. For other distributions,
+   provide them in the accompanying documentation. Retain these notices
+   in private copies as well; private use alone does not require a public
+   acknowledgement or publication of private modifications.
+b. Make modified versions and covered portions available under this same
+   license. Do not remove the no-sale condition or offer the covered material
+   under terms that permit its sale or paid access. Independent materials
+   that do not incorporate or derive from the Software are not subject to
+   this requirement.
+c. Clearly identify substantial modifications and do not imply that the
+   original authors endorse your version.
+
+Recipients receive permission directly from the respective Licensors under
+this license. You may not impose additional terms or technical restrictions
+that prevent recipients from exercising the rights granted here. Private
+modifications do not have to be published.
+
+5. Your work and generated output
+
+This license does not restrict your own input data, circuit designs,
+calculation results, plots, exported JSON, CSV, Touchstone, LaTeX or PDF files,
+or other output created using the Software. You may use, modify, share, or
+sell that work, including products designed with the Software. Merely using
+the Software to produce work does not place that work under this license.
+This exception does not permit redistribution of the Software's own
+implementation as an output or a product in order to evade section 3.
+
+6. Third-party materials
+
+Dependencies, fonts, icons, and other third-party materials retain their own
+licenses and notices. This license does not replace or restrict the rights
+granted by their copyright holders. See THIRD_PARTY_PACKAGES.md and the
+upstream packages for their license information. Combining those materials
+with Filterstudio does not remove this license from Filterstudio's own code.
+
+7. Termination
+
+Your rights under this license terminate automatically if you violate its
+conditions. They are reinstated if you cease the violation and remedy it
+within 30 days of discovering it. Reinstatement does not erase liability for
+past violations. Termination of your rights does not terminate the rights of
+recipients who independently comply with this license.
+
+8. Warranty and liability
+
+To the extent permitted by applicable law, the Software is provided as is,
+without any express or implied warranty, including warranties of fitness for
+a particular purpose, merchantability, accuracy, or non-infringement. The
+Licensors have no obligation to maintain, support, or update the Software.
+To the extent permitted by applicable law, the Licensors are not liable for
+loss or damage arising from the Software or its use. Nothing in this license
+excludes liability or other rights that applicable law does not allow to be
+excluded.
+
+9. Other rights and interpretation
+
+No trademark rights or right to claim endorsement are granted. Rights that
+you have independently of this license, including statutory exceptions and
+limitations to copyright, are not restricted. If a provision is unenforceable,
+the remaining provisions remain effective to the extent permitted by law.
+
+This is a custom source-available license with a no-sale restriction, not an
+OSI-approved open-source license. The English text in this file is the
+license; summaries and translations are explanatory only.

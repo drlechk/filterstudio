@@ -117,6 +117,22 @@
 .circuit-port .port-terminal {
   fill: var(--canvas-bg, #fbfcfa);
 }
+.circuit-port .port-termination {
+  stroke: var(--circuit-termination, #939ba1);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.circuit-port .port-termination .voltage-source {
+  fill: var(--canvas-bg, #fbfcfa);
+}
+.circuit-port .port-termination text {
+  fill: var(--circuit-termination, #939ba1);
+  stroke: none;
+  font-family: var(--font-mono, "SFMono-Regular", Consolas, monospace);
+  font-size: 12px;
+}
 .circuit-port .port-voltage-arrow {
   stroke: var(--circuit-muted, #708084);
   stroke-width: 1;

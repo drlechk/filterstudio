@@ -8,9 +8,11 @@ import {
 import { COMPONENT_WIDTH, SIGNAL_Y } from "./ground-geometry";
 import {
   CIRCUIT_GRID,
+  CIRCUIT_INITIAL_Y,
   CIRCUIT_SPACING,
   droppedComponentPosition,
   snapCircuitPosition,
+  straightenCircuit,
 } from "./circuit-layout";
 import type { CircuitNode, Project, Section } from "./types";
 
@@ -107,5 +109,62 @@ describe("circuit grid and signal alignment", () => {
     droppedComponentPosition({ x: 375, y: 148 }, imported.nodes);
     expect(imported.nodes).toEqual(original);
     expect(imported.nodes).toEqual(legacyPorts);
+  });
+});
+
+describe("automatic circuit alignment", () => {
+  it("straightens a scrambled cascade in electrical order without changing its data or array order", () => {
+    const circuit = createCircuit(sections);
+    const nodes = [...circuit.nodes].reverse().map((node, i) => ({ ...node, x: 900 - i * 91, y: i % 2 ? 420 : -30 }));
+    const original = structuredClone(nodes), wires = structuredClone(circuit.wires);
+    const aligned = straightenCircuit(nodes, circuit.wires);
+    expect(nodes).toEqual(original);
+    expect(circuit.wires).toEqual(wires);
+    expect(aligned.map(node => node.id)).toEqual(nodes.map(node => node.id));
+    expect(orderedSections(aligned, circuit.wires)).toEqual(sections);
+    const order = ["input", ...sections.map(section => section.id), "output"];
+    for (const [i, id] of order.entries()) {
+      const node = aligned.find(node => node.id === id)!;
+      expect(node.x).toBe(i * CIRCUIT_SPACING);
+      expect(node.y).toBe(CIRCUIT_INITIAL_Y);
+      expect(node.section).toBe(nodes.find(node => node.id === id)!.section);
+    }
+    expect(straightenCircuit(aligned, circuit.wires)).toBe(aligned);
+  });
+
+  it("keeps open chains separated and ordered by their existing connections", () => {
+    const circuit = createCircuit(sections);
+    const wires = circuit.wires.filter(wire => wire.source !== "C1");
+    const aligned = straightenCircuit([...circuit.nodes].reverse(), wires);
+    for (const wire of wires) {
+      const source = aligned.find(node => node.id === wire.source)!;
+      const target = aligned.find(node => node.id === wire.target)!;
+      expect(target.x - source.x).toBe(CIRCUIT_SPACING);
+      expect(target.y).toBe(source.y);
+    }
+    expect(aligned.find(node => node.id === "R1")!.x - aligned.find(node => node.id === "C1")!.x).toBe(2 * CIRCUIT_SPACING);
+  });
+
+  it("places loose parts away from a complete signal path and retains all nodes", () => {
+    const circuit = createCircuit(sections);
+    const loose: CircuitNode = { id: "loose", section: { ...sections[0], id: "loose" }, x: 200, y: 40 };
+    const aligned = straightenCircuit([loose, ...circuit.nodes], circuit.wires);
+    expect(aligned).toHaveLength(circuit.nodes.length + 1);
+    expect(aligned[0].y).toBeGreaterThan(aligned[1].y);
+    expect(aligned.slice(1)).toEqual(circuit.nodes);
+    expect(straightenCircuit(aligned, circuit.wires)).toBe(aligned);
+  });
+
+  it("handles empty or disconnected circuits and terminates on imported cycles", () => {
+    expect(straightenCircuit([], [])).toEqual([]);
+    const circuit = createCircuit(sections);
+    const disconnected = straightenCircuit([...circuit.nodes].reverse(), []);
+    expect(disconnected.find(node => node.port === "input")!.x).toBe(0);
+    expect(disconnected.find(node => node.port === "output")!.x).toBe(Math.max(...disconnected.map(node => node.x)));
+    const cyclicWires = [...circuit.wires.slice(1, -1), { id: "cycle", source: "LC1", target: "L1" }];
+    const cyclic = straightenCircuit(circuit.nodes, cyclicWires);
+    expect(cyclic.map(node => node.id)).toEqual(circuit.nodes.map(node => node.id));
+    expect(new Set(cyclic.map(node => `${node.x},${node.y}`)).size).toBe(cyclic.length);
+    expect(straightenCircuit(cyclic, cyclicWires)).toBe(cyclic);
   });
 });

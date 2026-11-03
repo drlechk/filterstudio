@@ -20,6 +20,7 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [@babel/parser](https://www.npmjs.com/package/@babel/parser/v/7.29.12) | 7.29.12 | Transitive | Development | MIT |
 | [@babel/plugin-transform-react-jsx-self](https://www.npmjs.com/package/@babel/plugin-transform-react-jsx-self/v/7.29.7) | 7.29.7 | Transitive | Development | MIT |
 | [@babel/plugin-transform-react-jsx-source](https://www.npmjs.com/package/@babel/plugin-transform-react-jsx-source/v/7.29.7) | 7.29.7 | Transitive | Development | MIT |
+| [@babel/runtime](https://www.npmjs.com/package/@babel/runtime/v/7.29.10) | 7.29.10 | Transitive | Runtime / shared | MIT |
 | [@babel/template](https://www.npmjs.com/package/@babel/template/v/7.29.7) | 7.29.7 | Transitive | Development | MIT |
 | [@babel/traverse](https://www.npmjs.com/package/@babel/traverse/v/7.29.12) | 7.29.12 | Transitive | Development | MIT |
 | [@babel/types](https://www.npmjs.com/package/@babel/types/v/7.29.11) | 7.29.11 | Transitive | Development | MIT |
@@ -111,7 +112,9 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [@types/katex](https://www.npmjs.com/package/@types/katex/v/0.16.8) | 0.16.8 | Direct | Development | MIT |
 | [@types/methods](https://www.npmjs.com/package/@types/methods/v/1.1.4) | 1.1.4 | Transitive | Development | MIT |
 | [@types/node](https://www.npmjs.com/package/@types/node/v/24.19.2) | 24.19.2 | Direct | Development | MIT |
+| [@types/pako](https://www.npmjs.com/package/@types/pako/v/2.0.4) | 2.0.4 | Transitive | Runtime / shared | MIT |
 | [@types/qs](https://www.npmjs.com/package/@types/qs/v/6.15.1) | 6.15.1 | Transitive | Development | MIT |
+| [@types/raf](https://www.npmjs.com/package/@types/raf/v/3.4.3) | 3.4.3 | Transitive | Runtime / shared | MIT |
 | [@types/range-parser](https://www.npmjs.com/package/@types/range-parser/v/1.2.7) | 1.2.7 | Transitive | Development | MIT |
 | [@types/react](https://www.npmjs.com/package/@types/react/v/19.3.0) | 19.3.0 | Direct | Runtime / shared | MIT |
 | [@types/react-dom](https://www.npmjs.com/package/@types/react-dom/v/19.3.0) | 19.3.0 | Direct | Runtime / shared | MIT |
@@ -120,10 +123,12 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [@types/superagent](https://www.npmjs.com/package/@types/superagent/v/8.1.11) | 8.1.11 | Transitive | Development | MIT |
 | [@types/supertest](https://www.npmjs.com/package/@types/supertest/v/7.2.1) | 7.2.1 | Direct | Development | MIT |
 | [@types/swagger-ui-dist](https://www.npmjs.com/package/@types/swagger-ui-dist/v/3.30.6) | 3.30.6 | Direct | Development | MIT |
+| [@types/trusted-types](https://www.npmjs.com/package/@types/trusted-types/v/2.0.7) | 2.0.7 | Transitive | Runtime / shared | MIT |
 | [@types/ws](https://www.npmjs.com/package/@types/ws/v/8.18.2) | 8.18.2 | Direct | Development | MIT |
 | [@vitejs/plugin-react](https://www.npmjs.com/package/@vitejs/plugin-react/v/5.2.0) | 5.2.0 | Direct | Development | MIT |
 | [@vitest/mocker](https://www.npmjs.com/package/@vitest/mocker/v/5.0.5) | 5.0.5 | Transitive | Development | MIT |
 | [@vitest/spy](https://www.npmjs.com/package/@vitest/spy/v/5.0.5) | 5.0.5 | Transitive | Development | MIT |
+| [@xmldom/xmldom](https://www.npmjs.com/package/@xmldom/xmldom/v/0.9.12) | 0.9.12 | Transitive | Runtime / shared | MIT |
 | [@xyflow/react](https://www.npmjs.com/package/@xyflow/react/v/12.12.0) | 12.12.0 | Direct | Runtime / shared | MIT |
 | [@xyflow/system](https://www.npmjs.com/package/@xyflow/system/v/0.0.83) | 0.0.83 | Transitive | Runtime / shared | MIT |
 | [accepts](https://www.npmjs.com/package/accepts/v/2.0.0) | 2.0.0 | Transitive | Runtime / shared | MIT |
@@ -132,6 +137,7 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [asap](https://www.npmjs.com/package/asap/v/2.0.6) | 2.0.6 | Transitive | Development | MIT |
 | [assertion-error](https://www.npmjs.com/package/assertion-error/v/2.0.1) | 2.0.1 | Transitive | Development | MIT |
 | [asynckit](https://www.npmjs.com/package/asynckit/v/0.4.0) | 0.4.0 | Transitive | Development | MIT |
+| [base64-arraybuffer](https://www.npmjs.com/package/base64-arraybuffer/v/1.0.2) | 1.0.2 | Transitive | Runtime / shared | MIT |
 | [baseline-browser-mapping](https://www.npmjs.com/package/baseline-browser-mapping/v/2.11.34) | 2.11.34 | Transitive | Development | Apache-2.0 |
 | [body-parser](https://www.npmjs.com/package/body-parser/v/2.4.0) | 2.4.0 | Transitive | Runtime / shared | MIT |
 | [browserslist](https://www.npmjs.com/package/browserslist/v/4.29.5) | 4.29.5 | Transitive | Development | MIT |
@@ -139,9 +145,11 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [call-bind-apply-helpers](https://www.npmjs.com/package/call-bind-apply-helpers/v/1.0.2) | 1.0.2 | Transitive | Runtime / shared | MIT |
 | [call-bound](https://www.npmjs.com/package/call-bound/v/1.0.4) | 1.0.4 | Transitive | Runtime / shared | MIT |
 | [caniuse-lite](https://www.npmjs.com/package/caniuse-lite/v/1.0.30001820) | 1.0.30001820 | Transitive | Development | CC-BY-4.0 |
+| [canvg](https://www.npmjs.com/package/canvg/v/3.0.11) | 3.0.11 | Transitive | Runtime / shared | MIT |
 | [chai](https://www.npmjs.com/package/chai/v/6.3.0) | 6.3.0 | Transitive | Development | MIT |
 | [classcat](https://www.npmjs.com/package/classcat/v/5.0.5) | 5.0.5 | Transitive | Runtime / shared | MIT |
 | [combined-stream](https://www.npmjs.com/package/combined-stream/v/1.0.8) | 1.0.8 | Transitive | Development | MIT |
+| [commander](https://www.npmjs.com/package/commander/v/13.1.0) | 13.1.0 | Transitive | Runtime / shared | MIT |
 | [commander](https://www.npmjs.com/package/commander/v/15.0.0) | 15.0.0 | Transitive | Runtime / shared | MIT |
 | [component-emitter](https://www.npmjs.com/package/component-emitter/v/1.3.1) | 1.3.1 | Transitive | Development | MIT |
 | [content-disposition](https://www.npmjs.com/package/content-disposition/v/2.0.1) | 2.0.1 | Transitive | Runtime / shared | MIT |
@@ -151,8 +159,11 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [cookie](https://www.npmjs.com/package/cookie/v/0.7.2) | 0.7.2 | Transitive | Runtime / shared | MIT |
 | [cookie-signature](https://www.npmjs.com/package/cookie-signature/v/1.2.2) | 1.2.2 | Transitive | Runtime / shared | MIT |
 | [cookiejar](https://www.npmjs.com/package/cookiejar/v/2.1.4) | 2.1.4 | Transitive | Development | MIT |
+| [core-js](https://www.npmjs.com/package/core-js/v/3.51.0) | 3.51.0 | Transitive | Runtime / shared | MIT |
 | [cors](https://www.npmjs.com/package/cors/v/2.8.6) | 2.8.6 | Transitive | Runtime / shared | MIT |
 | [cross-spawn](https://www.npmjs.com/package/cross-spawn/v/7.0.6) | 7.0.6 | Transitive | Runtime / shared | MIT |
+| [css-line-break](https://www.npmjs.com/package/css-line-break/v/2.1.0) | 2.1.0 | Transitive | Runtime / shared | MIT |
+| [cssesc](https://www.npmjs.com/package/cssesc/v/3.0.0) | 3.0.0 | Transitive | Runtime / shared | MIT |
 | [csstype](https://www.npmjs.com/package/csstype/v/3.2.3) | 3.2.3 | Transitive | Runtime / shared | MIT |
 | [d3-color](https://www.npmjs.com/package/d3-color/v/3.1.0) | 3.1.0 | Transitive | Runtime / shared | ISC |
 | [d3-dispatch](https://www.npmjs.com/package/d3-dispatch/v/3.0.1) | 3.0.1 | Transitive | Runtime / shared | ISC |
@@ -167,6 +178,7 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [delayed-stream](https://www.npmjs.com/package/delayed-stream/v/1.0.0) | 1.0.0 | Transitive | Development | MIT |
 | [depd](https://www.npmjs.com/package/depd/v/2.0.0) | 2.0.0 | Transitive | Runtime / shared | MIT |
 | [dezalgo](https://www.npmjs.com/package/dezalgo/v/1.0.4) | 1.0.4 | Transitive | Development | ISC |
+| [dompurify](https://www.npmjs.com/package/dompurify/v/3.4.17) | 3.4.17 | Transitive | Runtime / shared | (MPL-2.0 OR Apache-2.0) |
 | [dunder-proto](https://www.npmjs.com/package/dunder-proto/v/1.0.1) | 1.0.1 | Transitive | Runtime / shared | MIT |
 | [ee-first](https://www.npmjs.com/package/ee-first/v/1.1.1) | 1.1.1 | Transitive | Runtime / shared | MIT |
 | [electron-to-chromium](https://www.npmjs.com/package/electron-to-chromium/v/1.5.469) | 1.5.469 | Transitive | Development | ISC |
@@ -179,6 +191,7 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [esbuild](https://www.npmjs.com/package/esbuild/v/0.28.2) | 0.28.2 | Direct | Development | MIT |
 | [escalade](https://www.npmjs.com/package/escalade/v/3.2.0) | 3.2.0 | Transitive | Development | MIT |
 | [escape-html](https://www.npmjs.com/package/escape-html/v/1.0.3) | 1.0.3 | Transitive | Runtime / shared | MIT |
+| [esm](https://www.npmjs.com/package/esm/v/3.2.25) | 3.2.25 | Transitive | Runtime / shared | MIT |
 | [estree-walker](https://www.npmjs.com/package/estree-walker/v/3.0.3) | 3.0.3 | Transitive | Development | MIT |
 | [etag](https://www.npmjs.com/package/etag/v/1.8.1) | 1.8.1 | Transitive | Runtime / shared | MIT |
 | [eventsource](https://www.npmjs.com/package/eventsource/v/3.0.7) | 3.0.7 | Transitive | Runtime / shared | MIT |
@@ -187,10 +200,13 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [express](https://www.npmjs.com/package/express/v/5.3.0) | 5.3.0 | Direct | Runtime / shared | MIT |
 | [express-rate-limit](https://www.npmjs.com/package/express-rate-limit/v/8.7.3) | 8.7.3 | Transitive | Runtime / shared | MIT |
 | [fast-deep-equal](https://www.npmjs.com/package/fast-deep-equal/v/3.1.3) | 3.1.3 | Transitive | Runtime / shared | MIT |
+| [fast-png](https://www.npmjs.com/package/fast-png/v/6.4.0) | 6.4.0 | Transitive | Runtime / shared | MIT |
 | [fast-safe-stringify](https://www.npmjs.com/package/fast-safe-stringify/v/2.1.1) | 2.1.1 | Transitive | Development | MIT |
 | [fast-uri](https://www.npmjs.com/package/fast-uri/v/3.1.9) | 3.1.9 | Transitive | Runtime / shared | BSD-3-Clause |
 | [fdir](https://www.npmjs.com/package/fdir/v/6.5.0) | 6.5.0 | Transitive | Development | MIT |
+| [fflate](https://www.npmjs.com/package/fflate/v/0.8.3) | 0.8.3 | Transitive | Runtime / shared | MIT |
 | [finalhandler](https://www.npmjs.com/package/finalhandler/v/2.1.1) | 2.1.1 | Transitive | Runtime / shared | MIT |
+| [font-family-papandreou](https://www.npmjs.com/package/font-family-papandreou/v/0.2.0-patch2) | 0.2.0-patch2 | Transitive | Runtime / shared | MIT |
 | [form-data](https://www.npmjs.com/package/form-data/v/4.0.6) | 4.0.6 | Transitive | Development | MIT |
 | [formidable](https://www.npmjs.com/package/formidable/v/3.5.4) | 3.5.4 | Transitive | Development | MIT |
 | [forwarded](https://www.npmjs.com/package/forwarded/v/0.2.0) | 0.2.0 | Transitive | Runtime / shared | MIT |
@@ -205,9 +221,11 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [has-tostringtag](https://www.npmjs.com/package/has-tostringtag/v/1.0.2) | 1.0.2 | Transitive | Development | MIT |
 | [hasown](https://www.npmjs.com/package/hasown/v/2.0.4) | 2.0.4 | Transitive | Runtime / shared | MIT |
 | [hono](https://www.npmjs.com/package/hono/v/4.13.16) | 4.13.16 | Transitive | Runtime / shared | MIT |
+| [html2canvas](https://www.npmjs.com/package/html2canvas/v/1.4.1) | 1.4.1 | Transitive | Runtime / shared | MIT |
 | [http-errors](https://www.npmjs.com/package/http-errors/v/2.0.1) | 2.0.1 | Transitive | Runtime / shared | MIT |
 | [iconv-lite](https://www.npmjs.com/package/iconv-lite/v/0.7.3) | 0.7.3 | Transitive | Runtime / shared | MIT |
 | [inherits](https://www.npmjs.com/package/inherits/v/2.0.4) | 2.0.4 | Transitive | Runtime / shared | ISC |
+| [iobuffer](https://www.npmjs.com/package/iobuffer/v/5.4.0) | 5.4.0 | Transitive | Runtime / shared | MIT |
 | [ip-address](https://www.npmjs.com/package/ip-address/v/10.7.5) | 10.7.5 | Transitive | Runtime / shared | MIT |
 | [ipaddr.js](https://www.npmjs.com/package/ipaddr.js/v/1.9.1) | 1.9.1 | Transitive | Runtime / shared | MIT |
 | [is-promise](https://www.npmjs.com/package/is-promise/v/4.0.0) | 4.0.0 | Transitive | Runtime / shared | MIT |
@@ -218,19 +236,23 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [json-schema-traverse](https://www.npmjs.com/package/json-schema-traverse/v/1.0.0) | 1.0.0 | Transitive | Runtime / shared | MIT |
 | [json-schema-typed](https://www.npmjs.com/package/json-schema-typed/v/8.0.2) | 8.0.2 | Transitive | Runtime / shared | BSD-2-Clause |
 | [json5](https://www.npmjs.com/package/json5/v/2.2.3) | 2.2.3 | Transitive | Development | MIT |
+| [jspdf](https://www.npmjs.com/package/jspdf/v/4.2.1) | 4.2.1 | Direct | Runtime / shared | MIT |
 | [katex](https://www.npmjs.com/package/katex/v/0.19.1) | 0.19.1 | Direct | Runtime / shared | MIT |
 | [lru-cache](https://www.npmjs.com/package/lru-cache/v/5.1.1) | 5.1.1 | Transitive | Development | ISC |
 | [lucide-react](https://www.npmjs.com/package/lucide-react/v/0.468.0) | 0.468.0 | Direct | Runtime / shared | ISC |
 | [magic-string](https://www.npmjs.com/package/magic-string/v/1.4.5) | 1.4.5 | Transitive | Development | MIT |
 | [math-intrinsics](https://www.npmjs.com/package/math-intrinsics/v/1.1.0) | 1.1.0 | Transitive | Runtime / shared | MIT |
+| [mathjax-full](https://www.npmjs.com/package/mathjax-full/v/3.2.1) | 3.2.1 | Direct | Runtime / shared | Apache-2.0 |
 | [media-typer](https://www.npmjs.com/package/media-typer/v/1.1.1) | 1.1.1 | Transitive | Runtime / shared | MIT |
 | [merge-descriptors](https://www.npmjs.com/package/merge-descriptors/v/2.0.0) | 2.0.0 | Transitive | Runtime / shared | MIT |
 | [methods](https://www.npmjs.com/package/methods/v/1.1.2) | 1.1.2 | Transitive | Development | MIT |
+| [mhchemparser](https://www.npmjs.com/package/mhchemparser/v/4.2.1) | 4.2.1 | Transitive | Runtime / shared | Apache-2.0 |
 | [mime](https://www.npmjs.com/package/mime/v/2.6.0) | 2.6.0 | Transitive | Development | MIT |
 | [mime-db](https://www.npmjs.com/package/mime-db/v/1.52.0) | 1.52.0 | Transitive | Development | MIT |
 | [mime-db](https://www.npmjs.com/package/mime-db/v/1.54.0) | 1.54.0 | Transitive | Runtime / shared | MIT |
 | [mime-types](https://www.npmjs.com/package/mime-types/v/2.1.35) | 2.1.35 | Transitive | Development | MIT |
 | [mime-types](https://www.npmjs.com/package/mime-types/v/3.0.2) | 3.0.2 | Transitive | Runtime / shared | MIT |
+| [mj-context-menu](https://www.npmjs.com/package/mj-context-menu/v/0.6.1) | 0.6.1 | Transitive | Runtime / shared | Apache-2.0 |
 | [ms](https://www.npmjs.com/package/ms/v/2.1.3) | 2.1.3 | Transitive | Runtime / shared | MIT |
 | [nanoid](https://www.npmjs.com/package/nanoid/v/3.3.20) | 3.3.20 | Transitive | Development | MIT |
 | [negotiator](https://www.npmjs.com/package/negotiator/v/1.1.0) | 1.1.0 | Transitive | Runtime / shared | MIT |
@@ -240,21 +262,26 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [obug](https://www.npmjs.com/package/obug/v/3.0.0) | 3.0.0 | Transitive | Development | MIT |
 | [on-finished](https://www.npmjs.com/package/on-finished/v/2.4.2) | 2.4.2 | Transitive | Runtime / shared | MIT |
 | [once](https://www.npmjs.com/package/once/v/1.4.0) | 1.4.0 | Transitive | Runtime / shared | ISC |
+| [pako](https://www.npmjs.com/package/pako/v/2.2.0) | 2.2.0 | Transitive | Runtime / shared | (MIT AND Zlib) |
 | [parseurl](https://www.npmjs.com/package/parseurl/v/1.3.3) | 1.3.3 | Transitive | Runtime / shared | MIT |
 | [path-key](https://www.npmjs.com/package/path-key/v/3.1.1) | 3.1.1 | Transitive | Runtime / shared | MIT |
 | [path-to-regexp](https://www.npmjs.com/package/path-to-regexp/v/8.4.2) | 8.4.2 | Transitive | Runtime / shared | MIT |
+| [performance-now](https://www.npmjs.com/package/performance-now/v/2.1.0) | 2.1.0 | Transitive | Runtime / shared | MIT |
 | [picocolors](https://www.npmjs.com/package/picocolors/v/1.1.1) | 1.1.1 | Transitive | Development | ISC |
 | [picomatch](https://www.npmjs.com/package/picomatch/v/4.0.7) | 4.0.7 | Transitive | Development | MIT |
 | [pkce-challenge](https://www.npmjs.com/package/pkce-challenge/v/5.0.1) | 5.0.1 | Transitive | Runtime / shared | MIT |
 | [postcss](https://www.npmjs.com/package/postcss/v/8.5.32) | 8.5.32 | Transitive | Development | MIT |
 | [proxy-addr](https://www.npmjs.com/package/proxy-addr/v/2.0.8) | 2.0.8 | Transitive | Runtime / shared | MIT |
 | [qs](https://www.npmjs.com/package/qs/v/6.17.1) | 6.17.1 | Transitive | Runtime / shared | BSD-3-Clause |
+| [raf](https://www.npmjs.com/package/raf/v/3.4.1) | 3.4.1 | Transitive | Runtime / shared | MIT |
 | [range-parser](https://www.npmjs.com/package/range-parser/v/1.3.0) | 1.3.0 | Transitive | Runtime / shared | MIT |
 | [raw-body](https://www.npmjs.com/package/raw-body/v/3.0.2) | 3.0.2 | Transitive | Runtime / shared | MIT |
 | [react](https://www.npmjs.com/package/react/v/19.3.1) | 19.3.1 | Direct | Runtime / shared | MIT |
 | [react-dom](https://www.npmjs.com/package/react-dom/v/19.3.1) | 19.3.1 | Direct | Runtime / shared | MIT |
 | [react-refresh](https://www.npmjs.com/package/react-refresh/v/0.18.0) | 0.18.0 | Transitive | Development | MIT |
+| [regenerator-runtime](https://www.npmjs.com/package/regenerator-runtime/v/0.13.11) | 0.13.11 | Transitive | Runtime / shared | MIT |
 | [require-from-string](https://www.npmjs.com/package/require-from-string/v/2.0.2) | 2.0.2 | Transitive | Runtime / shared | MIT |
+| [rgbcolor](https://www.npmjs.com/package/rgbcolor/v/1.0.1) | 1.0.1 | Transitive | Runtime / shared | MIT OR SEE LICENSE IN FEEL-FREE.md |
 | [rollup](https://www.npmjs.com/package/rollup/v/4.67.2) | 4.67.2 | Transitive | Development | MIT |
 | [router](https://www.npmjs.com/package/router/v/2.2.0) | 2.2.0 | Transitive | Runtime / shared | MIT |
 | [safer-buffer](https://www.npmjs.com/package/safer-buffer/v/2.1.2) | 2.1.2 | Transitive | Runtime / shared | MIT |
@@ -270,11 +297,18 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [side-channel-map](https://www.npmjs.com/package/side-channel-map/v/1.0.1) | 1.0.1 | Transitive | Runtime / shared | MIT |
 | [side-channel-weakmap](https://www.npmjs.com/package/side-channel-weakmap/v/1.0.2) | 1.0.2 | Transitive | Runtime / shared | MIT |
 | [source-map-js](https://www.npmjs.com/package/source-map-js/v/1.2.2) | 1.2.2 | Transitive | Development | BSD-3-Clause |
+| [specificity](https://www.npmjs.com/package/specificity/v/0.4.1) | 0.4.1 | Transitive | Runtime / shared | MIT |
+| [speech-rule-engine](https://www.npmjs.com/package/speech-rule-engine/v/4.1.5) | 4.1.5 | Transitive | Runtime / shared | Apache-2.0 |
+| [stackblur-canvas](https://www.npmjs.com/package/stackblur-canvas/v/2.7.0) | 2.7.0 | Transitive | Runtime / shared | MIT |
 | [statuses](https://www.npmjs.com/package/statuses/v/2.0.2) | 2.0.2 | Transitive | Runtime / shared | MIT |
 | [std-env](https://www.npmjs.com/package/std-env/v/4.3.0) | 4.3.0 | Transitive | Development | MIT |
 | [superagent](https://www.npmjs.com/package/superagent/v/10.4.1) | 10.4.1 | Transitive | Development | MIT |
 | [supertest](https://www.npmjs.com/package/supertest/v/7.3.1) | 7.3.1 | Direct | Development | MIT |
+| [svg-pathdata](https://www.npmjs.com/package/svg-pathdata/v/6.0.3) | 6.0.3 | Transitive | Runtime / shared | MIT |
+| [svg2pdf.js](https://www.npmjs.com/package/svg2pdf.js/v/2.9.0) | 2.9.0 | Direct | Runtime / shared | MIT |
+| [svgpath](https://www.npmjs.com/package/svgpath/v/2.6.0) | 2.6.0 | Transitive | Runtime / shared | MIT |
 | [swagger-ui-dist](https://www.npmjs.com/package/swagger-ui-dist/v/5.34.1) | 5.34.1 | Direct | Runtime / shared | Apache-2.0 |
+| [text-segmentation](https://www.npmjs.com/package/text-segmentation/v/1.0.3) | 1.0.3 | Transitive | Runtime / shared | MIT |
 | [tinybench](https://www.npmjs.com/package/tinybench/v/6.2.2) | 6.2.2 | Transitive | Development | MIT |
 | [tinyexec](https://www.npmjs.com/package/tinyexec/v/1.3.1) | 1.3.1 | Transitive | Development | MIT |
 | [tinyglobby](https://www.npmjs.com/package/tinyglobby/v/0.2.17) | 0.2.17 | Transitive | Development | MIT |
@@ -286,11 +320,13 @@ Generated from `package-lock.json` by `npm run acknowledgements`. Versions and l
 | [unpipe](https://www.npmjs.com/package/unpipe/v/1.0.0) | 1.0.0 | Transitive | Runtime / shared | MIT |
 | [update-browserslist-db](https://www.npmjs.com/package/update-browserslist-db/v/1.3.4) | 1.3.4 | Transitive | Development | MIT |
 | [use-sync-external-store](https://www.npmjs.com/package/use-sync-external-store/v/1.7.0) | 1.7.0 | Transitive | Runtime / shared | MIT |
+| [utrie](https://www.npmjs.com/package/utrie/v/1.0.2) | 1.0.2 | Transitive | Runtime / shared | MIT |
 | [vary](https://www.npmjs.com/package/vary/v/1.1.2) | 1.1.2 | Transitive | Runtime / shared | MIT |
 | [vite](https://www.npmjs.com/package/vite/v/7.3.7) | 7.3.7 | Direct | Development | MIT |
 | [vitest](https://www.npmjs.com/package/vitest/v/5.0.5) | 5.0.5 | Direct | Development | MIT |
 | [which](https://www.npmjs.com/package/which/v/2.0.2) | 2.0.2 | Transitive | Runtime / shared | ISC |
 | [why-is-node-running](https://www.npmjs.com/package/why-is-node-running/v/3.2.1) | 3.2.1 | Transitive | Development | MIT |
+| [wicked-good-xpath](https://www.npmjs.com/package/wicked-good-xpath/v/1.3.0) | 1.3.0 | Transitive | Runtime / shared | MIT |
 | [wrappy](https://www.npmjs.com/package/wrappy/v/1.0.2) | 1.0.2 | Transitive | Runtime / shared | ISC |
 | [ws](https://www.npmjs.com/package/ws/v/8.22.1) | 8.22.1 | Direct | Runtime / shared | MIT |
 | [yallist](https://www.npmjs.com/package/yallist/v/3.1.1) | 3.1.1 | Transitive | Development | ISC |

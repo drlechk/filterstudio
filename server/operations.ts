@@ -40,7 +40,7 @@ const analysisSchema = z.object({
   fRef: z.number(), z1: z.number(), z2: z.number(), lossless: z.boolean(),
   normalization: z.string(), abcd: abcd(rational), scattering: scattering(rational),
   denominator: polynomial, numerators: scattering(polynomial), characteristic: rational,
-  latex: z.object({ abcd: z.string(), s: z.string(), numerators: scattering(z.string()), denominator: z.string(), sections: z.array(z.string()), characteristic: z.string(), characteristicResponse: z.string().optional() }),
+  latex: z.object({ abcd: z.string(), abcdEntries: abcd(z.string()), abcdDenominator: z.string(), s: z.string(), numerators: scattering(z.string()), denominator: z.string(), sections: z.array(z.string()), characteristic: z.string(), characteristicResponse: z.string().optional() }),
   samples: z.array(z.object({ frequency: z.number(), ...scattering(complex).shape, abcd: abcd(complex), db: scattering(numeric), phaseDegrees: scattering(numeric) })),
   warnings: z.array(z.string()),
 });

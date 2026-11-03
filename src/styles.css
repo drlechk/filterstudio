@@ -52,6 +52,7 @@
   --circuit-wire: #506771;
   --circuit-label: #344b54;
   --circuit-muted: #627577;
+  --circuit-termination: #939ba1;
   --circuit-grid: #d6dcd2;
   --circuit-handle: #83978f;
   --circuit-selected-bg: #fff2e9;
@@ -114,6 +115,7 @@
   --circuit-wire: #b4c5ce;
   --circuit-label: #d8e4e9;
   --circuit-muted: #9aaebc;
+  --circuit-termination: #78838d;
   --circuit-grid: #304252;
   --circuit-handle: #9cb5c7;
   --circuit-selected-bg: #342b2b;
@@ -177,6 +179,7 @@
     --circuit-wire: #b4c5ce;
     --circuit-label: #d8e4e9;
     --circuit-muted: #9aaebc;
+    --circuit-termination: #78838d;
     --circuit-grid: #304252;
     --circuit-handle: #9cb5c7;
     --circuit-selected-bg: #342b2b;
@@ -1110,7 +1113,8 @@ h1 {
   margin-left: auto;
   max-width: 100%;
 }
-.circuit-rounding-button {
+.circuit-rounding-button,
+.circuit-align-button {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -1121,6 +1125,7 @@ h1 {
   white-space: nowrap;
 }
 .circuit-rounding-button:hover,
+.circuit-align-button:hover:not(:disabled),
 .circuit-rounding-button[aria-expanded="true"] {
   color: var(--accent-text);
   background: var(--accent-soft);
