@@ -3,11 +3,14 @@ import type { NetworkAnalysis } from "../lib/network";
 import {
   sweepNetwork,
   decibels,
+  magnitude,
   phaseDegrees,
   formatEngineering as engineering,
 } from "../lib/network";
 
 import { usePreferences } from "../lib/preferences";
+import { frequencyAt, frequencyPosition, frequencyTicks } from "../lib/plot-scales";
+import { PlotScaleControls, type PlotScaleProps } from "./PlotScaleControls";
 
 type Key = "s21" | "s11" | "s12" | "s22";
 const traces: { key: Key; label: string; color: string; dashed?: boolean }[] = [
@@ -25,6 +28,7 @@ export function ResponsePlot({
   band,
   mode,
   onExport,
+  ...scales
 }: {
   analysis: NetworkAnalysis;
   min: number;
@@ -34,7 +38,8 @@ export function ResponsePlot({
   band?: { lower: number; upper: number };
   mode: "magnitude" | "phase";
   onExport?: (text: string) => void;
-}) {
+} & PlotScaleProps) {
+  const { frequencyScale, magnitudeScale } = scales;
   const { language, t, translate, number } = usePreferences();
   const id = useId();
   const formatEngineering = (value: number, unit = "") =>
@@ -44,7 +49,7 @@ export function ResponsePlot({
   const [dbRange, setDbRange] = useState(100);
   const sweep = useMemo(() => {
     try {
-      const data = sweepNetwork(analysis, min, max, points);
+      const data = sweepNetwork(analysis, min, max, points, frequencyScale);
       // Include the exact center and band edges, so an ideal notch cannot fall between samples.
       for (const frequency of band
         ? [band.lower, cutoff, band.upper]
@@ -76,7 +81,7 @@ export function ResponsePlot({
           e instanceof Error ? e.message : "Frequenzgang nicht berechenbar.",
       };
     }
-  }, [analysis, min, max, points, cutoff, band?.lower, band?.upper]);
+  }, [analysis, min, max, points, cutoff, band?.lower, band?.upper, frequencyScale]);
   const data = sweep.data;
   if (sweep.error)
     return (
@@ -91,35 +96,23 @@ export function ResponsePlot({
   const pw = width - margin.left - margin.right,
     ph = height - margin.top - margin.bottom;
   const x = (f: number) =>
-    margin.left + (Math.log10(f / min) / Math.log10(max / min)) * pw;
+    margin.left + frequencyPosition(f, min, max, frequencyScale) * pw;
   const value = (i: number, key: Key) =>
-    mode === "magnitude" ? decibels(data[i][key]) : phaseDegrees(data[i][key]);
+    mode === "phase" ? phaseDegrees(data[i][key])
+      : magnitudeScale === "db" ? decibels(data[i][key]) : magnitude(data[i][key]);
   const y = (v: number) =>
     margin.top +
     (mode === "magnitude"
-      ? -Math.min(0, Math.max(-dbRange, v)) / dbRange
+      ? magnitudeScale === "db" ? -Math.min(0, Math.max(-dbRange, v)) / dbRange : 1 - Math.max(0, Math.min(1, v))
       : (180 - v) / 360) *
       ph;
   const yTicks =
     mode === "magnitude"
-      ? dbRange === 3
+      ? magnitudeScale === "linear" ? [1, .8, .6, .4, .2, 0] : dbRange === 3
         ? [0, -0.5, -1, -1.5, -2, -2.5, -3]
         : Array.from({ length: 6 }, (_, i) => (-dbRange * i) / 5)
       : [180, 90, 0, -90, -180];
-  const xticks: number[] = [];
-  for (
-    let exp = Math.floor(Math.log10(min));
-    exp <= Math.ceil(Math.log10(max));
-    exp++
-  )
-    for (const m of [1, 2, 5]) {
-      const f = m * 10 ** exp;
-      if (f >= min * 0.999 && f <= max * 1.001) xticks.push(f);
-    }
-  if (xticks.length < 2) {
-    xticks.length = 0;
-    xticks.push(min, Math.sqrt(min * max), max);
-  }
+  const xticks = frequencyTicks(min, max, frequencyScale);
   const paths = Object.fromEntries(
     traces.map((t) => [
       t.key,
@@ -135,9 +128,7 @@ export function ResponsePlot({
     hover === null
       ? null
       : (() => {
-          const target = Math.exp(
-            Math.log(min) + hover * (Math.log(max) - Math.log(min)),
-          );
+          const target = frequencyAt(hover, min, max, frequencyScale);
           let left = 0,
             right = data.length - 1;
           while (left < right) {
@@ -146,8 +137,8 @@ export function ResponsePlot({
             else right = mid;
           }
           return left > 0 &&
-            Math.abs(Math.log(data[left - 1].frequency / target)) <
-              Math.abs(Math.log(data[left].frequency / target))
+            Math.abs(frequencyPosition(data[left - 1].frequency, min, max, frequencyScale) - hover) <
+              Math.abs(frequencyPosition(data[left].frequency, min, max, frequencyScale) - hover)
             ? left - 1
             : left;
         })();
@@ -180,9 +171,10 @@ export function ResponsePlot({
   }
   return (
     <div className="response-plot">
+      <PlotScaleControls {...scales} quantity={mode === "phase" ? "phase" : "scattering"} />
       <div className="plot-legend">
         <span className="axis-description">
-          {mode === "magnitude" ? (
+          {mode === "magnitude" && magnitudeScale === "db" ? (
             <select
               aria-label={t("Darstellungsbereich in dB", "Display range in dB")}
               value={dbRange}
@@ -202,7 +194,7 @@ export function ResponsePlot({
               </option>
             </select>
           ) : (
-            "Phase / °"
+            mode === "phase" ? "Phase / °" : "|S| · 0–1"
           )}
         </span>
         <div>
@@ -232,8 +224,8 @@ export function ResponsePlot({
         viewBox={`0 0 ${width} ${height}`}
         role="img"
         aria-label={t(
-          `${mode === "magnitude" ? "Betrag" : "Phase"} der S-Parameter über der logarithmischen Frequenz`,
-          `S-parameter ${mode === "magnitude" ? "magnitude" : "phase"} versus logarithmic frequency`,
+          `${mode === "magnitude" ? magnitudeScale === "db" ? "Betrag in dB" : "Linearer Betrag" : "Phase"} der S-Parameter über der ${frequencyScale === "log" ? "logarithmischen" : "linearen"} Frequenz`,
+          `S-parameter ${mode === "magnitude" ? magnitudeScale === "db" ? "magnitude in dB" : "linear magnitude" : "phase"} versus ${frequencyScale === "log" ? "logarithmic" : "linear"} frequency`,
         )}
         onPointerMove={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
@@ -400,7 +392,7 @@ export function ResponsePlot({
           textAnchor="end"
           className="plot-label"
         >
-          {t("Frequenz · logarithmisch", "Frequency · logarithmic")}
+          {frequencyScale === "log" ? t("Frequenz · logarithmisch", "Frequency · logarithmic") : t("Frequenz · linear", "Frequency · linear")}
         </text>
       </svg>
       <div className="plot-readout">
@@ -413,7 +405,7 @@ export function ResponsePlot({
                 <span key={t.key} style={{ color: t.color }}>
                   {t.label}{" "}
                   <b>
-                    {mode === "magnitude" && value(hi, t.key) <= -160
+                    {mode === "magnitude" && magnitudeScale === "linear" ? number(value(hi, t.key), 6) : mode === "magnitude" && value(hi, t.key) <= -160
                       ? "≤ −160"
                       : value(hi, t.key).toLocaleString(
                           language === "de" ? "de-DE" : "en-US",
@@ -423,7 +415,7 @@ export function ResponsePlot({
                             useGrouping: false,
                           },
                         )}{" "}
-                    {mode === "magnitude" ? "dB" : "°"}
+                    {mode === "phase" ? "°" : magnitudeScale === "db" ? "dB" : ""}
                   </b>
                 </span>
               ))}

@@ -50,6 +50,7 @@ import { ComponentRoundingControls } from "./components/ComponentRoundingControl
 import { DEFAULT_COMPONENT_PRECISION } from "./lib/component-rounding";
 import { formatComponentLabel } from "./lib/component-units";
 import { ResponsePlot } from "./components/ResponsePlot";
+import type { FrequencyScale, MagnitudeScale } from "./lib/plot-scales";
 import { Formula, MathView } from "./components/MathView";
 import { ApproximationView } from "./components/ApproximationView";
 import { ToleranceControls } from "./components/ToleranceControls";
@@ -63,6 +64,8 @@ import { filterApproximation } from "./lib/approximation";
 import {
   analyzeNetwork,
   decibels,
+  magnitude,
+  type Complex,
   formatEngineering as engineering,
   sweepNetwork,
 } from "./lib/network";
@@ -484,6 +487,11 @@ const FilterWorkspace = memo(function FilterWorkspace({
     "response" | "chain" | "polynomials" | "bom" | "tolerance"
   >(startingProject.tolerance ? "tolerance" : "response");
   const [plotMode, setPlotMode] = useState<"magnitude" | "phase">("magnitude");
+  const [frequencyScale, setFrequencyScale] = useState<FrequencyScale>("log");
+  const [magnitudeScale, setMagnitudeScale] = useState<MagnitudeScale>("db");
+  const plotScales = { frequencyScale, magnitudeScale, onFrequencyScaleChange: setFrequencyScale, onMagnitudeScaleChange: setMagnitudeScale };
+  const scatteringReadout = (value?: Complex) => !value ? "—" : magnitudeScale === "db"
+    ? `${dbReadout(decibels(value), language)} dB` : number(magnitude(value), 6);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [fitKey, setFitKey] = useState(0);
   const [toast, setToast] = useState("");
@@ -949,6 +957,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
       project.sweep.min,
       project.sweep.max,
       project.sweep.points,
+      frequencyScale,
     );
     const version2 = project.z2 !== project.settings.impedance;
     const lines = version2
@@ -1971,6 +1980,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
             </div>
             {resultTab === "tolerance" ? (
               <TolerancePlot
+                {...plotScales}
                 spec={toleranceDraft}
                 design={toleranceDesign}
                 preview={tolerancePreview.analysis}
@@ -2042,6 +2052,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   </div>
                 </div>
                 <ResponsePlot
+                  {...plotScales}
                   analysis={analysis}
                   {...project.sweep}
                   cutoff={project.settings.cutoff}
@@ -2095,7 +2106,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                         {atBandEdges.map((point, i) => (
                           <span className="cutoff-readout" key={i}>
                             {t("S₂₁ bei", "S₂₁ at")} {i === 0 ? "f₁" : "f₂"}{" "}
-                            <b>{dbReadout(decibels(point.s21), language)} dB</b>
+                            <b>{scatteringReadout(point.s21)}</b>
                           </span>
                         ))}
                       </>
@@ -2103,10 +2114,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     <span className="cutoff-readout">
                       {t("S₂₁ bei f₀", "S₂₁ at f₀")}{" "}
                       <b>
-                        {atCutoff
-                          ? dbReadout(decibels(atCutoff.s21), language)
-                          : "—"}{" "}
-                        dB
+                        {scatteringReadout(atCutoff?.s21)}
                       </b>
                     </span>
                   </div>

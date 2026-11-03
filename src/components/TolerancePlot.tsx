@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import {
   decibels,
+  magnitude,
   formatEngineering,
   type NetworkAnalysis,
 } from "../lib/network";
@@ -15,6 +16,8 @@ import {
 } from "../lib/tolerance";
 import type { ToleranceSpec } from "../lib/types";
 import { toleranceIssueLabels } from "./ToleranceControls";
+import { attenuationAt, attenuationDb, attenuationPosition, attenuationValue, frequencyAt, frequencyPosition, frequencyTicks, linearTicks } from "../lib/plot-scales";
+import { PlotScaleControls, type PlotScaleProps } from "./PlotScaleControls";
 
 type Drag = {
   edge?: Edge;
@@ -30,6 +33,7 @@ export function TolerancePlot({
   previewError,
   actual,
   onChange,
+  ...scales
 }: {
   spec: ToleranceSpec;
   design: ToleranceDesign;
@@ -37,8 +41,9 @@ export function TolerancePlot({
   previewError: string | null;
   actual: NetworkAnalysis | null;
   onChange: (spec: ToleranceSpec) => void;
-}) {
+} & PlotScaleProps) {
   const { t, language, number, translate } = usePreferences();
+  const { frequencyScale, magnitudeScale } = scales;
   const [normalized, setNormalized] = useState(false),
     [showActual, setShowActual] = useState(false);
   const [drag, setDrag] = useState<Drag | null>(null),
@@ -53,7 +58,7 @@ export function TolerancePlot({
     : spec.passband[0];
   const width = 820,
     height = 340,
-    left = 65,
+    left = magnitudeScale === "linear" ? 90 : 65,
     right = 20,
     top = 42,
     bottom = 50;
@@ -62,15 +67,18 @@ export function TolerancePlot({
   const maximumLoss =
     drag?.maximumLoss ?? Math.ceil((spec.stopbandLoss + 20) / 10) * 10;
   const x = (f: number) =>
-    left + (Math.log(f / min) / Math.log(max / min)) * plotW;
-  const y = (loss: number) => top + plotH * (1 - loss / maximumLoss);
+    left + frequencyPosition(f, min, max, frequencyScale) * plotW;
+  const y = (loss: number) => top + plotH * (1 - attenuationPosition(loss, maximumLoss, magnitudeScale));
+  const yTicks = magnitudeScale === "db" ? Array.from({ length: maximumLoss / 10 + 1 }, (_, i) => i * 10)
+    : [...new Set([1, ...linearTicks(1, attenuationValue(maximumLoss, "linear"))])];
+  const lossText = (loss: number) => magnitudeScale === "db" ? `${number(loss)} dB` : `${number(attenuationValue(loss, "linear"), 5)}×`;
   const engineering = (v: number) =>
     formatEngineering(v, "Hz", 4, language === "de" ? "de-DE" : "en-US");
   const regions = toleranceRegions(spec, min, max);
   const samples = useMemo(() => {
     const frequencies = Array.from(
       { length: 701 },
-      (_, i) => min * (max / min) ** (i / 700),
+      (_, i) => frequencyAt(i / 700, min, max, frequencyScale),
     );
     frequencies.push(...spec.passband, ...spec.stopband);
     if (preview && preview.fRef >= min && preview.fRef <= max)
@@ -81,7 +89,7 @@ export function TolerancePlot({
       proposed: preview ? -decibels(preview.evaluate(f).s21) : null,
       actual: showActual && actual ? -decibels(actual.evaluate(f).s21) : null,
     }));
-  }, [min, max, preview, actual, showActual, spec.passband, spec.stopband]);
+  }, [min, max, preview, actual, showActual, spec.passband, spec.stopband, frequencyScale]);
   const path = (key: "proposed" | "actual") =>
     samples
       .map((sample, i) =>
@@ -90,19 +98,8 @@ export function TolerancePlot({
           : "",
       )
       .join(" ");
-  const xTicks: number[] = [];
-  for (
-    let decade = Math.floor(Math.log10(min));
-    decade <= Math.ceil(Math.log10(max));
-    decade++
-  )
-    for (const multiple of [1, 2, 5]) {
-      const f = multiple * 10 ** decade;
-      if (f >= min && f <= max) xTicks.push(f);
-    }
-  const visibleTicks = xTicks.filter(
-    (tick, i) => i === 0 || x(tick) - x(xTicks[i - 1]) > 42,
-  );
+  const tickReference = normalized ? reference : 1;
+  const visibleTicks = frequencyTicks(min / tickReference, max / tickReference, frequencyScale).map(tick => tick * tickReference);
   const beginDrag = (
     event: PointerEvent<SVGGElement>,
     handle: Pick<Drag, "edge" | "loss">,
@@ -159,6 +156,7 @@ export function TolerancePlot({
           </button>
         </div>
       </div>
+      <PlotScaleControls {...scales} quantity="attenuation" />
       <div className="tolerance-legend">
         <span>
           <i className="mask-swatch" />
@@ -183,13 +181,13 @@ export function TolerancePlot({
         viewBox={`0 0 ${width} ${height}`}
         role="group"
         aria-label={t(
-          "Interaktives Toleranzschema: Dämpfung über der Frequenz",
-          "Interactive tolerance mask: attenuation versus frequency",
+          `Interaktives Toleranzschema: Dämpfung ${magnitudeScale === "db" ? "in dB" : "als linearer Faktor"} über ${frequencyScale === "log" ? "logarithmischer" : "linearer"} Frequenz`,
+          `Interactive tolerance mask: attenuation ${magnitudeScale === "db" ? "in dB" : "as a linear factor"} versus ${frequencyScale === "log" ? "logarithmic" : "linear"} frequency`,
         )}
         onPointerMove={(event) => {
           const p = point(event),
             ratio = Math.max(0, Math.min(1, (p.x - left) / plotW));
-          const frequency = min * (max / min) ** ratio;
+          const frequency = frequencyAt(ratio, min, max, frequencyScale);
           if (drag?.edge)
             onChange(
               moveToleranceEdge(
@@ -206,7 +204,7 @@ export function TolerancePlot({
               Math.round(
                 Math.max(
                   low,
-                  Math.min(high, ((top + plotH - p.y) / plotH) * maximumLoss),
+                  Math.min(high, attenuationAt((top + plotH - p.y) / plotH, maximumLoss, magnitudeScale)),
                 ) * 100,
               ) / 100;
             onChange({ ...spec, [drag.loss]: loss });
@@ -255,14 +253,14 @@ export function TolerancePlot({
               fill={`url(#${id}-hatch)`}
             />
           ))}
-          {Array.from({ length: maximumLoss / 10 + 1 }, (_, i) => i * 10).map(
-            (loss) => (
+          {yTicks.map(
+            (tick) => (
               <line
-                key={loss}
+                key={tick}
                 x1={left}
                 x2={width - right}
-                y1={y(loss)}
-                y2={y(loss)}
+                y1={y(attenuationDb(tick, magnitudeScale))}
+                y2={y(attenuationDb(tick, magnitudeScale))}
                 stroke="var(--plot-grid)"
                 strokeDasharray="3 5"
               />
@@ -313,18 +311,18 @@ export function TolerancePlot({
           )}
         </g>
         <text x="9" y="17" className="mask-axis-label">
-          A / dB
+          {magnitudeScale === "db" ? "A / dB" : "A = 1/|S₂₁|"}
         </text>
-        {Array.from({ length: maximumLoss / 10 + 1 }, (_, i) => i * 10).map(
-          (loss) => (
+        {yTicks.map(
+          (tick) => (
             <text
-              key={loss}
+              key={tick}
               x={left - 32}
-              y={y(loss) + 4}
+              y={y(attenuationDb(tick, magnitudeScale)) + 4}
               textAnchor="end"
               className="mask-tick"
             >
-              {loss}
+              {number(tick, 5)}
             </text>
           ),
         )}
@@ -346,8 +344,8 @@ export function TolerancePlot({
           className="mask-axis-label"
         >
           {normalized
-            ? `Ω = f / f_ref · f_ref = ${engineering(reference)}`
-            : t("Frequenz f · logarithmisch", "Frequency f · logarithmic")}
+            ? `Ω = f / f_ref · f_ref = ${engineering(reference)} · ${frequencyScale === "log" ? t("logarithmisch", "logarithmic") : "linear"}`
+            : frequencyScale === "log" ? t("Frequenz f · logarithmisch", "Frequency f · logarithmic") : t("Frequenz f · linear", "Frequency f · linear")}
         </text>
         {edges.map((edge, i) => (
           <g
@@ -376,8 +374,7 @@ export function TolerancePlot({
                       ? 1
                       : event.key === "End"
                         ? 1e12
-                        : edge.frequency *
-                          (event.key === "ArrowLeft" ? 1 / 1.02 : 1.02),
+                        : frequencyAt(frequencyPosition(edge.frequency, min, max, frequencyScale) + (event.key === "ArrowLeft" ? -.01 : .01), min, max, frequencyScale),
                   ),
                 );
               }
@@ -445,7 +442,7 @@ export function TolerancePlot({
               aria-valuemin={pass ? 0.1 : 20}
               aria-valuemax={pass ? 3 : 80}
               aria-valuenow={spec[key]}
-              aria-valuetext={`${number(spec[key])} dB`}
+              aria-valuetext={magnitudeScale === "db" ? lossText(spec[key]) : `${lossText(spec[key])} (${number(spec[key])} dB)`}
               className="mask-loss-handle"
               onPointerDown={(event) => beginDrag(event, { loss: key })}
               onKeyDown={(event) => {
@@ -498,7 +495,7 @@ export function TolerancePlot({
                 className="mask-edge-label"
                 fill={color}
               >
-                {pass ? "Aₚ" : "Aₛ"} = {number(spec[key])} dB
+                {pass ? "Aₚ" : "Aₛ"} = {lossText(spec[key])}
               </text>
             </g>
           );
@@ -508,7 +505,8 @@ export function TolerancePlot({
         {hover && preview ? (
           <span>
             f = {engineering(hover)} · A ={" "}
-            {number(Math.max(0, -decibels(preview.evaluate(hover).s21)), 5)} dB
+            {magnitudeScale === "db" ? `${number(Math.max(0, -decibels(preview.evaluate(hover).s21)), 5)} dB`
+              : `${number(1 / magnitude(preview.evaluate(hover).s21), 6)}×`}
           </span>
         ) : (
           <span>
@@ -520,7 +518,7 @@ export function TolerancePlot({
         )}
       </div>
       <p className="mask-equation">
-        A(f) = −20 log₁₀|S₂₁(f)| ·{" "}
+        {magnitudeScale === "db" ? "A(f) = −20 log₁₀|S₂₁(f)|" : "A(f) = 1/|S₂₁(f)|"} ·{" "}
         {t(
           "Durchlass: A ≤ Aₚ · Sperrbereich: A ≥ Aₛ",
           "Passband: A ≤ Aₚ · stopband: A ≥ Aₛ",

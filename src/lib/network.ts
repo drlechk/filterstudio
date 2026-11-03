@@ -1,4 +1,5 @@
 import type { Section } from './types';
+import { frequencyAt, type FrequencyScale } from './plot-scales';
 
 /** Coefficients in ascending powers of p = s / (2 pi fRef). */
 export type Polynomial = number[];
@@ -398,12 +399,11 @@ export function evaluateNetwork(sections: Section[], frequency: number, z1: numb
   return analyzeNetwork(sections, { fRef: frequency > 0 ? frequency : 1, z1, z2 }).evaluate(frequency);
 }
 
-export function sweepNetwork(analysis: NetworkAnalysis, min: number, max: number, points = 401): (NumericNetwork & { frequency: number })[] {
+export function sweepNetwork(analysis: NetworkAnalysis, min: number, max: number, points = 401, scale: FrequencyScale = 'log'): (NumericNetwork & { frequency: number })[] {
   positive(min, 'Startfrequenz'); positive(max, 'Endfrequenz');
   if (max <= min || !Number.isInteger(points) || points < 2 || points > 10001) throw new Error('Ungültiger Frequenzbereich oder ungültige Anzahl von Stützstellen (2–10001).');
-  const logMin = Math.log(min), span = Math.log(max) - logMin;
   return Array.from({ length: points }, (_, index) => {
-    const frequency = index === 0 ? min : index === points - 1 ? max : Math.exp(logMin + span * index / (points - 1));
+    const frequency = frequencyAt(index / (points - 1), min, max, scale);
     return { frequency, ...analysis.evaluate(frequency) };
   });
 }

@@ -267,7 +267,9 @@ For even-order Chebyshev filters, the normalized termination resistances may dif
 
 The generator can switch between **Parameters** and **Tolerance mask**. In tolerance mode, sliders specify passband edges `fp`, stopband edges `fs`, maximum passband attenuation `Ap`, and minimum stopband attenuation `As`. Frequency sliders are logarithmic; adjacent fields accept exact values in Hz, kHz, MHz, or GHz. The boundary lines and circular handles in the plot can also be dragged or moved with the arrow keys. Frequency boundaries cannot cross one another.
 
-The plot shows positive insertion loss, `A(f) = −20 log10 |S21(f)|`. Hatched regions are forbidden: the passband must satisfy `A ≤ Ap`, and the stopband must satisfy `A ≥ As`. Transition regions are unconstrained. The frequency axis can switch to `Ω = f/fref`, where `fref` is the passband edge for low-pass/high-pass filters and the geometric mean of the passband edges for band filters. This axis normalization is distinct from the low-pass prototype mapping shown in the **Polynomials** tab.
+By default, the plot shows positive insertion loss in dB, `A(f) = −20 log10 |S21(f)|`. The **Attenuation** selector switches between **Logarithmic · dB** and the **linear amplitude loss factor `1/|S21|`**: 0 dB corresponds to a factor of 1, and 20 dB to a factor of 10. Hatched regions are forbidden: the passband must satisfy `A ≤ Ap`, and the stopband must satisfy `A ≥ As`. Transition regions are unconstrained. Mask limits, their handles, labels and comparison curves are converted together; dragging a boundary converts back to the dB specification used by the synthesis controls and project files.
+
+The **Frequency axis** selector switches between linear and logarithmic spacing. Independently, the axis can switch to `Ω = f/fref`, where `fref` is the passband edge for low-pass/high-pass filters and the geometric mean of the passband edges for band filters. Normalized frequency supports both spacings. This axis normalization is distinct from the low-pass prototype mapping shown in the **Polynomials** tab.
 
 - Low-pass: `fp < fs`; high-pass: `fs < fp`.
 - Band-pass: `fs1 < fp1 < fp2 < fs2`.
@@ -278,6 +280,12 @@ Order selection follows the analog conditions for [Butterworth](https://docs.sci
 For Butterworth filters, the natural 3 dB frequency or bandwidth is derived from `Ap`, so the specified passband edges actually occur at `Ap`. Supported ranges are 1 Hz to 1 THz, `Ap = 0.1…3 dB`, `As = 20…80 dB`, Butterworth/Chebyshev prototype orders 1–20, and odd Cauer prototype orders 3–19. For Cauer filters, the smallest available suitable order is selected; orders 7 and above use at least 40 dB if necessary. Specifications that cannot be realized are explained and cannot be generated.
 
 The preview is calculated from the synthesized LC circuit. **Compare current circuit** overlays the response of the existing editor network as a dashed line. **Generate circuit** applies the design to the editor and stores the applied tolerance mask in the project. JSON export/import and undo/redo preserve this mask. Changes that have not yet been generated remain a preview and are not saved as the applied design. This feature runs entirely locally in the browser.
+
+## Plot scales
+
+Both the **Frequency response** and **Tolerance mask** views provide independent horizontal and vertical scale controls. Frequency axes support **Linear** and **Logarithmic** spacing, including the phase plot. S-parameter magnitudes support **Logarithmic · dB** (`20 log10 |Sij|`) and **Linear · |S|** (dimensionless magnitude from 0 to 1). Phase remains in degrees because signed angles do not have a meaningful logarithmic scale. The dB view retains its selectable full-range and passband ranges.
+
+Scale choices are shared between the diagrams within each filter tab and retained when switching views or filter tabs. They are display preferences for the open tab, not changes to the circuit or saved JSON project. The defaults remain logarithmic frequency and dB magnitude/attenuation. Frequency samples, tick marks, markers, cursor readings and draggable tolerance boundaries follow the selected spacing. Exact cutoff/center and band-edge samples are retained in the response plot so ideal notches are not missed. CSV and Touchstone exports use the selected frequency spacing and retain complex S-parameters as real/imaginary values; the vertical display scale does not round or convert exported values. Standalone REST/MCP sweeps keep their existing logarithmic default.
 
 ## Calculation model
 
