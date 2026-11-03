@@ -53,22 +53,44 @@ For development, run `npm run dev:server` and `npm run dev` in two terminals. Vi
 
 REST routes and MCP tools share input schemas, validation and the browser's calculation engine. Swagger documents the full request/response schemas and error responses. All frequencies are **Hz**, resistances **ohms**, inductances **henries**, and capacitances **farads**. LC blocks use `value` for inductance and `value2` for capacitance. Calculations keep floating-point precision; display precision does not round stored values.
 
-| MCP tool | REST endpoint | Effect |
-| --- | --- | --- |
-| `create_filter` | `POST /api/filters` | Design a new filter and open it in a new active tab in one call; optional `windowId` selects the browser window |
-| `synthesize_filter` | `POST /api/filters/synthesize` | Return a project and synthesis notes; optional tolerance-mask design |
-| `validate_filter` | `POST /api/filters/validate` | Validate a project and check circuit continuity |
-| `analyze_filter` | `POST /api/filters/analyze` | ABCD/S matrices, normalized polynomials, LaTeX and numeric samples |
-| `round_filter` | `POST /api/filters/round` | Return a project with explicitly rounded component values |
-| `list_filter_windows` | `GET /api/windows` | Connected browser windows, their tab IDs, names and revisions |
-| `get_filter_tab` | `GET /api/windows/{windowId}/tabs/{tabId}` | Actual project, draft controls, revision and undo/redo state |
-| `open_filter_tab` | `POST /api/windows/{windowId}/tabs` | Open a project in a new active tab |
-| `select_filter_tab` | `POST /api/windows/{windowId}/tabs/{tabId}/select` | Switch the active tab |
-| `replace_filter_tab` | `PUT /api/windows/{windowId}/tabs/{tabId}` | Replace the project, including layout and connections |
-| `update_filter_component` | `PATCH /api/windows/{windowId}/tabs/{tabId}/components/{componentId}` | Change component values, label or connection |
-| `round_filter_tab` | `POST /api/windows/{windowId}/tabs/{tabId}/round` | Round physical component values in the editor |
-| `set_filter_display_precision` | `POST /api/windows/{windowId}/tabs/{tabId}/precision` | Set label precision to 1–15 digits or `"full"` |
-| `undo_filter_tab` / `redo_filter_tab` | `POST /api/windows/{windowId}/tabs/{tabId}/undo` or `/redo` | Undo or redo one edit |
+| MCP tool | Effect |
+| --- | --- |
+| `create_filter` | Design a new filter and open it in a new active tab in one call; optional `windowId` selects the browser window |
+| `synthesize_filter` | Return a project and synthesis notes; optional tolerance-mask design |
+| `validate_filter` | Validate a project and check circuit continuity |
+| `analyze_filter` | ABCD/S matrices, normalized polynomials, LaTeX and numeric samples |
+| `round_filter` | Return a project with explicitly rounded component values |
+| `list_filter_windows` | Connected browser windows, their tab IDs, names and revisions |
+| `get_filter_tab` | Actual project, draft controls, revision and undo/redo state |
+| `open_filter_tab` | Open a project in a new active tab |
+| `select_filter_tab` | Switch the active tab |
+| `replace_filter_tab` | Replace the project, including layout and connections |
+| `update_filter_component` | Change component values, label or connection |
+| `round_filter_tab` | Round physical component values in the editor |
+| `set_filter_display_precision` | Set label precision to 1–15 digits or `"full"` |
+| `undo_filter_tab`<br>`redo_filter_tab` | Undo or redo one edit |
+
+**REST endpoints**
+
+Each MCP tool maps to the following HTTP method and route:
+
+| MCP tool | REST endpoint |
+| --- | --- |
+| `create_filter` | `POST /api/filters` |
+| `synthesize_filter` | `POST /api/filters/synthesize` |
+| `validate_filter` | `POST /api/filters/validate` |
+| `analyze_filter` | `POST /api/filters/analyze` |
+| `round_filter` | `POST /api/filters/round` |
+| `list_filter_windows` | `GET /api/windows` |
+| `get_filter_tab` | `GET /api/windows/{windowId}/tabs/{tabId}` |
+| `open_filter_tab` | `POST /api/windows/{windowId}/tabs` |
+| `select_filter_tab` | `POST /api/windows/{windowId}/tabs/{tabId}/select` |
+| `replace_filter_tab` | `PUT /api/windows/{windowId}/tabs/{tabId}` |
+| `update_filter_component` | `PATCH /api/windows/{windowId}/tabs/{tabId}/components/{componentId}` |
+| `round_filter_tab` | `POST /api/windows/{windowId}/tabs/{tabId}/round` |
+| `set_filter_display_precision` | `POST /api/windows/{windowId}/tabs/{tabId}/precision` |
+| `undo_filter_tab` | `POST /api/windows/{windowId}/tabs/{tabId}/undo` |
+| `redo_filter_tab` | `POST /api/windows/{windowId}/tabs/{tabId}/redo` |
 
 `synthesize_filter`, `validate_filter`, `analyze_filter`, and `round_filter` work without an open browser and do not modify live tabs. For browser control, open the local editor. Use `create_filter` for a new filter; to edit an existing filter, call `list_filter_windows`, then `get_filter_tab`. Include the returned `revision` as **`expectedRevision`** for each edit, rounding operation, precision change, undo or redo. Revisions also track ungenerated parameter drafts. A stale revision returns **409**; read the tab again before deciding to retry. Avoid overwriting a pending draft unless intended: project edits reset the draft controls to the resulting project settings. Browser writes complete only after the editor acknowledges them. Project edits create undo steps and mark the project unsaved. Opening or creating a new tab preserves existing tabs and their drafts; the new tab has its own history.
 
