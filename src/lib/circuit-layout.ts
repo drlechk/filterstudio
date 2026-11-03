@@ -2,10 +2,15 @@ import { CIRCUIT_NODE_HEIGHT, COMPONENT_WIDTH, SIGNAL_Y } from "./ground-geometr
 import type { CircuitNode, CircuitWire } from "./types";
 
 export const CIRCUIT_GRID = 12;
-export const CIRCUIT_SPACING = 13 * CIRCUIT_GRID;
+// Leave a small selectable wire gap without shrinking the component symbols.
+export const CIRCUIT_SPACING = 11 * CIRCUIT_GRID;
+export const CIRCUIT_PORT_SPACING = 8 * CIRCUIT_GRID;
 export const CIRCUIT_INITIAL_Y = 8 * CIRCUIT_GRID;
 export const CIRCUIT_SNAP_GRID: [number, number] = [CIRCUIT_GRID, CIRCUIT_GRID];
 type Position = { x: number; y: number };
+
+export const circuitNodeSpacing = (node: CircuitNode) =>
+  node.port ? CIRCUIT_PORT_SPACING : CIRCUIT_SPACING;
 
 export const snapCircuitCoordinate = (value: number) =>
   Math.round(value / CIRCUIT_GRID) * CIRCUIT_GRID;
@@ -81,14 +86,17 @@ export function straightenCircuit(nodes: CircuitNode[], wires: readonly CircuitW
     : chain.some(node => node.port === "output") ? 1 : 0;
   chains.sort((a, b) => priority(a) - priority(b));
   const positions = new Map<string, Position>();
-  let column = 0, row = CIRCUIT_INITIAL_Y;
+  let x = 0, row = CIRCUIT_INITIAL_Y;
   for (const chain of chains) {
-    for (const node of chain) positions.set(node.id, { x: column++ * CIRCUIT_SPACING, y: row });
+    for (const node of chain) {
+      positions.set(node.id, { x, y: row });
+      x += circuitNodeSpacing(node);
+    }
     if (chain.some(node => node.port === "input") && chain.some(node => node.port === "output")) {
       // A complete signal path stays on its own row; loose parts cannot sit on its wires.
-      column = 0;
+      x = 0;
       row += CIRCUIT_NODE_HEIGHT + 6 * CIRCUIT_GRID;
-    } else column++;
+    } else x += CIRCUIT_SPACING;
   }
   const result = nodes.map(node => {
     const position = positions.get(node.id)!;

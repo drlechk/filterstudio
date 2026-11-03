@@ -1,13 +1,13 @@
 import type { CircuitNode, CircuitWire, FilterSettings, Project, Section } from './types';
 import { bandEdges, isBandResponse, MIN_RELATIVE_BANDWIDTH } from './frequency';
 import { parseTolerance } from './tolerance';
-import { CIRCUIT_INITIAL_Y, CIRCUIT_SPACING } from './circuit-layout';
+import { CIRCUIT_INITIAL_Y, CIRCUIT_PORT_SPACING, CIRCUIT_SPACING } from './circuit-layout';
 import { isComponentPrecision } from './component-rounding';
 import { CAUER_ORDERS, MAX_PROTOTYPE_ORDER, MAX_CIRCUIT_NODES, cauerMinimumAttenuation } from './filter-limits';
 
 export const defaultSettings: FilterSettings = { family: 'butterworth', response: 'lowpass', order: 5, cutoff: 1e6, impedance: 50, ripple: 0.5, attenuation: 40 };
 export function createCircuit(sections: Section[]): { nodes: CircuitNode[]; wires: CircuitWire[] } {
-  const nodes: CircuitNode[] = [{ id: 'input', port: 'input', x: 0, y: CIRCUIT_INITIAL_Y }, ...sections.map((section, i) => ({ id: section.id, section, x: CIRCUIT_SPACING * (i + 1), y: CIRCUIT_INITIAL_Y })), { id: 'output', port: 'output', x: CIRCUIT_SPACING * (sections.length + 1), y: CIRCUIT_INITIAL_Y }];
+  const nodes: CircuitNode[] = [{ id: 'input', port: 'input', x: 0, y: CIRCUIT_INITIAL_Y }, ...sections.map((section, i) => ({ id: section.id, section, x: CIRCUIT_PORT_SPACING + CIRCUIT_SPACING * i, y: CIRCUIT_INITIAL_Y })), { id: 'output', port: 'output', x: CIRCUIT_PORT_SPACING + CIRCUIT_SPACING * sections.length, y: CIRCUIT_INITIAL_Y }];
   return { nodes, wires: nodes.slice(1).map((node, i) => ({ id: `wire-${nodes[i].id}-${node.id}`, source: nodes[i].id, target: node.id })) };
 }
 export function orderedSections(nodes: CircuitNode[], wires: CircuitWire[]): Section[] {

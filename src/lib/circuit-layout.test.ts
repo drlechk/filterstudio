@@ -9,6 +9,7 @@ import { COMPONENT_WIDTH, SIGNAL_Y } from "./ground-geometry";
 import {
   CIRCUIT_GRID,
   CIRCUIT_INITIAL_Y,
+  CIRCUIT_PORT_SPACING,
   CIRCUIT_SPACING,
   droppedComponentPosition,
   snapCircuitPosition,
@@ -125,7 +126,7 @@ describe("automatic circuit alignment", () => {
     const order = ["input", ...sections.map(section => section.id), "output"];
     for (const [i, id] of order.entries()) {
       const node = aligned.find(node => node.id === id)!;
-      expect(node.x).toBe(i * CIRCUIT_SPACING);
+      expect(node.x).toBe(i === 0 ? 0 : CIRCUIT_PORT_SPACING + (i - 1) * CIRCUIT_SPACING);
       expect(node.y).toBe(CIRCUIT_INITIAL_Y);
       expect(node.section).toBe(nodes.find(node => node.id === id)!.section);
     }
@@ -139,7 +140,7 @@ describe("automatic circuit alignment", () => {
     for (const wire of wires) {
       const source = aligned.find(node => node.id === wire.source)!;
       const target = aligned.find(node => node.id === wire.target)!;
-      expect(target.x - source.x).toBe(CIRCUIT_SPACING);
+      expect(target.x - source.x).toBe(source.port ? CIRCUIT_PORT_SPACING : CIRCUIT_SPACING);
       expect(target.y).toBe(source.y);
     }
     expect(aligned.find(node => node.id === "R1")!.x - aligned.find(node => node.id === "C1")!.x).toBe(2 * CIRCUIT_SPACING);
