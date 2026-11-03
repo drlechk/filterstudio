@@ -2,7 +2,9 @@ import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import {
   decibels,
   magnitude,
+  phaseDegrees,
   formatEngineering,
+  type Complex,
   type NetworkAnalysis,
 } from "../lib/network";
 import { usePreferences } from "../lib/preferences";
@@ -26,6 +28,10 @@ type Drag = {
   max: number;
   maximumLoss: number;
 };
+const phase = (value: Complex | undefined) =>
+  value && Number.isFinite(value.re) && Number.isFinite(value.im) && magnitude(value) > 0
+    ? phaseDegrees(value) : null;
+
 export function TolerancePlot({
   spec,
   design,
@@ -69,6 +75,7 @@ export function TolerancePlot({
   const x = (f: number) =>
     left + frequencyPosition(f, min, max, frequencyScale) * plotW;
   const y = (loss: number) => top + plotH * (1 - attenuationPosition(loss, maximumLoss, magnitudeScale));
+  const phaseY = (value: number) => top + plotH * (180 - value) / 360;
   const yTicks = magnitudeScale === "db" ? Array.from({ length: maximumLoss / 10 + 1 }, (_, i) => i * 10)
     : [...new Set([1, ...linearTicks(1, attenuationValue(maximumLoss, "linear"))])];
   const lossText = (loss: number) => magnitudeScale === "db" ? `${number(loss)} dB` : `${number(attenuationValue(loss, "linear"), 5)}×`;
@@ -84,22 +91,36 @@ export function TolerancePlot({
     if (preview && preview.fRef >= min && preview.fRef <= max)
       frequencies.push(preview.fRef);
     const sorted = [...new Set(frequencies)].sort((a, b) => a - b);
-    return sorted.map((f) => ({
-      f,
-      proposed: preview ? -decibels(preview.evaluate(f).s21) : null,
-      actual: showActual && actual ? -decibels(actual.evaluate(f).s21) : null,
-    }));
+    return sorted.map((f) => {
+      const proposed = preview?.evaluate(f).s21;
+      const current = showActual ? actual?.evaluate(f).s21 : undefined;
+      return {
+        f,
+        proposed: proposed ? -decibels(proposed) : null,
+        actual: current ? -decibels(current) : null,
+        proposedPhase: phase(proposed),
+        actualPhase: phase(current),
+      };
+    });
   }, [min, max, preview, actual, showActual, spec.passband, spec.stopband, frequencyScale]);
-  const path = (key: "proposed" | "actual") =>
+  const path = (key: "proposed" | "actual" | "proposedPhase" | "actualPhase", ordinate = y, wrapPhase = false) =>
     samples
-      .map((sample, i) =>
-        sample[key] !== null && Number.isFinite(sample[key])
-          ? `${i === 0 || samples[i - 1][key] === null || !Number.isFinite(samples[i - 1][key]) ? "M" : "L"}${x(sample.f).toFixed(2)},${y(sample[key]!).toFixed(2)}`
-          : "",
-      )
+      .map((sample, i) => {
+        const value = sample[key], previous = samples[i - 1]?.[key];
+        if (value === null || !Number.isFinite(value)) return "";
+        const move = previous == null || !Number.isFinite(previous)
+          || (wrapPhase && Math.abs(value - previous) > 180);
+        return `${move ? "M" : "L"}${x(sample.f).toFixed(2)},${ordinate(value).toFixed(2)}`;
+      })
       .join(" ");
   const tickReference = normalized ? reference : 1;
   const visibleTicks = frequencyTicks(min / tickReference, max / tickReference, frequencyScale).map(tick => tick * tickReference);
+  const frequencyAxisLabel = normalized
+    ? `Ω = f / f_ref · f_ref = ${engineering(reference)} · ${frequencyScale === "log" ? t("logarithmisch", "logarithmic") : "linear"}`
+    : frequencyScale === "log" ? t("Frequenz f · logarithmisch", "Frequency f · logarithmic") : t("Frequenz f · linear", "Frequency f · linear");
+  const hoveredSample = hover === null ? null : samples.reduce((nearest, sample) =>
+    Math.abs(frequencyPosition(sample.f, min, max, frequencyScale) - frequencyPosition(hover, min, max, frequencyScale))
+      < Math.abs(frequencyPosition(nearest.f, min, max, frequencyScale) - frequencyPosition(hover, min, max, frequencyScale)) ? sample : nearest);
   const beginDrag = (
     event: PointerEvent<SVGGElement>,
     handle: Pick<Drag, "edge" | "loss">,
@@ -127,7 +148,7 @@ export function TolerancePlot({
       <div className="response-heading">
         <div>
           <h2>
-            {t("Entwurf mit Toleranzschema", "Design from a tolerance mask")}
+            {t("Toleranzmaske und Dämpfungsverlauf", "Tolerance mask and attenuation response")}
           </h2>
           <p>
             {t(
@@ -181,7 +202,7 @@ export function TolerancePlot({
         viewBox={`0 0 ${width} ${height}`}
         role="group"
         aria-label={t(
-          `Interaktives Toleranzschema: Dämpfung ${magnitudeScale === "db" ? "in dB" : "als linearer Faktor"} über ${frequencyScale === "log" ? "logarithmischer" : "linearer"} Frequenz`,
+          `Interaktive Toleranzmaske: Dämpfung ${magnitudeScale === "db" ? "in dB" : "als linearer Faktor"} über ${frequencyScale === "log" ? "logarithmischer" : "linearer"} Frequenz`,
           `Interactive tolerance mask: attenuation ${magnitudeScale === "db" ? "in dB" : "as a linear factor"} versus ${frequencyScale === "log" ? "logarithmic" : "linear"} frequency`,
         )}
         onPointerMove={(event) => {
@@ -343,9 +364,7 @@ export function TolerancePlot({
           textAnchor="middle"
           className="mask-axis-label"
         >
-          {normalized
-            ? `Ω = f / f_ref · f_ref = ${engineering(reference)} · ${frequencyScale === "log" ? t("logarithmisch", "logarithmic") : "linear"}`
-            : frequencyScale === "log" ? t("Frequenz f · logarithmisch", "Frequency f · logarithmic") : t("Frequenz f · linear", "Frequency f · linear")}
+          {frequencyAxisLabel}
         </text>
         {edges.map((edge, i) => (
           <g
@@ -548,6 +567,66 @@ export function TolerancePlot({
           )}
         </p>
       )}
+      <section className="frequency-response-section" aria-label={t("Phasenverlauf S₂₁", "S₂₁ phase response")}>
+        <div className="response-heading">
+          <div>
+            <h2>{t("Phasenverlauf S₂₁", "S₂₁ phase response")}</h2>
+            <p>{t(
+              "Phase der Übertragung in Grad. Frequenzachse und Schaltungsvergleich gelten für beide Diagramme.",
+              "Transmission phase in degrees. Both plots share the frequency axis and circuit comparison.",
+            )}</p>
+          </div>
+        </div>
+        <div className="tolerance-legend">
+          <span><i className="preview-swatch" />{t("Vorschau des Entwurfs", "Design preview")}</span>
+          {showActual && actual && <span><i className="actual-swatch" />{t("Aktuelle Schaltung", "Current circuit")}</span>}
+        </div>
+        <svg
+          className="tolerance-plot"
+          viewBox={`0 0 ${width} ${height}`}
+          role="img"
+          aria-label={t(
+            `Phasenverlauf S₂₁ in Grad über ${frequencyScale === "log" ? "logarithmischer" : "linearer"} Frequenz`,
+            `S₂₁ phase response in degrees versus ${frequencyScale === "log" ? "logarithmic" : "linear"} frequency`,
+          )}
+          onPointerMove={event => setHover(frequencyAt(Math.max(0, Math.min(1, (point(event).x - left) / plotW)), min, max, frequencyScale))}
+          onPointerLeave={() => setHover(null)}
+        >
+          <defs><clipPath id={`${id}-phase-clip`}><rect x={left} y={top - 1} width={plotW} height={plotH + 2} /></clipPath></defs>
+          {[180, 90, 0, -90, -180].map(tick => <g key={tick}>
+            <line x1={left} x2={width - right} y1={phaseY(tick)} y2={phaseY(tick)} stroke="var(--plot-grid)" strokeDasharray={tick === 0 ? undefined : "3 5"} />
+            <text x={left - 16} y={phaseY(tick) + 4} textAnchor="end" className="mask-tick">{number(tick)}</text>
+          </g>)}
+          {visibleTicks.map(f => <g key={f}>
+            <line x1={x(f)} x2={x(f)} y1={top} y2={top + plotH} stroke="var(--plot-grid-minor)" />
+            <text x={x(f)} y={height - bottom + 22} textAnchor="middle" className="mask-tick">{normalized ? number(f / reference, 3) : engineering(f)}</text>
+          </g>)}
+          <g clipPath={`url(#${id}-phase-clip)`}>
+            {edges.map(edge => <line key={`${edge.band}-${edge.index}`} x1={x(edge.frequency)} x2={x(edge.frequency)} y1={top} y2={top + plotH}
+              stroke={edge.band === "passband" ? "var(--success-text)" : "var(--trace-s22)"} strokeDasharray="4 4" />)}
+            {preview && <path d={path("proposedPhase", phaseY, true)} fill="none" stroke="var(--trace-s21)" strokeWidth="2.2" />}
+            {showActual && actual && <path d={path("actualPhase", phaseY, true)} fill="none" stroke="var(--trace-s11)" strokeWidth="1.6" strokeDasharray="5 4" />}
+            {hoveredSample && <>
+              <line x1={x(hoveredSample.f)} x2={x(hoveredSample.f)} y1={top} y2={top + plotH} stroke="var(--plot-cursor)" strokeDasharray="3 3" />
+              {hoveredSample.proposedPhase !== null && <circle cx={x(hoveredSample.f)} cy={phaseY(hoveredSample.proposedPhase)} r="4" fill="var(--trace-s21)" />}
+              {hoveredSample.actualPhase !== null && <circle cx={x(hoveredSample.f)} cy={phaseY(hoveredSample.actualPhase)} r="4" fill="var(--trace-s11)" />}
+            </>}
+          </g>
+          <text x="9" y="17" className="mask-axis-label">φ₂₁ / °</text>
+          <text x={left + plotW / 2} y={height - 7} textAnchor="middle" className="mask-axis-label">{frequencyAxisLabel}</text>
+        </svg>
+        <div className="mask-readout">
+          {hoveredSample ? <span>
+            f = {engineering(hoveredSample.f)}
+            {preview && <> · {t("Entwurf", "Design")}: {hoveredSample.proposedPhase === null ? "—" : `${number(hoveredSample.proposedPhase, 6)}°`}</>}
+            {showActual && actual && <> · {t("Aktuelle Schaltung", "Current circuit")}: {hoveredSample.actualPhase === null ? "—" : `${number(hoveredSample.actualPhase, 6)}°`}</>}
+          </span> : <span>{t("Bewege den Mauszeiger über das Diagramm, um Messwerte abzulesen.", "Hover over the plot to read exact values.")}</span>}
+        </div>
+        <p className="mask-footnote">{t(
+          "Bei S₂₁ = 0 ist die Phase unbestimmt. Unbestimmte Werte und Phasensprünge werden als Lücken dargestellt.",
+          "The phase is undefined at S₂₁ = 0. Undefined values and phase wraps are shown as gaps.",
+        )}</p>
+      </section>
     </div>
   );
 }

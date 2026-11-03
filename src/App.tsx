@@ -52,7 +52,6 @@ import { ComponentRoundingControls } from "./components/ComponentRoundingControl
 import { DEFAULT_COMPONENT_PRECISION } from "./lib/component-rounding";
 import { formatComponentLabel } from "./lib/component-units";
 import { ResponsePlot } from "./components/ResponsePlot";
-import { FrequencyResponsePlot } from "./components/FrequencyResponsePlot";
 import type { FrequencyScale, MagnitudeScale } from "./lib/plot-scales";
 import { Formula, MathView } from "./components/MathView";
 import { SectionMatrixView } from "./components/SectionMatrixView";
@@ -490,9 +489,6 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const [resultTab, setResultTab] = useState<
     "response" | "chain" | "polynomials" | "bom" | "tolerance"
   >(startingProject.tolerance ? "tolerance" : "response");
-  const [plotMode, setPlotMode] = useState<"magnitude" | "phase">("magnitude");
-  const [transferPlotMode, setTransferPlotMode] = useState<"magnitude" | "phase">("magnitude");
-  const [transferMagnitudeScale, setTransferMagnitudeScale] = useState<MagnitudeScale>("db");
   const [frequencyScale, setFrequencyScale] = useState<FrequencyScale>("log");
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit>("MHz");
   const frequencyInputUnit = { unit: frequencyUnit, onUnitChange: setFrequencyUnit };
@@ -1293,7 +1289,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   aria-pressed={designMode === "tolerance"}
                   onClick={() => selectDesignMode("tolerance")}
                 >
-                  {t("Toleranzschema", "Tolerance mask")}
+                  {t("Toleranzmaske", "Tolerance mask")}
                 </button>
               </div>
               {designMode === "tolerance" ? (
@@ -1936,7 +1932,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     },
                     {
                       id: "tolerance",
-                      label: t("Toleranzschema", "Tolerance mask"),
+                      label: t("Toleranzmaske und Dämpfungsverlauf", "Tolerance mask and attenuation response"),
                       icon: SlidersHorizontal,
                     },
                     {
@@ -2029,27 +2025,13 @@ const FilterWorkspace = memo(function FilterWorkspace({
               <div className="response-content">
                 <div className="response-heading">
                   <div>
-                    <h2>{t("S-Parameter", "S-parameters")}</h2>
+                    <h2>{t("Betragsgang der S-Parameter", "S-parameter magnitude response")}</h2>
                     <p>
                       {t(
                         "Transmission und Reflexion deiner Schaltung.",
                         "Transmission and reflection of your circuit.",
                       )}
                     </p>
-                  </div>
-                  <div className="segmented plot-mode">
-                    <button
-                      className={plotMode === "magnitude" ? "active" : ""}
-                      onClick={() => setPlotMode("magnitude")}
-                    >
-                      {t("Betrag", "Magnitude")}
-                    </button>
-                    <button
-                      className={plotMode === "phase" ? "active" : ""}
-                      onClick={() => setPlotMode("phase")}
-                    >
-                      Phase
-                    </button>
                   </div>
                 </div>
                 <ResponsePlot
@@ -2058,7 +2040,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   {...project.sweep}
                   cutoff={project.settings.cutoff}
                   band={projectBand}
-                  mode={plotMode}
+                  mode="magnitude"
                   onExport={(text) =>
                     downloadFile(
                       "filterstudio-s-parameter.csv",
@@ -2117,18 +2099,31 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     </span>
                   </div>
                 </div>
-                <FrequencyResponsePlot
-                  {...plotScales}
-                  magnitudeScale={transferMagnitudeScale}
-                  onMagnitudeScaleChange={setTransferMagnitudeScale}
-                  analysis={analysis}
-                  {...project.sweep}
-                  cutoff={project.settings.cutoff}
-                  band={projectBand}
-                  mode={transferPlotMode}
-                  onModeChange={setTransferPlotMode}
-                  onExport={text => downloadFile("filterstudio-frequency-response.csv", text, "text/csv")}
-                />
+                <section
+                  className="frequency-response-section"
+                  aria-label={t("Phasengang der S-Parameter", "S-parameter phase response")}
+                >
+                  <div className="response-heading">
+                    <div>
+                      <h2>{t("Phasengang der S-Parameter", "S-parameter phase response")}</h2>
+                      <p>
+                        {t(
+                          "Phase von S₁₁, S₂₁, S₁₂ und S₂₂ in Grad. Der Frequenzbereich gilt für beide Diagramme.",
+                          "Phase of S₁₁, S₂₁, S₁₂ and S₂₂ in degrees. Both plots share the frequency range.",
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <ResponsePlot
+                    {...plotScales}
+                    analysis={analysis}
+                    {...project.sweep}
+                    cutoff={project.settings.cutoff}
+                    band={projectBand}
+                    mode="phase"
+                    onExport={text => downloadFile("filterstudio-s-parameter.csv", text, "text/csv")}
+                  />
+                </section>
               </div>
             ) : resultTab === "chain" ? (
               <div className="math-content">

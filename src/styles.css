@@ -1551,6 +1551,11 @@ h1 {
   height: 2px;
   background: var(--trace-s21);
 }
+.actual-swatch {
+  display: inline-block;
+  width: 18px;
+  border-top: 2px dashed var(--trace-s11);
+}
 .tolerance-plot {
   width: 100%;
   height: auto;
