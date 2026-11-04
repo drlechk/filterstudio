@@ -1,6 +1,6 @@
 import { bandEdges, isBandResponse, MIN_RELATIVE_BANDWIDTH } from "./frequency";
 import { ellipticK, ellipticPrototype } from "./synthesis";
-import { CAUER_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation } from "./filter-limits";
+import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from "./filter-limits";
 import type { FilterFamily, FilterSettings, ToleranceSpec } from "./types";
 
 export const MIN_MASK_FREQUENCY = 1;
@@ -171,7 +171,7 @@ export function designTolerance(
   const fractional =
     family === "butterworth"
       ? Math.log(ratio) / (2 * Math.log(stopbandRatio))
-      : family === "chebyshev"
+      : family === "chebyshev" || family === "chebyshev2"
         ? Math.acosh(Math.sqrt(ratio)) / Math.acosh(stopbandRatio)
         : (ellipticK(m) * ellipticK(1 - m1)) /
           (ellipticK(1 - m) * ellipticK(m1));
@@ -189,11 +189,18 @@ export function designTolerance(
         );
       }) ?? 0;
     if (order) attenuation = Math.max(cauerMinimumAttenuation(order), as);
+  } else if (family === "chebyshev2") {
+    order = CHEBYSHEV_II_ORDERS.find(n => {
+      const rs = Math.max(chebyshevIIMinimumAttenuation(n), as);
+      return Math.cosh(Math.acosh(Math.sqrt(Math.expm1(rs * Math.LN10 / 10) / ep2)) / n) <= stopbandRatio * (1 + 1e-12);
+    }) ?? 0;
+    if (order) attenuation = Math.max(chebyshevIIMinimumAttenuation(order), as);
   }
   if (!Number.isFinite(order) || order < 1 || order > MAX_PROTOTYPE_ORDER)
     return { settings: null, minimumOrder, stopbandRatio, issue: "order" };
   const scale =
-    family === "butterworth" ? Math.exp(-Math.log(ep2) / (2 * order)) : 1;
+    family === "butterworth" ? Math.exp(-Math.log(ep2) / (2 * order))
+      : family === "chebyshev2" ? Math.cosh(Math.acosh(Math.sqrt(Math.expm1(attenuation * Math.LN10 / 10) / ep2)) / order) : 1;
   const cutoff =
     response === "lowpass"
       ? center * scale

@@ -2,6 +2,22 @@ import type { Language } from "./preference-storage";
 
 /** Engine messages stay canonical German so open diagnostics can change language. */
 const english: Record<string, string> = {
+  "Die Chebyshev-II-Synthese unterstützt ungerade Grade von 1 bis 11.":
+    "Chebyshev II synthesis supports odd orders from 1 to 11.",
+  "Chebyshev II benötigt 20–80 dB Sperrdämpfung; ab Grad 5 mindestens 30 dB, ab Grad 7 mindestens 60 dB und bei Grad 11 genau 80 dB.":
+    "Chebyshev II requires 20–80 dB attenuation; at least 30 dB for order 5, 60 dB for orders 7/9, and exactly 80 dB for order 11.",
+  "Diese Chebyshev-II-Spezifikation konnte nicht zuverlässig als passive LC-Leiter synthetisiert werden.":
+    "These Chebyshev II specifications could not be synthesized reliably as a passive LC ladder.",
+  "Chebyshev II benötigt ungerade Grade von 1 bis 11 und die für den Grad unterstützte Sperrdämpfung.":
+    "Chebyshev II requires odd orders from 1 to 11 and the supported attenuation for the selected order.",
+  "Inverser Chebyshev: monotoner Durchlassbereich und gleichmäßige Sperrbandwelligkeit.":
+    "Inverse Chebyshev: monotonic passband and equiripple stopband.",
+  "LC-Resonatoren erzeugen endliche Übertragungsnullstellen.":
+    "LC resonators produce finite transmission zeros.",
+  "Die beiden Bandgrenzen bezeichnen die Sperrbandgrenzen bei −Rs dB.":
+    "Both band edges are stopband edges at −Rs dB.",
+  "Die Grenzfrequenz bezeichnet die Sperrbandgrenze bei −Rs dB.":
+    "The reference frequency is the stopband edge at −Rs dB.",
   "Die Schaltung braucht einen Eingang und einen Ausgang.":
     "The circuit needs an input and an output.",
   "Eine Verbindung endet an einem fehlenden Bauelement.":

@@ -44,7 +44,7 @@ import { CircuitEditor } from "./components/CircuitEditor";
 import { ProjectTabs } from "./components/ProjectTabs";
 import { SiteFooter } from "./components/SiteFooter";
 import { createFilterTab, workspaceReducer, type Workspace } from "./lib/workspace";
-import { MAX_PROTOTYPE_ORDER, MAX_CAUER_ORDER, MAX_CIRCUIT_NODES, MAX_CIRCUIT_SECTIONS, nearestFilterOrder, cauerMinimumAttenuation } from "./lib/filter-limits";
+import { MAX_CIRCUIT_NODES, MAX_CIRCUIT_SECTIONS, nearestFilterOrder, filterOrderLimits, minimumStopbandAttenuation } from "./lib/filter-limits";
 import { useRemoteWorkspace } from "./lib/use-remote-workspace";
 import { checkRevision, RemoteError, type RemoteController, type RemoteTab } from "./lib/remote-protocol";
 import { ComponentValueInput } from "./components/ComponentValueInput";
@@ -109,11 +109,13 @@ const isAcknowledgementsPage = () => window.location.hash.startsWith("#acknowled
 const familyNames: Record<FilterFamily, string> = {
   butterworth: "Butterworth",
   chebyshev: "Chebyshev I",
+  chebyshev2: "Chebyshev II",
   cauer: "Cauer",
 };
 const getFamilyDescriptions = (t: Translator) => ({
   butterworth: t("Maximal flacher Durchlassbereich", "Maximally flat passband"),
   chebyshev: t("Welligkeit im Durchlassbereich", "Passband ripple"),
+  chebyshev2: t("Invers · Welligkeit im Sperrbereich", "Inverse · stopband ripple"),
   cauer: t("Elliptisch · steile Filterflanken", "Elliptic · steep roll-off"),
 });
 const getPalette = (t: Translator) => [
@@ -479,6 +481,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const [settings, setSettings] = useState<FilterSettings>(
     startingProject.settings,
   );
+  const orderLimits = filterOrderLimits(settings.family);
   const [designMode, setDesignMode] = useState<"parameters" | "tolerance">(
     startingProject.tolerance ? "tolerance" : "parameters",
   );
@@ -732,8 +735,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
       next.bandwidth = next.cutoff / 2;
     }
     next.order = nearestFilterOrder(next.family, next.order);
-    if (next.family === "cauer")
-      next.attenuation = Math.max(cauerMinimumAttenuation(next.order), next.attenuation);
+    next.attenuation = Math.max(minimumStopbandAttenuation(next.family, next.order), next.attenuation);
     if (patch.response && patch.response !== toleranceDraft.response) {
       setToleranceDraft({
         ...defaultTolerance(next),
@@ -1242,7 +1244,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                 {t("01 / FILTERCHARAKTERISTIK", "01 / FILTER CHARACTERISTIC")}
               </div>
               <div className="family-list">
-                {(["butterworth", "chebyshev", "cauer"] as FilterFamily[]).map(
+                {(["butterworth", "chebyshev", "chebyshev2", "cauer"] as FilterFamily[]).map(
                   (family, i) => (
                     <button
                       key={family}
@@ -1261,6 +1263,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                                 ? "M2 5C17 5 18 5 22 10S26 21 33 22"
                                 : i === 1
                                   ? "M2 6Q5 1 9 6T17 6Q21 2 23 10T33 23"
+                                  : i === 2 ? "M2 5C15 5 17 5 21 14L24 23Q27 13 29 23L33 19"
                                   : "M2 6Q5 1 9 6T17 6Q21 1 22 12L24 23Q27 13 29 23L33 19"
                             }
                             fill="none"
@@ -1349,13 +1352,13 @@ const FilterWorkspace = memo(function FilterWorkspace({
                         )}
                         disabled={
                           settings.order <=
-                          (settings.family === "cauer" ? 3 : 1)
+                          orderLimits.min
                         }
                         onClick={() =>
                           updateSettings({
                             order:
                               settings.order -
-                              (settings.family === "cauer" ? 2 : 1),
+                              orderLimits.step,
                           })
                         }
                       >
@@ -1369,13 +1372,13 @@ const FilterWorkspace = memo(function FilterWorkspace({
                         )}
                         disabled={
                           settings.order >=
-                          (settings.family === "cauer" ? MAX_CAUER_ORDER : MAX_PROTOTYPE_ORDER)
+                          orderLimits.max
                         }
                         onClick={() =>
                           updateSettings({
                             order:
                               settings.order +
-                              (settings.family === "cauer" ? 2 : 1),
+                              orderLimits.step,
                           })
                         }
                       >
@@ -1392,18 +1395,22 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     }
                     className="order-range"
                     type="range"
-                    min={settings.family === "cauer" ? 3 : 1}
-                    max={settings.family === "cauer" ? MAX_CAUER_ORDER : MAX_PROTOTYPE_ORDER}
-                    step={settings.family === "cauer" ? 2 : 1}
+                    min={orderLimits.min}
+                    max={orderLimits.max}
+                    step={orderLimits.step}
                     value={settings.order}
                     onChange={(e) =>
                       updateSettings({ order: Number(e.target.value) })
                     }
                   />
                   <div className="range-labels">
-                    <span>{settings.family === "cauer" ? "3" : "1"}</span>
-                    <span>{settings.family === "cauer" ? MAX_CAUER_ORDER : MAX_PROTOTYPE_ORDER}</span>
+                    <span>{orderLimits.min}</span>
+                    <span>{orderLimits.max}</span>
                   </div>
+                  {settings.family === "chebyshev2" && <p className="band-order-note">{t(
+                    "Passive LC-Leiter: ungerade Grade 1–11; ab n = 5 mindestens 30 dB, ab n = 7 mindestens 60 dB, bei n = 11 genau 80 dB. Die Frequenzgrenzen liegen bei −Rs dB.",
+                    "Passive LC ladder: odd orders 1–11; at least 30 dB for n ≥ 5, 60 dB for n ≥ 7, exactly 80 dB for n = 11. Frequency edges are at −Rs dB.",
+                  )}</p>}
                   {draftBand ? (
                     <>
                       <p className="band-order-note">
@@ -1463,7 +1470,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                           {t("Grenzen bei", "Edges at")}{" "}
                           {settings.family === "butterworth"
                             ? `−${number(3.01)}`
-                            : `−${number(settings.ripple)}`}{" "}
+                            : `−${number(settings.family === "chebyshev2" ? settings.attenuation : settings.ripple)}`}{" "}
                           dB · f₀ = √(f₁ f₂)
                         </small>
                       </div>
@@ -1481,14 +1488,14 @@ const FilterWorkspace = memo(function FilterWorkspace({
                       <label className="field-label">
                         {settings.family === "butterworth"
                           ? t("Grenzfrequenz", "Cutoff frequency")
-                          : t("Durchlassgrenze", "Passband edge")}{" "}
+                          : settings.family === "chebyshev2" ? t("Sperrbandgrenze", "Stopband edge") : t("Durchlassgrenze", "Passband edge")}{" "}
                         <span>f₀</span>
                       </label>
                       <FrequencyInput
                         {...frequencyInputUnit}
                         label={settings.family === "butterworth"
                           ? t("Grenzfrequenz", "Cutoff frequency")
-                          : t("Durchlassgrenze", "Passband edge")}
+                          : settings.family === "chebyshev2" ? t("Sperrbandgrenze", "Stopband edge") : t("Durchlassgrenze", "Passband edge")}
                         value={settings.cutoff}
                         onChange={(n) => updateSettings({ cutoff: n })}
                       />
@@ -1513,7 +1520,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                 />
               </div>
               {designMode === "parameters" &&
-                settings.family !== "butterworth" && (
+                (settings.family === "chebyshev" || settings.family === "cauer") && (
                   <div className="parameter-field">
                     <label className="field-label">
                       {t("Durchlasswelligkeit", "Passband ripple")}{" "}
@@ -1532,7 +1539,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     />
                   </div>
                 )}
-              {designMode === "parameters" && settings.family === "cauer" && (
+              {designMode === "parameters" && (settings.family === "cauer" || settings.family === "chebyshev2") && (
                 <div className="parameter-field">
                   <label className="field-label">
                     {t("Sperrdämpfung", "Stopband attenuation")} <span>Rₛ</span>
@@ -1544,7 +1551,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     )}
                     value={settings.attenuation}
                     unit="dB"
-                    min={cauerMinimumAttenuation(settings.order)}
+                    min={minimumStopbandAttenuation(settings.family, settings.order)}
                     max={80}
                     onChange={(n) => updateSettings({ attenuation: n })}
                   />
@@ -2645,14 +2652,14 @@ const FilterWorkspace = memo(function FilterWorkspace({
               </p>
               <p>
                 {t(
-                  "Beim Tief- und Hochpass ist f₀ bei Butterworth die −3,01-dB-Grenze; bei Chebyshev I und Cauer die Durchlassgrenze mit der gewählten Welligkeit. Bei Chebyshev gerader Ordnung wird die erforderliche Ausgangsimpedanz automatisch eingestellt. Butterworth und Chebyshev unterstützen n = 1–20, Cauer die ungeraden Prototypordnungen 3–19. Die LC-Werte werden numerisch synthetisiert und geprüft.",
-                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth and the specified passband edge for Chebyshev I and elliptic filters. Even-order Chebyshev filters automatically receive the required output impedance. Butterworth and Chebyshev support n = 1–20; elliptic filters support odd prototype orders 3–19. LC values are numerically synthesized and verified.",
+                  "Beim Tief- und Hochpass ist f₀ bei Butterworth die −3,01-dB-Grenze, bei Chebyshev I/Cauer die Durchlassgrenze und bei Chebyshev II die Sperrbandgrenze bei −Rₛ dB. Chebyshev I gerader Ordnung erhält automatisch die erforderliche Ausgangsimpedanz. Butterworth/Chebyshev I unterstützen n = 1–20, Chebyshev II ungerade Grade 1–11 und Cauer ungerade Grade 3–19. Die Mindest-Sperrdämpfung der jeweiligen LC-Leiter wird im Generator angezeigt. Die LC-Werte werden numerisch synthetisiert und geprüft.",
+                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth, the passband edge for Chebyshev I/elliptic, and the stopband edge at −Rₛ dB for Chebyshev II. Even-order Chebyshev I automatically receives the required output impedance. Butterworth/Chebyshev I support n = 1–20, Chebyshev II odd orders 1–11, and elliptic odd orders 3–19. The generator shows each ladder's minimum stopband attenuation. LC values are numerically synthesized and verified.",
                 )}
               </p>
               <p>
                 {t(
-                  "Bandpass und Bandsperre verwenden zwei Bandgrenzen f₁ und f₂. Es gilt f₀ = √(f₁ f₂) und B = f₂ − f₁. Die Grenzen liegen bei Butterworth bei −3,01 dB und bei Chebyshev I/Cauer bei −Rₚ dB. Beim Bandpass liegt der Durchlass zwischen den Grenzen, bei der Bandsperre außerhalb. Die Filterordnung verdoppelt sich gegenüber dem Tiefpass-Prototyp auf 2n; die normierte Polynomvariable bleibt p = s/(2πf₀).",
-                  "Band-pass and band-stop filters use two band edges, f₁ and f₂, with f₀ = √(f₁ f₂) and B = f₂ − f₁. The edges are at −3.01 dB for Butterworth and −Rₚ dB for Chebyshev I and elliptic filters. Band-pass filters transmit between the edges; band-stop filters transmit outside them. The filter order doubles to 2n relative to the low-pass prototype; the normalized polynomial variable remains p = s/(2πf₀).",
+                  "Bandpass und Bandsperre verwenden zwei Bandgrenzen f₁ und f₂. Es gilt f₀ = √(f₁ f₂) und B = f₂ − f₁. Die Grenzen liegen bei Butterworth bei −3,01 dB, bei Chebyshev I/Cauer bei −Rₚ dB und bei Chebyshev II bei −Rₛ dB. Beim Bandpass liegt der Durchlass zwischen den Grenzen, bei der Bandsperre außerhalb; bei Chebyshev II kommen die Übergangsbereiche bis zu den Sperrbandgrenzen hinzu. Die Filterordnung verdoppelt sich gegenüber dem Tiefpass-Prototyp auf 2n; die normierte Polynomvariable bleibt p = s/(2πf₀).",
+                  "Band-pass and band-stop filters use two band edges, f₁ and f₂, with f₀ = √(f₁ f₂) and B = f₂ − f₁. The edges are at −3.01 dB for Butterworth, −Rₚ dB for Chebyshev I/elliptic, and −Rₛ dB for Chebyshev II. Band-pass filters transmit between the edges; band-stop filters transmit outside them. Chebyshev II includes transition regions up to its stopband edges. The filter order doubles to 2n relative to the low-pass prototype; the normalized polynomial variable remains p = s/(2πf₀).",
                 )}
               </p>
               <p>

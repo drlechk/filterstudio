@@ -8,13 +8,13 @@ export const precisionSchema = z.union([digitsSchema, z.literal("full")]);
 const frequency = z.number().min(1).max(1e12);
 const value = z.number().positive().max(1e15);
 export const settingsSchema = z.object({
-  family: z.enum(["butterworth", "chebyshev", "cauer"]),
+  family: z.enum(["butterworth", "chebyshev", "chebyshev2", "cauer"]),
   response: z.enum(["lowpass", "highpass", "bandpass", "bandstop"]),
-  order: z.number().int().min(1).max(MAX_PROTOTYPE_ORDER).describe("Prototype order: 1–20 for Butterworth/Chebyshev; odd 3–19 for Cauer. Cauer orders >= 7 require attenuation >= 40 dB. Band filters have realized order 2n."),
-  cutoff: frequency.describe("Reference/center frequency in Hz."),
+  order: z.number().int().min(1).max(MAX_PROTOTYPE_ORDER).describe("Prototype order: 1–20 for Butterworth/Chebyshev I; odd 3–19 for Cauer (>= 40 dB at n >= 7); odd 1–11 for Chebyshev II (>= 30 dB at n=5, >= 60 dB at n=7/9, 80 dB at n=11). Band filters have order 2n."),
+  cutoff: frequency.describe("Reference/center frequency in Hz. Chebyshev II uses the stopband edge at -attenuation dB; its bandwidth is measured between stopband edges."),
   bandwidth: z.number().positive().max(1e12).optional().describe("Required for band filters; at least 0.1% of cutoff. Band edges must be in 1 Hz–1 THz."),
   impedance: z.number().min(0.01).max(1e6).describe("Input reference impedance in ohms."),
-  ripple: z.number().min(0.1).max(3).describe("Passband ripple in dB."),
+  ripple: z.number().min(0.1).max(3).describe("Passband ripple in dB for Chebyshev I/Cauer; unused by Butterworth/Chebyshev II parameter synthesis."),
   attenuation: z.number().min(20).max(80).describe("Stopband attenuation in dB."),
 });
 export const toleranceSchema = z.object({

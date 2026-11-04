@@ -250,14 +250,19 @@ export function ToleranceControls({
                 "Verfügbare Cauer-Prototypgrade: ungerade 3–19; ab n = 7 mindestens 40 dB.",
                 "Available Cauer prototype orders: odd 3–19; at least 40 dB for n ≥ 7.",
               )
-            : t(
+            : family === "chebyshev2" ? t(
+                "Chebyshev-II-Leiter: ungerade Grade 1–11. Mindest-Sperrdämpfung: 20 dB (n = 1/3), 30 dB (5), 60 dB (7/9), 80 dB (11).",
+                "Chebyshev II ladder: odd orders 1–11. Minimum attenuation: 20 dB (n = 1/3), 30 dB (5), 60 dB (7/9), 80 dB (11).",
+              ) : t(
                 "Verfügbare Prototypgrade: 1–20.",
                 "Available prototype orders: 1–20.",
               )}
         </small>
-        {design.settings?.family === "butterworth" && (
+        {(design.settings?.family === "butterworth" || design.settings?.family === "chebyshev2") && (
           <small>
-            {band
+            {design.settings.family === "chebyshev2"
+              ? band ? t("Abgeleitete Sperrbandbreite", "Derived stopband width") : t("Abgeleitete Sperrbandgrenze", "Derived stopband edge")
+              : band
               ? t("Abgeleitete −3-dB-Bandbreite", "Derived −3 dB bandwidth")
               : t("Abgeleitete −3-dB-Frequenz", "Derived −3 dB frequency")}
             :{" "}

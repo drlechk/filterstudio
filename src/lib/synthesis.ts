@@ -1,6 +1,6 @@
 import type { FilterSettings, Section } from './types';
 import { MIN_RELATIVE_BANDWIDTH } from './frequency';
-import { CAUER_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation } from './filter-limits';
+import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from './filter-limits';
 
 /** Normalized LC ladder synthesis. Frequencies are angular internally.
  * Elliptic prototype: Orfanidis, Introduction to Signal Processing, 2e, ch. 13,
@@ -298,6 +298,92 @@ function ellipticLadder(n: number, ripple: number, attenuation: number) {
   return result;
 }
 
+/** Inverse Chebyshev poles and zeros, internally scaled to the 3 dB point.
+ * The public reference frequency is the stopband edge, as in cheb2ap:
+ * https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.cheb2ap.html
+ */
+function inverseChebyshevPrototype(n: number, attenuation: number): EllipticPrototype {
+  const es = Math.sqrt(Math.expm1(attenuation * Math.LN10 / 10));
+  const mu = Math.asinh(es) / n, stopbandRatio = Math.cosh(Math.acosh(es) / n);
+  let denominator = [1];
+  const poles: { re: number; im: number }[] = [], zeros: number[] = [];
+  for (let j = 0; j < n; j += 2) {
+    const theta = j * Math.PI / (2 * n);
+    const real = -Math.sinh(mu) * Math.cos(theta), imaginary = Math.cosh(mu) * Math.sin(theta);
+    const norm = real * real + imaginary * imaginary;
+    const re = stopbandRatio * real / norm, im = -stopbandRatio * imaginary / norm;
+    poles.push({ re, im });
+    denominator = mul(denominator, j ? [re * re + im * im, -2 * re, 1] : [-re, 1]);
+    if (j) zeros.push(stopbandRatio / Math.sin(theta));
+  }
+  return { poles, zeros, denominator: denominator.map(v => 2 * v / denominator[0]), stopbandRatio,
+    passbandFrequencies: Array.from({ length: 4 * n + 1 }, (_, i) => i / (4 * n)) };
+}
+
+const polynomialAt = (p: number[], omega: number) => p.reduceRight<ComplexPair>(
+  (value, coefficient) => complexAdd(complexMultiply(value, [0, omega]), [coefficient, 0]), [0, 0]);
+const complexDivide = (a: ComplexPair, b: ComplexPair): ComplexPair => {
+  const norm = b[0] * b[0] + b[1] * b[1];
+  return [(a[0] * b[0] + a[1] * b[1]) / norm, (a[1] * b[0] - a[0] * b[1]) / norm];
+};
+function removeResonance(p: number[], omega: number) {
+  const remainder = [...p], quotient = Array<number>(p.length - 2).fill(0);
+  for (let i = p.length - 1; i >= 2; i--) {
+    quotient[i - 2] = remainder[i];
+    remainder[i - 2] -= remainder[i] * omega * omega;
+  }
+  return quotient;
+}
+function* zeroOrders(zeros: number[]): Generator<number[]> {
+  if (!zeros.length) { yield []; return; }
+  for (const [i, zero] of zeros.entries())
+    for (const rest of zeroOrders(zeros.filter((_, j) => i !== j))) yield [zero, ...rest];
+}
+
+/** Zero shifting: remove a shunt capacitance, then a series parallel-LC branch.
+ * Y=(D+R)/(D-R), where the reflection numerator R is the leading term of D.
+ * Extraction order matters: accept only positive values and verify the complete
+ * complex denominator independently against its pole factors, not coefficients.
+ */
+function extractInverseChebyshev(prototype: EllipticPrototype, zeros: number[]) {
+  let top = [...prototype.denominator], bottom = [...prototype.denominator];
+  top[top.length - 1] *= 2; bottom.pop();
+  const values: number[] = [];
+  for (const omega of zeros) {
+    const capacitance = complexDivide(polynomialAt(top, omega), polynomialAt(bottom, omega))[1] / omega;
+    const residual = removeResonance(add(top, [0, ...bottom.map(v => -capacitance * v)]), omega);
+    const inductance = complexDivide(polynomialAt(bottom, omega), complexMultiply([0, omega ** 3], polynomialAt(residual, omega)))[0];
+    top = residual;
+    bottom = removeResonance(add(bottom, [0, ...residual.map(v => -inductance * omega * omega * v)]), omega);
+    const scale = Math.max(...top.map(Math.abs), ...bottom.map(Math.abs));
+    top = top.map(v => v / scale); bottom = bottom.map(v => v / scale);
+    values.push(capacitance, inductance);
+  }
+  values.push(top[1] / bottom[0]);
+  return values;
+}
+const inverseChebyshevCache = new Map<string, { values: number[]; zeros: number[] }>();
+function inverseChebyshevLadder(n: number, attenuation: number) {
+  const key = `${n}/${attenuation}`, cached = inverseChebyshevCache.get(key);
+  if (cached) return cached;
+  const prototype = inverseChebyshevPrototype(n, attenuation);
+  const verification = [...prototype.passbandFrequencies,
+    ...Array.from({ length: 81 }, (_, i) => prototype.stopbandRatio * 10 ** (-2 + 4 * i / 80))];
+  let best: { values: number[]; zeros: number[] } | undefined, bestError = Infinity;
+  for (const zeros of zeroOrders([...prototype.zeros].reverse())) {
+    const values = extractInverseChebyshev(prototype, zeros);
+    if (!values.every(value => Number.isFinite(value) && value > 0)) continue;
+    const error = Math.max(...verification.map(omega => Math.hypot(...relativeDenominatorError(
+      ladderDenominatorAt(values, zeros, omega), prototypeDenominatorAt(prototype, omega)))));
+    if (error < bestError) { best = { values, zeros }; bestError = error; }
+    if (error < 1e-10) break;
+  }
+  if (!best || bestError > 1e-7) throw new Error('Diese Chebyshev-II-Spezifikation konnte nicht zuverlässig als passive LC-Leiter synthetisiert werden.');
+  const result = { values: best.values.map(v => v * prototype.stopbandRatio), zeros: best.zeros.map(v => v / prototype.stopbandRatio) };
+  inverseChebyshevCache.set(key, result);
+  return result;
+}
+
 /** Wideband frequency transforms with p=s/ω0 and b=B/f0:
  * BP: q=(p²+1)/(bp); BS: q=bp/(p²+1).
  * https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.lp2bp.html
@@ -337,7 +423,7 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
   const { family, response, order: n, cutoff, impedance: z, ripple, attenuation } = settings;
   if (!Number.isInteger(n) || n < 1 || n > MAX_PROTOTYPE_ORDER) throw new Error('Der Filtergrad muss zwischen 1 und 20 liegen.');
   if (!(cutoff > 0) || !Number.isFinite(cutoff) || !(z > 0) || !Number.isFinite(z)) throw new Error('Frequenz und Impedanz müssen positiv sein.');
-  if (family !== 'butterworth' && (!(ripple >= .01 && ripple <= 3) || !Number.isFinite(ripple))) throw new Error('Die Welligkeit muss zwischen 0,01 und 3 dB liegen.');
+  if ((family === 'chebyshev' || family === 'cauer') && (!(ripple >= .01 && ripple <= 3) || !Number.isFinite(ripple))) throw new Error('Die Welligkeit muss zwischen 0,01 und 3 dB liegen.');
   const isBand = response === 'bandpass' || response === 'bandstop';
   const bandwidth = settings.bandwidth;
   if (isBand && (!(bandwidth! > 0) || !Number.isFinite(bandwidth))) throw new Error('Für Bandfilter muss eine endliche, positive Bandbreite in Hz angegeben werden.');
@@ -345,7 +431,16 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
   if (isBand && (!Number.isFinite(relativeBandwidth) || relativeBandwidth < MIN_RELATIVE_BANDWIDTH * (1 - 1e-12))) throw new Error(`Die Bandbreite muss mindestens ${100 * MIN_RELATIVE_BANDWIDTH} % der Mittenfrequenz betragen.`);
   const omega = 2 * Math.PI * cutoff, notes: string[] = [];
   let sections: Section[], load = 1;
-  if (family === 'cauer') {
+  if (family === 'chebyshev2') {
+    if (!CHEBYSHEV_II_ORDERS.includes(n)) throw new Error('Die Chebyshev-II-Synthese unterstützt ungerade Grade von 1 bis 11.');
+    if (!(attenuation >= chebyshevIIMinimumAttenuation(n) && attenuation <= 80)) throw new Error('Chebyshev II benötigt 20–80 dB Sperrdämpfung; ab Grad 5 mindestens 30 dB, ab Grad 7 mindestens 60 dB und bei Grad 11 genau 80 dB.');
+    const inverse = inverseChebyshevLadder(n, attenuation);
+    sections = inverse.values.map((v, i): Section => i % 2 === 0
+      ? { id: `section-${i + 1}`, kind: 'C', connection: 'shunt', value: v }
+      : { id: `section-${i + 1}`, kind: 'LC', connection: 'series', value: v, value2: 1 / (inverse.zeros[(i - 1) / 2] ** 2 * v), resonator: 'parallel' });
+    notes.push('Inverser Chebyshev: monotoner Durchlassbereich und gleichmäßige Sperrbandwelligkeit.');
+    if (n > 1) notes.push('LC-Resonatoren erzeugen endliche Übertragungsnullstellen.');
+  } else if (family === 'cauer') {
     if (!CAUER_ORDERS.includes(n)) throw new Error('Die Cauer-Synthese unterstützt ungerade Grade von 3 bis 19.');
     if (!(attenuation >= 20 && attenuation <= 80)) throw new Error('Die Cauer-Sperrdämpfung muss zwischen 20 und 80 dB liegen.');
     if (attenuation < cauerMinimumAttenuation(n)) throw new Error('Cauer-Leiterstrukturen ab Grad 7 benötigen eine Sperrdämpfung zwischen 40 und 80 dB.');
@@ -386,7 +481,8 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
     scaled.label = `${scaled.kind}${i + 1}`;
     return scaled;
   });
-  if (isBand) notes.push(family === 'butterworth' ? 'Die beiden Bandgrenzen liegen bei −3,0103 dB.' : 'Die beiden Bandgrenzen liegen bei −Rp dB; die Sperrdämpfung wird innerhalb des Sperrbereichs erreicht.');
+  if (family === 'chebyshev2') notes.push(isBand ? 'Die beiden Bandgrenzen bezeichnen die Sperrbandgrenzen bei −Rs dB.' : 'Die Grenzfrequenz bezeichnet die Sperrbandgrenze bei −Rs dB.');
+  else if (isBand) notes.push(family === 'butterworth' ? 'Die beiden Bandgrenzen liegen bei −3,0103 dB.' : 'Die beiden Bandgrenzen liegen bei −Rp dB; die Sperrdämpfung wird innerhalb des Sperrbereichs erreicht.');
   else if (family === 'butterworth') notes.push('Die Grenzfrequenz bezeichnet den −3,0103-dB-Punkt.');
   else notes.push('Die Grenzfrequenz bezeichnet die Durchlassbandgrenze bei −Rp dB.');
   if (load !== 1) notes.push('Gerader Chebyshev-Grad: Der Ausgangsabschluss wird für die spezifizierte Welligkeit angepasst.');

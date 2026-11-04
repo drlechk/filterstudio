@@ -54,7 +54,7 @@ export function filterApproximation(
   const epsilon =
     family === "butterworth"
       ? 1
-      : Math.sqrt(Math.expm1((ripple * Math.LN10) / 10));
+      : Math.sqrt(Math.expm1(((family === "chebyshev2" ? attenuation : ripple) * Math.LN10) / 10));
   let symbol: string;
   if (family === "butterworth") {
     numerator = [...Array<number>(order).fill(0), 1];
@@ -62,6 +62,12 @@ export function filterApproximation(
   } else if (family === "chebyshev") {
     numerator = chebyshevPolynomial(order);
     symbol = `F_{${order}}(\\Omega)=T_{${order}}(\\Omega)`;
+  } else if (family === "chebyshev2") {
+    numerator = [...Array<number>(order).fill(0), 1];
+    denominator = chebyshevPolynomial(order).reverse();
+    while (denominator.length > 1 && denominator.at(-1) === 0) denominator.pop();
+    stopbandRatio = 1;
+    symbol = `F_{${order}}(\\Omega)=\\frac{1}{T_{${order}}(1/\\Omega)}`;
   } else {
     const prototype = ellipticPrototype(order, ripple, attenuation);
     stopbandRatio = prototype.stopbandRatio;
@@ -83,12 +89,13 @@ export function filterApproximation(
       ? polynomialLatex(numerator, "\\Omega")
       : `\\frac{${polynomialLatex(numerator, "\\Omega")}}{${polynomialLatex(denominator, "\\Omega")}}`;
   const recurrence =
-    family === "chebyshev"
+    family === "chebyshev" || family === "chebyshev2"
       ? "\\\\ T_0(\\Omega)=1,\\quad T_1(\\Omega)=\\Omega,\\quad T_{k+1}(\\Omega)=2\\Omega T_k(\\Omega)-T_{k-1}(\\Omega)"
       : "";
   const parameter =
     family === "butterworth"
       ? "\\epsilon=1"
+      : family === "chebyshev2" ? `\\epsilon=\\sqrt{10^{R_s/10}-1}\\approx ${scalarLatex(epsilon)},\\quad R_s=${scalarLatex(attenuation)}\\,\\mathrm{dB}`
       : `\\epsilon=\\sqrt{10^{R_p/10}-1}\\approx ${scalarLatex(epsilon)},\\quad R_p=${scalarLatex(ripple)}\\,\\mathrm{dB}${family === "cauer" ? `,\\quad R_s=${scalarLatex(attenuation)}\\,\\mathrm{dB}` : ""}`;
   const transforms = {
     lowpass: ["q=p", "\\Omega=x"],

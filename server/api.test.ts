@@ -108,21 +108,39 @@ describe("REST/OpenAPI", () => {
   });
 
   it("synthesizes and analyzes the maximum supported orders, including expanded Cauer band circuits", async () => {
-    for (const family of ['butterworth', 'chebyshev', 'cauer']) {
-      const order = family === 'cauer' ? 19 : 20;
+    for (const family of ['butterworth', 'chebyshev', 'chebyshev2', 'cauer']) {
+      const order = family === 'cauer' ? 19 : family === 'chebyshev2' ? 11 : 20;
       for (const response of ['lowpass', 'bandpass']) {
-        const generated = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family, order, response, cutoff: 1e6, bandwidth: .5e6 } }).expect(200);
+        const generated = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family, order, response, cutoff: 1e6, bandwidth: .5e6, attenuation: 80 } }).expect(200);
         const candidate = generated.body.project;
         expect(candidate.settings.order).toBe(order);
         if (family === 'cauer' && response === 'bandpass') expect(candidate.nodes).toHaveLength(30);
         await request(server.httpServer).post('/api/filters/validate').send({ project: candidate }).expect(200);
         const analyzed = await request(server.httpServer).post('/api/filters/analyze').send({ project: candidate, frequencies: [1e6] }).expect(200);
-        const expected = response === 'lowpass' ? (family === 'butterworth' ? -3.0102999566 : -.5) : (family === 'chebyshev' ? -.5 : 0);
+        const expected = response === 'lowpass' ? (family === 'butterworth' ? -3.0102999566 : family === 'chebyshev2' ? -80 : -.5) : (family === 'chebyshev' ? -.5 : 0);
         expect(analyzed.body.samples[0].db.s21).toBeCloseTo(expected, 5);
       }
     }
     await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { order: 21 } }).expect(400);
     await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'cauer', order: 20 } }).expect(422);
+  });
+
+  it("supports inverse Chebyshev stopband edges, tolerance masks and project validation", async () => {
+    const generated = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'chebyshev2', order: 5, attenuation: 40 } }).expect(200);
+    const candidate = generated.body.project;
+    await request(server.httpServer).post('/api/filters/validate').send({ project: candidate }).expect(200);
+    const analyzed = await request(server.httpServer).post('/api/filters/analyze').send({ project: candidate, frequencies: [0, 1e6, 1e6 / Math.cos(Math.PI / 10)] }).expect(200);
+    expect(analyzed.body.samples[0].db.s21).toBeCloseTo(0, 7);
+    expect(analyzed.body.samples[1].db.s21).toBeCloseTo(-40, 7);
+    expect(analyzed.body.samples[2].db.s21).toBeLessThan(-150);
+    const tolerance = { response: 'lowpass', passband: [1e6], stopband: [2e6], passbandLoss: 1, stopbandLoss: 40 };
+    const masked = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'chebyshev2' }, tolerance }).expect(200);
+    expect(masked.body.project.settings).toMatchObject({ family: 'chebyshev2', order: 5, attenuation: 40 });
+    expect(masked.body.project.tolerance).toEqual(tolerance);
+    for (const settings of [{ order: 2 }, { order: 13 }, { order: 5, attenuation: 20 }]) {
+      await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'chebyshev2', ...settings } }).expect(422);
+      await request(server.httpServer).post('/api/filters/validate').send({ project: { ...candidate, settings: { ...candidate.settings, ...settings } } }).expect(400);
+    }
   });
 
   it("rejects invalid requests, nonfinite/coupled settings, bad topology and unsupported rounding", async () => {

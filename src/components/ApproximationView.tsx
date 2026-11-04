@@ -28,6 +28,7 @@ export function ApproximationView({
       ? "Butterworth"
       : family === "chebyshev"
         ? "Chebyshev I"
+        : family === "chebyshev2" ? "Chebyshev II"
         : t("Cauer / elliptisch", "Cauer / elliptic");
   const responseName = {
     lowpass: t("Tiefpass", "low-pass"),
@@ -46,7 +47,10 @@ export function ApproximationView({
             "Chebyshev-Polynom erster Art: gleichmäßige Welligkeit im Durchlassbereich.",
             "Chebyshev polynomial of the first kind: equal ripple in the passband.",
           )
-        : t(
+        : family === "chebyshev2" ? t(
+            "Inverse Chebyshev-Funktion: monotoner Durchlassbereich und Welligkeit im Sperrbereich. |Ω| = 1 bezeichnet die Sperrbandgrenze bei −Rs dB.",
+            "Inverse Chebyshev function: monotonic passband and stopband ripple. |Ω| = 1 is the stopband edge at −Rs dB.",
+          ) : t(
             `Elliptische rationale Funktion: Welligkeit in Durchlass- und Sperrbereich. Rₙ(1) = 1; normierte Sperrbandgrenze Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
             `Elliptic rational function: ripple in the passband and stopband. Rₙ(1) = 1; normalized stopband edge Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
           );
