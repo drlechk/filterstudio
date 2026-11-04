@@ -1,5 +1,6 @@
 import { bandEdges, isBandResponse, MIN_RELATIVE_BANDWIDTH } from "./frequency";
 import { ellipticK, ellipticPrototype } from "./synthesis";
+import { isMonotonicFamily, monotonicAttenuation, monotonicFrequency } from "./monotonic";
 import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from "./filter-limits";
 import type { FilterFamily, FilterSettings, ToleranceSpec } from "./types";
 
@@ -169,16 +170,28 @@ export function designTolerance(
   const m = 1 / (stopbandRatio * stopbandRatio),
     m1 = ep2 / es2;
   const fractional =
-    family === "butterworth"
+    isMonotonicFamily(family) ? 1 : family === "butterworth"
       ? Math.log(ratio) / (2 * Math.log(stopbandRatio))
       : family === "chebyshev" || family === "chebyshev2"
         ? Math.acosh(Math.sqrt(ratio)) / Math.acosh(stopbandRatio)
         : (ellipticK(m) * ellipticK(1 - m1)) /
           (ellipticK(1 - m) * ellipticK(m1));
-  const minimumOrder = Math.max(1, Math.ceil(fractional - 1e-10));
+  let minimumOrder = Math.max(1, Math.ceil(fractional - 1e-10));
   let order = minimumOrder,
-    attenuation = as;
-  if (family === "cauer") {
+    attenuation = as, monotonicScale = 1;
+  if (isMonotonicFamily(family)) {
+    // Place Ap exactly at the specified passband edge, then check the stricter
+    // transformed stopband edge. These families have no elliptic order formula.
+    order = 0;
+    for (let n = 1; n <= MAX_PROTOTYPE_ORDER; n++) {
+      const passFrequency = monotonicFrequency(family, n, ap);
+      if (monotonicAttenuation(family, n, stopbandRatio * passFrequency) >= as - 1e-10) {
+        order = n; monotonicScale = 1 / passFrequency; break;
+      }
+    }
+    // Only the supported range is searched; do not invent a minimum beyond it.
+    minimumOrder = order || MAX_PROTOTYPE_ORDER + 1;
+  } else if (family === "cauer") {
     // Choose the smallest supported odd prototype satisfying the mask.
     order =
       CAUER_ORDERS.find((n) => {
@@ -199,7 +212,8 @@ export function designTolerance(
   if (!Number.isFinite(order) || order < 1 || order > MAX_PROTOTYPE_ORDER)
     return { settings: null, minimumOrder, stopbandRatio, issue: "order" };
   const scale =
-    family === "butterworth" ? Math.exp(-Math.log(ep2) / (2 * order))
+    isMonotonicFamily(family) ? monotonicScale
+      : family === "butterworth" ? Math.exp(-Math.log(ep2) / (2 * order))
       : family === "chebyshev2" ? Math.cosh(Math.acosh(Math.sqrt(Math.expm1(attenuation * Math.LN10 / 10) / ep2)) / order) : 1;
   const cutoff =
     response === "lowpass"

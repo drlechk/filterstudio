@@ -1,5 +1,6 @@
 import type { FilterSettings, Section } from './types';
 import { MIN_RELATIVE_BANDWIDTH } from './frequency';
+import { hasHalfPowerCutoff, isMonotonicFamily, monotonicPrototype } from './monotonic';
 import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from './filter-limits';
 
 /** Normalized LC ladder synthesis. Frequencies are angular internally.
@@ -456,8 +457,11 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
   } else {
     const g = family === 'butterworth'
       ? Array.from({ length: n }, (_, i) => 2 * Math.sin((2 * i + 1) * Math.PI / (2 * n)))
+      : isMonotonicFamily(family) ? monotonicPrototype(family, n).g
       : chebyshev(n, ripple).g;
     if (family === 'chebyshev') load = chebyshev(n, ripple).load;
+    if (family === 'bessel') notes.push('Bessel / Thomson: maximal flache Gruppenlaufzeit des Tiefpass-Prototyps; auf den −3,0103-dB-Punkt normiert.');
+    if (family === 'legendre') notes.push('Legendre / Papoulis: monotoner Betragsgang ohne Welligkeit; auf den −3,0103-dB-Punkt normiert.');
     sections = g.map((v, i) => ({ id: `section-${i + 1}`, kind: i % 2 === 0 ? 'L' : 'C', connection: i % 2 === 0 ? 'series' : 'shunt', value: v }));
   }
   if (response === 'bandpass' || response === 'bandstop') {
@@ -482,8 +486,8 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
     return scaled;
   });
   if (family === 'chebyshev2') notes.push(isBand ? 'Die beiden Bandgrenzen bezeichnen die Sperrbandgrenzen bei −Rs dB.' : 'Die Grenzfrequenz bezeichnet die Sperrbandgrenze bei −Rs dB.');
-  else if (isBand) notes.push(family === 'butterworth' ? 'Die beiden Bandgrenzen liegen bei −3,0103 dB.' : 'Die beiden Bandgrenzen liegen bei −Rp dB; die Sperrdämpfung wird innerhalb des Sperrbereichs erreicht.');
-  else if (family === 'butterworth') notes.push('Die Grenzfrequenz bezeichnet den −3,0103-dB-Punkt.');
+  else if (isBand) notes.push(hasHalfPowerCutoff(family) ? 'Die beiden Bandgrenzen liegen bei −3,0103 dB.' : 'Die beiden Bandgrenzen liegen bei −Rp dB; die Sperrdämpfung wird innerhalb des Sperrbereichs erreicht.');
+  else if (hasHalfPowerCutoff(family)) notes.push('Die Grenzfrequenz bezeichnet den −3,0103-dB-Punkt.');
   else notes.push('Die Grenzfrequenz bezeichnet die Durchlassbandgrenze bei −Rp dB.');
   if (load !== 1) notes.push('Gerader Chebyshev-Grad: Der Ausgangsabschluss wird für die spezifizierte Welligkeit angepasst.');
   return { sections, z2: z * load, notes };

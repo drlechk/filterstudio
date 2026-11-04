@@ -108,7 +108,7 @@ describe("REST/OpenAPI", () => {
   });
 
   it("synthesizes and analyzes the maximum supported orders, including expanded Cauer band circuits", async () => {
-    for (const family of ['butterworth', 'chebyshev', 'chebyshev2', 'cauer']) {
+    for (const family of ['butterworth', 'chebyshev', 'chebyshev2', 'cauer', 'bessel', 'legendre']) {
       const order = family === 'cauer' ? 19 : family === 'chebyshev2' ? 11 : 20;
       for (const response of ['lowpass', 'bandpass']) {
         const generated = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family, order, response, cutoff: 1e6, bandwidth: .5e6, attenuation: 80 } }).expect(200);
@@ -117,7 +117,7 @@ describe("REST/OpenAPI", () => {
         if (family === 'cauer' && response === 'bandpass') expect(candidate.nodes).toHaveLength(30);
         await request(server.httpServer).post('/api/filters/validate').send({ project: candidate }).expect(200);
         const analyzed = await request(server.httpServer).post('/api/filters/analyze').send({ project: candidate, frequencies: [1e6] }).expect(200);
-        const expected = response === 'lowpass' ? (family === 'butterworth' ? -3.0102999566 : family === 'chebyshev2' ? -80 : -.5) : (family === 'chebyshev' ? -.5 : 0);
+        const expected = response === 'lowpass' ? (['butterworth', 'bessel', 'legendre'].includes(family) ? -3.0102999566 : family === 'chebyshev2' ? -80 : -.5) : (family === 'chebyshev' ? -.5 : 0);
         expect(analyzed.body.samples[0].db.s21).toBeCloseTo(expected, 5);
       }
     }
@@ -141,6 +141,19 @@ describe("REST/OpenAPI", () => {
       await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'chebyshev2', ...settings } }).expect(422);
       await request(server.httpServer).post('/api/filters/validate').send({ project: { ...candidate, settings: { ...candidate.settings, ...settings } } }).expect(400);
     }
+  });
+
+  it.each(['bessel', 'legendre'])("designs a %s tolerance mask and rejects an unrealizable mask", async family => {
+    const tolerance = { response: 'lowpass', passband: [1e6], stopband: [family === 'bessel' ? 8e6 : 2e6], passbandLoss: 1, stopbandLoss: 40 };
+    const generated = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family }, tolerance }).expect(200);
+    const candidate = generated.body.project;
+    expect(candidate.settings).toMatchObject({ family, order: family === 'bessel' ? 4 : 6 });
+    expect(candidate.tolerance).toEqual(tolerance);
+    await request(server.httpServer).post('/api/filters/validate').send({ project: candidate }).expect(200);
+    const analyzed = await request(server.httpServer).post('/api/filters/analyze').send({ project: candidate, frequencies: [1e6, tolerance.stopband[0]] }).expect(200);
+    expect(analyzed.body.samples[0].db.s21).toBeCloseTo(-1, 7);
+    expect(analyzed.body.samples[1].db.s21).toBeLessThanOrEqual(-40);
+    await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family }, tolerance: { ...tolerance, stopband: [1.001e6] } }).expect(422);
   });
 
   it("rejects invalid requests, nonfinite/coupled settings, bad topology and unsupported rounding", async () => {

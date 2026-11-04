@@ -46,6 +46,7 @@ import { SiteFooter } from "./components/SiteFooter";
 import { createFilterTab, workspaceReducer, type Workspace } from "./lib/workspace";
 import { MAX_CIRCUIT_NODES, MAX_CIRCUIT_SECTIONS, nearestFilterOrder, filterOrderLimits, minimumStopbandAttenuation } from "./lib/filter-limits";
 import { useRemoteWorkspace } from "./lib/use-remote-workspace";
+import { hasHalfPowerCutoff } from "./lib/monotonic";
 import { checkRevision, RemoteError, type RemoteController, type RemoteTab } from "./lib/remote-protocol";
 import { ComponentValueInput } from "./components/ComponentValueInput";
 import { FrequencyInput } from "./components/FrequencyInput";
@@ -111,12 +112,16 @@ const familyNames: Record<FilterFamily, string> = {
   chebyshev: "Chebyshev I",
   chebyshev2: "Chebyshev II",
   cauer: "Cauer",
+  bessel: "Bessel",
+  legendre: "Legendre",
 };
 const getFamilyDescriptions = (t: Translator) => ({
   butterworth: t("Maximal flacher Durchlassbereich", "Maximally flat passband"),
   chebyshev: t("Welligkeit im Durchlassbereich", "Passband ripple"),
   chebyshev2: t("Invers · Welligkeit im Sperrbereich", "Inverse · stopband ripple"),
   cauer: t("Elliptisch · steile Filterflanken", "Elliptic · steep roll-off"),
+  bessel: t("Thomson · flache Gruppenlaufzeit", "Thomson · flat group delay"),
+  legendre: t("Papoulis · monoton ohne Welligkeit", "Papoulis · monotonic, no ripple"),
 });
 const getPalette = (t: Translator) => [
   {
@@ -493,6 +498,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const [paletteTab, setPaletteTab] = useState<"generator" | "elements">(
     "generator",
   );
+  const [characteristicExpanded, setCharacteristicExpanded] = useState(true);
+  const [designExpanded, setDesignExpanded] = useState(true);
   const [resultTab, setResultTab] = useState<
     "response" | "chain" | "polynomials" | "bom" | "tolerance"
   >(startingProject.tolerance ? "tolerance" : "response");
@@ -1240,360 +1247,382 @@ const FilterWorkspace = memo(function FilterWorkspace({
           </div>
           {paletteTab === "generator" ? (
             <div className="generator">
-              <div className="section-eyebrow">
-                {t("01 / FILTERCHARAKTERISTIK", "01 / FILTER CHARACTERISTIC")}
-              </div>
-              <div className="family-list">
-                {(["butterworth", "chebyshev", "chebyshev2", "cauer"] as FilterFamily[]).map(
-                  (family, i) => (
-                    <button
-                      key={family}
-                      className={`family-option ${settings.family === family ? "selected" : ""}`}
-                      onClick={() =>
-                        updateSettings({
-                          family,
-                        })
-                      }
-                    >
-                      <span className="family-curve">
-                        <svg width="33" height="24" viewBox="0 0 35 25">
-                          <path
-                            d={
-                              i === 0
-                                ? "M2 5C17 5 18 5 22 10S26 21 33 22"
-                                : i === 1
-                                  ? "M2 6Q5 1 9 6T17 6Q21 2 23 10T33 23"
-                                  : i === 2 ? "M2 5C15 5 17 5 21 14L24 23Q27 13 29 23L33 19"
-                                  : "M2 6Q5 1 9 6T17 6Q21 1 22 12L24 23Q27 13 29 23L33 19"
-                            }
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                          />
-                        </svg>
-                      </span>
-                      <span>
-                        <strong>{familyNames[family]}</strong>
-                        <small>{familyDescriptions[family]}</small>
-                      </span>
-                      <span className="radio-dot">
-                        {settings.family === family && <span />}
-                      </span>
-                    </button>
-                  ),
-                )}
-              </div>
-              <label className="field-label">
-                {t("Filtertyp", "Response type")}
-              </label>
-              <div
-                className="segmented response-type"
-                aria-label={t("Filtertyp", "Response type")}
+              <button
+                type="button"
+                className="section-eyebrow generator-section-toggle"
+                aria-expanded={characteristicExpanded}
+                aria-controls={`characteristic-${tabId}`}
+                title={characteristicExpanded ? t("Einklappen", "Collapse") : t("Ausklappen", "Expand")}
+                onClick={() => setCharacteristicExpanded(expanded => !expanded)}
               >
-                {(["lowpass", "highpass", "bandpass", "bandstop"] as const).map(
-                  (response) => (
-                    <button
-                      key={response}
-                      className={settings.response === response ? "active" : ""}
-                      aria-pressed={settings.response === response}
-                      onClick={() => updateSettings({ response })}
-                    >
-                      {responseLabels[response]}
-                    </button>
-                  ),
-                )}
+                <span>{t("01 / FILTERCHARAKTERISTIK", "01 / FILTER CHARACTERISTIC")}</span>
+                {characteristicExpanded ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}
+              </button>
+              <div id={`characteristic-${tabId}`} className="generator-section-content" hidden={!characteristicExpanded}>
+                <div className="family-list">
+                  {(["butterworth", "chebyshev", "chebyshev2", "cauer", "bessel", "legendre"] as FilterFamily[]).map(
+                    (family, i) => (
+                      <button
+                        key={family}
+                        className={`family-option ${settings.family === family ? "selected" : ""}`}
+                        onClick={() =>
+                          updateSettings({
+                            family,
+                          })
+                        }
+                      >
+                        <span className="family-curve">
+                          <svg width="33" height="24" viewBox="0 0 35 25">
+                            <path
+                              d={
+                                i === 0
+                                  ? "M2 5C17 5 18 5 22 10S26 21 33 22"
+                                  : i === 1
+                                    ? "M2 6Q5 1 9 6T17 6Q21 2 23 10T33 23"
+                                    : i === 2 ? "M2 5C15 5 17 5 21 14L24 23Q27 13 29 23L33 19"
+                                    : i === 4 ? "M2 5C11 5 16 8 21 13S29 22 33 23"
+                                    : i === 5 ? "M2 5C7 5 8 8 14 8S20 9 23 15S28 23 33 23"
+                                    : "M2 6Q5 1 9 6T17 6Q21 1 22 12L24 23Q27 13 29 23L33 19"
+                              }
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                            />
+                          </svg>
+                        </span>
+                        <span>
+                          <strong>{familyNames[family]}</strong>
+                          <small>{familyDescriptions[family]}</small>
+                        </span>
+                        <span className="radio-dot">
+                          {settings.family === family && <span />}
+                        </span>
+                      </button>
+                    ),
+                  )}
+                </div>
+                <label className="field-label">
+                  {t("Filtertyp", "Response type")}
+                </label>
+                <div
+                  className="segmented response-type"
+                  aria-label={t("Filtertyp", "Response type")}
+                >
+                  {(["lowpass", "highpass", "bandpass", "bandstop"] as const).map(
+                    (response) => (
+                      <button
+                        key={response}
+                        className={settings.response === response ? "active" : ""}
+                        aria-pressed={settings.response === response}
+                        onClick={() => updateSettings({ response })}
+                      >
+                        {responseLabels[response]}
+                      </button>
+                    ),
+                  )}
+                </div>
               </div>
               <div className="sidebar-divider" />
-              <div className="section-eyebrow">
-                {t("02 / ENTWURF", "02 / DESIGN")}
-              </div>
-              <div
-                className="segmented design-mode"
-                aria-label={t("Entwurfsmodus", "Design mode")}
+              <button
+                type="button"
+                className="section-eyebrow generator-section-toggle"
+                aria-expanded={designExpanded}
+                aria-controls={`design-${tabId}`}
+                title={designExpanded ? t("Einklappen", "Collapse") : t("Ausklappen", "Expand")}
+                onClick={() => setDesignExpanded(expanded => !expanded)}
               >
-                <button
-                  className={designMode === "parameters" ? "active" : ""}
-                  aria-pressed={designMode === "parameters"}
-                  onClick={() => selectDesignMode("parameters")}
+                <span>{t("02 / ENTWURF", "02 / DESIGN")}</span>
+                {designExpanded ? <ChevronDown size={16} aria-hidden="true" /> : <ChevronRight size={16} aria-hidden="true" />}
+              </button>
+              <div id={`design-${tabId}`} className="generator-section-content" hidden={!designExpanded}>
+                <div
+                  className="segmented design-mode"
+                  aria-label={t("Entwurfsmodus", "Design mode")}
                 >
-                  {t("Parameter", "Parameters")}
-                </button>
-                <button
-                  className={designMode === "tolerance" ? "active" : ""}
-                  aria-pressed={designMode === "tolerance"}
-                  onClick={() => selectDesignMode("tolerance")}
-                >
-                  {t("Toleranzmaske", "Tolerance mask")}
-                </button>
-              </div>
-              {designMode === "tolerance" ? (
-                <ToleranceControls
-                  spec={toleranceDraft}
-                  design={toleranceDesign}
-                  family={settings.family}
-                  frequencyUnit={frequencyUnit}
-                  onFrequencyUnitChange={setFrequencyUnit}
-                  onChange={setToleranceDraft}
-                />
-              ) : (
-                <>
-                  <div className="order-label">
-                    <label htmlFor={`order-${tabId}`}>
-                      {bandMode
-                        ? t("Prototypordnung", "Prototype order")
-                        : t("Filterordnung", "Filter order")}{" "}
-                      <span>n</span>
-                    </label>
-                    <div className="stepper">
-                      <button
-                        aria-label={t(
-                          "Filterordnung verringern",
-                          "Decrease filter order",
-                        )}
-                        disabled={
-                          settings.order <=
-                          orderLimits.min
-                        }
-                        onClick={() =>
-                          updateSettings({
-                            order:
-                              settings.order -
-                              orderLimits.step,
-                          })
-                        }
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <b>{settings.order}</b>
-                      <button
-                        aria-label={t(
-                          "Filterordnung erhöhen",
-                          "Increase filter order",
-                        )}
-                        disabled={
-                          settings.order >=
-                          orderLimits.max
-                        }
-                        onClick={() =>
-                          updateSettings({
-                            order:
-                              settings.order +
-                              orderLimits.step,
-                          })
-                        }
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                  </div>
-                  <input
-                    id={`order-${tabId}`}
-                    aria-label={
-                      bandMode
-                        ? t("Prototypordnung", "Prototype order")
-                        : t("Filterordnung", "Filter order")
-                    }
-                    className="order-range"
-                    type="range"
-                    min={orderLimits.min}
-                    max={orderLimits.max}
-                    step={orderLimits.step}
-                    value={settings.order}
-                    onChange={(e) =>
-                      updateSettings({ order: Number(e.target.value) })
-                    }
+                  <button
+                    className={designMode === "parameters" ? "active" : ""}
+                    aria-pressed={designMode === "parameters"}
+                    onClick={() => selectDesignMode("parameters")}
+                  >
+                    {t("Parameter", "Parameters")}
+                  </button>
+                  <button
+                    className={designMode === "tolerance" ? "active" : ""}
+                    aria-pressed={designMode === "tolerance"}
+                    onClick={() => selectDesignMode("tolerance")}
+                  >
+                    {t("Toleranzmaske", "Tolerance mask")}
+                  </button>
+                </div>
+                {designMode === "tolerance" ? (
+                  <ToleranceControls
+                    spec={toleranceDraft}
+                    design={toleranceDesign}
+                    family={settings.family}
+                    frequencyUnit={frequencyUnit}
+                    onFrequencyUnitChange={setFrequencyUnit}
+                    onChange={setToleranceDraft}
                   />
-                  <div className="range-labels">
-                    <span>{orderLimits.min}</span>
-                    <span>{orderLimits.max}</span>
-                  </div>
-                  {settings.family === "chebyshev2" && <p className="band-order-note">{t(
-                    "Passive LC-Leiter: ungerade Grade 1–11; ab n = 5 mindestens 30 dB, ab n = 7 mindestens 60 dB, bei n = 11 genau 80 dB. Die Frequenzgrenzen liegen bei −Rs dB.",
-                    "Passive LC ladder: odd orders 1–11; at least 30 dB for n ≥ 5, 60 dB for n ≥ 7, exactly 80 dB for n = 11. Frequency edges are at −Rs dB.",
-                  )}</p>}
-                  {draftBand ? (
-                    <>
-                      <p className="band-order-note">
-                        {t(
-                          `n = ${settings.order} → Bandfilter ${filterDegree(settings)}. Ordnung`,
-                          `n = ${settings.order} → band filter of order ${filterDegree(settings)}`,
-                        )}
-                      </p>
-                      <div className="parameter-field">
-                        <label className="field-label">
-                          {t("Untere Bandgrenze", "Lower band edge")}{" "}
-                          <span>f₁</span>
-                        </label>
-                        <FrequencyInput
-                          {...frequencyInputUnit}
-                          label={t("Untere Bandgrenze", "Lower band edge")}
-                          value={draftBand.lower}
-                          min={1}
-                          max={draftBand.upper * (1 - 1e-8)}
-                          onChange={(n) =>
+                ) : (
+                  <>
+                    <div className="order-label">
+                      <label htmlFor={`order-${tabId}`}>
+                        {bandMode
+                          ? t("Prototypordnung", "Prototype order")
+                          : t("Filterordnung", "Filter order")}{" "}
+                        <span>n</span>
+                      </label>
+                      <div className="stepper">
+                        <button
+                          aria-label={t(
+                            "Filterordnung verringern",
+                            "Decrease filter order",
+                          )}
+                          disabled={
+                            settings.order <=
+                            orderLimits.min
+                          }
+                          onClick={() =>
                             updateSettings({
-                              cutoff: Math.sqrt(n * draftBand.upper),
-                              bandwidth: draftBand.upper - n,
+                              order:
+                                settings.order -
+                                orderLimits.step,
                             })
                           }
-                        />
-                      </div>
-                      <div className="parameter-field">
-                        <label className="field-label">
-                          {t("Obere Bandgrenze", "Upper band edge")}{" "}
-                          <span>f₂</span>
-                        </label>
-                        <FrequencyInput
-                          {...frequencyInputUnit}
-                          label={t("Obere Bandgrenze", "Upper band edge")}
-                          value={draftBand.upper}
-                          min={draftBand.lower * (1 + 1e-8)}
-                          max={1e12}
-                          onChange={(n) =>
+                        >
+                          <Minus size={12} />
+                        </button>
+                        <b>{settings.order}</b>
+                        <button
+                          aria-label={t(
+                            "Filterordnung erhöhen",
+                            "Increase filter order",
+                          )}
+                          disabled={
+                            settings.order >=
+                            orderLimits.max
+                          }
+                          onClick={() =>
                             updateSettings({
-                              cutoff: Math.sqrt(n * draftBand.lower),
-                              bandwidth: n - draftBand.lower,
+                              order:
+                                settings.order +
+                                orderLimits.step,
                             })
                           }
-                        />
+                        >
+                          <Plus size={12} />
+                        </button>
                       </div>
-                      <div className="band-summary">
-                        <span>
-                          {t("Mittenfrequenz f₀", "Center frequency f₀")}{" "}
-                          <b>{formatEngineering(settings.cutoff, "Hz")}</b>
-                        </span>
-                        <span>
-                          {t("Bandbreite B", "Bandwidth B")}{" "}
-                          <b>{formatEngineering(settings.bandwidth!, "Hz")}</b>
-                        </span>
-                        <small>
-                          {t("Grenzen bei", "Edges at")}{" "}
-                          {settings.family === "butterworth"
-                            ? `−${number(3.01)}`
-                            : `−${number(settings.family === "chebyshev2" ? settings.attenuation : settings.ripple)}`}{" "}
-                          dB · f₀ = √(f₁ f₂)
-                        </small>
-                      </div>
-                      {bandTooNarrow && (
-                        <p className="band-validation" role="status">
+                    </div>
+                    <input
+                      id={`order-${tabId}`}
+                      aria-label={
+                        bandMode
+                          ? t("Prototypordnung", "Prototype order")
+                          : t("Filterordnung", "Filter order")
+                      }
+                      className="order-range"
+                      type="range"
+                      min={orderLimits.min}
+                      max={orderLimits.max}
+                      step={orderLimits.step}
+                      value={settings.order}
+                      onChange={(e) =>
+                        updateSettings({ order: Number(e.target.value) })
+                      }
+                    />
+                    <div className="range-labels">
+                      <span>{orderLimits.min}</span>
+                      <span>{orderLimits.max}</span>
+                    </div>
+                    {settings.family === "chebyshev2" && <p className="band-order-note">{t(
+                      "Passive LC-Leiter: ungerade Grade 1–11; ab n = 5 mindestens 30 dB, ab n = 7 mindestens 60 dB, bei n = 11 genau 80 dB. Die Frequenzgrenzen liegen bei −Rs dB.",
+                      "Passive LC ladder: odd orders 1–11; at least 30 dB for n ≥ 5, 60 dB for n ≥ 7, exactly 80 dB for n = 11. Frequency edges are at −Rs dB.",
+                    )}</p>}
+                    {draftBand ? (
+                      <>
+                        <p className="band-order-note">
                           {t(
-                            `Die Bandbreite muss mindestens ${number(100 * MIN_RELATIVE_BANDWIDTH)} % der Mittenfrequenz betragen.`,
-                            `Bandwidth must be at least ${number(100 * MIN_RELATIVE_BANDWIDTH)}% of the center frequency.`,
+                            `n = ${settings.order} → Bandfilter ${filterDegree(settings)}. Ordnung`,
+                            `n = ${settings.order} → band filter of order ${filterDegree(settings)}`,
                           )}
                         </p>
-                      )}
-                    </>
-                  ) : (
-                    <div className="parameter-field">
-                      <label className="field-label">
-                        {settings.family === "butterworth"
-                          ? t("Grenzfrequenz", "Cutoff frequency")
-                          : settings.family === "chebyshev2" ? t("Sperrbandgrenze", "Stopband edge") : t("Durchlassgrenze", "Passband edge")}{" "}
-                        <span>f₀</span>
-                      </label>
-                      <FrequencyInput
-                        {...frequencyInputUnit}
-                        label={settings.family === "butterworth"
-                          ? t("Grenzfrequenz", "Cutoff frequency")
-                          : settings.family === "chebyshev2" ? t("Sperrbandgrenze", "Stopband edge") : t("Durchlassgrenze", "Passband edge")}
-                        value={settings.cutoff}
-                        onChange={(n) => updateSettings({ cutoff: n })}
-                      />
-                    </div>
-                  )}
-                </>
-              )}
-              <div className="parameter-field">
-                <label className="field-label">
-                  {t("Bezugsimpedanz", "Reference impedance")} <span>Z₀</span>
-                </label>
-                <PositiveInput
-                  label={t(
-                    "Bezugsimpedanz in Ohm",
-                    "Reference impedance in ohms",
-                  )}
-                  value={settings.impedance}
-                  unit="Ω"
-                  min={0.01}
-                  max={1e6}
-                  onChange={(n) => updateSettings({ impedance: n })}
-                />
-              </div>
-              {designMode === "parameters" &&
-                (settings.family === "chebyshev" || settings.family === "cauer") && (
-                  <div className="parameter-field">
-                    <label className="field-label">
-                      {t("Durchlasswelligkeit", "Passband ripple")}{" "}
-                      <span>Rₚ</span>
-                    </label>
-                    <PositiveInput
-                      label={t(
-                        "Durchlasswelligkeit in dB",
-                        "Passband ripple in dB",
-                      )}
-                      value={settings.ripple}
-                      unit="dB"
-                      min={0.1}
-                      max={3}
-                      onChange={(n) => updateSettings({ ripple: n })}
-                    />
-                  </div>
+                        <div className="parameter-field">
+                          <label className="field-label">
+                            {t("Untere Bandgrenze", "Lower band edge")}{" "}
+                            <span>f₁</span>
+                          </label>
+                          <FrequencyInput
+                            {...frequencyInputUnit}
+                            label={t("Untere Bandgrenze", "Lower band edge")}
+                            value={draftBand.lower}
+                            min={1}
+                            max={draftBand.upper * (1 - 1e-8)}
+                            onChange={(n) =>
+                              updateSettings({
+                                cutoff: Math.sqrt(n * draftBand.upper),
+                                bandwidth: draftBand.upper - n,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="parameter-field">
+                          <label className="field-label">
+                            {t("Obere Bandgrenze", "Upper band edge")}{" "}
+                            <span>f₂</span>
+                          </label>
+                          <FrequencyInput
+                            {...frequencyInputUnit}
+                            label={t("Obere Bandgrenze", "Upper band edge")}
+                            value={draftBand.upper}
+                            min={draftBand.lower * (1 + 1e-8)}
+                            max={1e12}
+                            onChange={(n) =>
+                              updateSettings({
+                                cutoff: Math.sqrt(n * draftBand.lower),
+                                bandwidth: n - draftBand.lower,
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="band-summary">
+                          <span>
+                            {t("Mittenfrequenz f₀", "Center frequency f₀")}{" "}
+                            <b>{formatEngineering(settings.cutoff, "Hz")}</b>
+                          </span>
+                          <span>
+                            {t("Bandbreite B", "Bandwidth B")}{" "}
+                            <b>{formatEngineering(settings.bandwidth!, "Hz")}</b>
+                          </span>
+                          <small>
+                            {t("Grenzen bei", "Edges at")}{" "}
+                            {hasHalfPowerCutoff(settings.family)
+                              ? `−${number(3.01)}`
+                              : `−${number(settings.family === "chebyshev2" ? settings.attenuation : settings.ripple)}`}{" "}
+                            dB · f₀ = √(f₁ f₂)
+                          </small>
+                        </div>
+                        {bandTooNarrow && (
+                          <p className="band-validation" role="status">
+                            {t(
+                              `Die Bandbreite muss mindestens ${number(100 * MIN_RELATIVE_BANDWIDTH)} % der Mittenfrequenz betragen.`,
+                              `Bandwidth must be at least ${number(100 * MIN_RELATIVE_BANDWIDTH)}% of the center frequency.`,
+                            )}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <div className="parameter-field">
+                        <label className="field-label">
+                          {hasHalfPowerCutoff(settings.family)
+                            ? t("Grenzfrequenz", "Cutoff frequency")
+                            : settings.family === "chebyshev2" ? t("Sperrbandgrenze", "Stopband edge") : t("Durchlassgrenze", "Passband edge")}{" "}
+                          <span>f₀</span>
+                        </label>
+                        <FrequencyInput
+                          {...frequencyInputUnit}
+                          label={hasHalfPowerCutoff(settings.family)
+                            ? t("Grenzfrequenz", "Cutoff frequency")
+                            : settings.family === "chebyshev2" ? t("Sperrbandgrenze", "Stopband edge") : t("Durchlassgrenze", "Passband edge")}
+                          value={settings.cutoff}
+                          onChange={(n) => updateSettings({ cutoff: n })}
+                        />
+                      </div>
+                    )}
+                  </>
                 )}
-              {designMode === "parameters" && (settings.family === "cauer" || settings.family === "chebyshev2") && (
                 <div className="parameter-field">
                   <label className="field-label">
-                    {t("Sperrdämpfung", "Stopband attenuation")} <span>Rₛ</span>
+                    {t("Bezugsimpedanz", "Reference impedance")} <span>Z₀</span>
                   </label>
                   <PositiveInput
                     label={t(
-                      "Sperrdämpfung in dB",
-                      "Stopband attenuation in dB",
+                      "Bezugsimpedanz in Ohm",
+                      "Reference impedance in ohms",
                     )}
-                    value={settings.attenuation}
-                    unit="dB"
-                    min={minimumStopbandAttenuation(settings.family, settings.order)}
-                    max={80}
-                    onChange={(n) => updateSettings({ attenuation: n })}
+                    value={settings.impedance}
+                    unit="Ω"
+                    min={0.01}
+                    max={1e6}
+                    onChange={(n) => updateSettings({ impedance: n })}
                   />
                 </div>
-              )}
-              <button
-                className="generate-button"
-                onClick={() => void generate()}
-                disabled={
-                  generating ||
-                  (designMode === "tolerance"
-                    ? !toleranceDesign.settings ||
-                      Boolean(tolerancePreview.error)
-                    : bandTooNarrow)
-                }
-              >
-                <Sparkles size={16} />
-                {generating
-                  ? t("Berechne Schaltung …", "Calculating circuit …")
-                  : t("Schaltung generieren", "Generate circuit")}
-                <ArrowRight size={16} />
-              </button>
-              <p className="generator-footnote">
-                {generatorDirty
-                  ? t(
-                      "Neue Parameter bereit. Generieren ersetzt die aktuelle Schaltung.",
-                      "New parameters ready. Generating replaces the current circuit.",
-                    )
-                  : t(
-                      "Erzeugt eine editierbare LC-Leiterschaltung.",
-                      "Creates an editable LC ladder circuit.",
-                    )}
-              </p>
-              {designMode === "parameters" &&
-                notes.length > 0 &&
-                !generatorDirty && (
-                  <div className="synthesis-notes">
-                    {notes.map((n, i) => (
-                      <p key={i}>{translate(n)}</p>
-                    ))}
+                {designMode === "parameters" &&
+                  (settings.family === "chebyshev" || settings.family === "cauer") && (
+                    <div className="parameter-field">
+                      <label className="field-label">
+                        {t("Durchlasswelligkeit", "Passband ripple")}{" "}
+                        <span>Rₚ</span>
+                      </label>
+                      <PositiveInput
+                        label={t(
+                          "Durchlasswelligkeit in dB",
+                          "Passband ripple in dB",
+                        )}
+                        value={settings.ripple}
+                        unit="dB"
+                        min={0.1}
+                        max={3}
+                        onChange={(n) => updateSettings({ ripple: n })}
+                      />
+                    </div>
+                  )}
+                {designMode === "parameters" && (settings.family === "cauer" || settings.family === "chebyshev2") && (
+                  <div className="parameter-field">
+                    <label className="field-label">
+                      {t("Sperrdämpfung", "Stopband attenuation")} <span>Rₛ</span>
+                    </label>
+                    <PositiveInput
+                      label={t(
+                        "Sperrdämpfung in dB",
+                        "Stopband attenuation in dB",
+                      )}
+                      value={settings.attenuation}
+                      unit="dB"
+                      min={minimumStopbandAttenuation(settings.family, settings.order)}
+                      max={80}
+                      onChange={(n) => updateSettings({ attenuation: n })}
+                    />
                   </div>
                 )}
+                <button
+                  className="generate-button"
+                  onClick={() => void generate()}
+                  disabled={
+                    generating ||
+                    (designMode === "tolerance"
+                      ? !toleranceDesign.settings ||
+                        Boolean(tolerancePreview.error)
+                      : bandTooNarrow)
+                  }
+                >
+                  <Sparkles size={16} />
+                  {generating
+                    ? t("Berechne Schaltung …", "Calculating circuit …")
+                    : t("Schaltung generieren", "Generate circuit")}
+                  <ArrowRight size={16} />
+                </button>
+                <p className="generator-footnote">
+                  {generatorDirty
+                    ? t(
+                        "Neue Parameter bereit. Generieren ersetzt die aktuelle Schaltung.",
+                        "New parameters ready. Generating replaces the current circuit.",
+                      )
+                    : t(
+                        "Erzeugt eine editierbare LC-Leiterschaltung.",
+                        "Creates an editable LC ladder circuit.",
+                      )}
+                </p>
+                {designMode === "parameters" &&
+                  notes.length > 0 &&
+                  !generatorDirty && (
+                    <div className="synthesis-notes">
+                      {notes.map((n, i) => (
+                        <p key={i}>{translate(n)}</p>
+                      ))}
+                    </div>
+                  )}
+              </div>
             </div>
           ) : (
             <div className="element-palette">
@@ -2652,14 +2681,14 @@ const FilterWorkspace = memo(function FilterWorkspace({
               </p>
               <p>
                 {t(
-                  "Beim Tief- und Hochpass ist f₀ bei Butterworth die −3,01-dB-Grenze, bei Chebyshev I/Cauer die Durchlassgrenze und bei Chebyshev II die Sperrbandgrenze bei −Rₛ dB. Chebyshev I gerader Ordnung erhält automatisch die erforderliche Ausgangsimpedanz. Butterworth/Chebyshev I unterstützen n = 1–20, Chebyshev II ungerade Grade 1–11 und Cauer ungerade Grade 3–19. Die Mindest-Sperrdämpfung der jeweiligen LC-Leiter wird im Generator angezeigt. Die LC-Werte werden numerisch synthetisiert und geprüft.",
-                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth, the passband edge for Chebyshev I/elliptic, and the stopband edge at −Rₛ dB for Chebyshev II. Even-order Chebyshev I automatically receives the required output impedance. Butterworth/Chebyshev I support n = 1–20, Chebyshev II odd orders 1–11, and elliptic odd orders 3–19. The generator shows each ladder's minimum stopband attenuation. LC values are numerically synthesized and verified.",
+                  "Beim Tief- und Hochpass ist f₀ bei Butterworth/Bessel/Legendre die −3,01-dB-Grenze, bei Chebyshev I/Cauer die Durchlassgrenze und bei Chebyshev II die Sperrbandgrenze bei −Rₛ dB. Chebyshev I gerader Ordnung erhält automatisch die erforderliche Ausgangsimpedanz. Butterworth/Chebyshev I/Bessel/Legendre unterstützen n = 1–20, Chebyshev II ungerade Grade 1–11 und Cauer ungerade Grade 3–19. Die Mindest-Sperrdämpfung der jeweiligen LC-Leiter wird im Generator angezeigt. Die LC-Werte werden numerisch synthetisiert und geprüft.",
+                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth/Bessel/Legendre, the passband edge for Chebyshev I/elliptic, and the stopband edge at −Rₛ dB for Chebyshev II. Even-order Chebyshev I automatically receives the required output impedance. Butterworth/Chebyshev I/Bessel/Legendre support n = 1–20, Chebyshev II odd orders 1–11, and elliptic odd orders 3–19. The generator shows each ladder's minimum stopband attenuation. LC values are numerically synthesized and verified.",
                 )}
               </p>
               <p>
                 {t(
-                  "Bandpass und Bandsperre verwenden zwei Bandgrenzen f₁ und f₂. Es gilt f₀ = √(f₁ f₂) und B = f₂ − f₁. Die Grenzen liegen bei Butterworth bei −3,01 dB, bei Chebyshev I/Cauer bei −Rₚ dB und bei Chebyshev II bei −Rₛ dB. Beim Bandpass liegt der Durchlass zwischen den Grenzen, bei der Bandsperre außerhalb; bei Chebyshev II kommen die Übergangsbereiche bis zu den Sperrbandgrenzen hinzu. Die Filterordnung verdoppelt sich gegenüber dem Tiefpass-Prototyp auf 2n; die normierte Polynomvariable bleibt p = s/(2πf₀).",
-                  "Band-pass and band-stop filters use two band edges, f₁ and f₂, with f₀ = √(f₁ f₂) and B = f₂ − f₁. The edges are at −3.01 dB for Butterworth, −Rₚ dB for Chebyshev I/elliptic, and −Rₛ dB for Chebyshev II. Band-pass filters transmit between the edges; band-stop filters transmit outside them. Chebyshev II includes transition regions up to its stopband edges. The filter order doubles to 2n relative to the low-pass prototype; the normalized polynomial variable remains p = s/(2πf₀).",
+                  "Bandpass und Bandsperre verwenden zwei Bandgrenzen f₁ und f₂. Es gilt f₀ = √(f₁ f₂) und B = f₂ − f₁. Die Grenzen liegen bei Butterworth/Bessel/Legendre bei −3,01 dB, bei Chebyshev I/Cauer bei −Rₚ dB und bei Chebyshev II bei −Rₛ dB. Beim Bandpass liegt der Durchlass zwischen den Grenzen, bei der Bandsperre außerhalb; bei Chebyshev II kommen die Übergangsbereiche bis zu den Sperrbandgrenzen hinzu. Die Filterordnung verdoppelt sich gegenüber dem Tiefpass-Prototyp auf 2n; die normierte Polynomvariable bleibt p = s/(2πf₀).",
+                  "Band-pass and band-stop filters use two band edges, f₁ and f₂, with f₀ = √(f₁ f₂) and B = f₂ − f₁. The edges are at −3.01 dB for Butterworth/Bessel/Legendre, −Rₚ dB for Chebyshev I/elliptic, and −Rₛ dB for Chebyshev II. Band-pass filters transmit between the edges; band-stop filters transmit outside them. Chebyshev II includes transition regions up to its stopband edges. The filter order doubles to 2n relative to the low-pass prototype; the normalized polynomial variable remains p = s/(2πf₀).",
                 )}
               </p>
               <p>

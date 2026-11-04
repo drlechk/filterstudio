@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { usePreferences } from "../lib/preferences";
 import { formatEngineering } from "../lib/network";
 import { filterDegree, isBandResponse } from "../lib/frequency";
+import { hasHalfPowerCutoff } from "../lib/monotonic";
 import {
   moveToleranceEdge,
   toleranceEdges,
@@ -258,7 +259,7 @@ export function ToleranceControls({
                 "Available prototype orders: 1–20.",
               )}
         </small>
-        {(design.settings?.family === "butterworth" || design.settings?.family === "chebyshev2") && (
+        {design.settings && (hasHalfPowerCutoff(design.settings.family) || design.settings.family === "chebyshev2") && (
           <small>
             {design.settings.family === "chebyshev2"
               ? band ? t("Abgeleitete Sperrbandbreite", "Derived stopband width") : t("Abgeleitete Sperrbandgrenze", "Derived stopband edge")

@@ -29,6 +29,8 @@ export function ApproximationView({
       : family === "chebyshev"
         ? "Chebyshev I"
         : family === "chebyshev2" ? "Chebyshev II"
+        : family === "bessel" ? "Bessel / Thomson"
+        : family === "legendre" ? "Legendre / Papoulis"
         : t("Cauer / elliptisch", "Cauer / elliptic");
   const responseName = {
     lowpass: t("Tiefpass", "low-pass"),
@@ -50,6 +52,12 @@ export function ApproximationView({
         : family === "chebyshev2" ? t(
             "Inverse Chebyshev-Funktion: monotoner Durchlassbereich und Welligkeit im Sperrbereich. |Ω| = 1 bezeichnet die Sperrbandgrenze bei −Rs dB.",
             "Inverse Chebyshev function: monotonic passband and stopband ripple. |Ω| = 1 is the stopband edge at −Rs dB.",
+          ) : family === "bessel" ? t(
+            "Umgekehrtes Bessel-Polynom: maximal flache Gruppenlaufzeit des Tiefpass-Prototyps. Dargestellt ist Fₙ²; |Ω| = 1 liegt bei −3,0103 dB. Die Frequenztransformation verändert die Gruppenlaufzeit von Hochpass und Bandfiltern.",
+            "Reverse Bessel polynomial: maximally flat group delay of the low-pass prototype. Fₙ² is shown; |Ω| = 1 is at −3.0103 dB. The frequency transformation changes the group delay of high-pass and band filters.",
+          ) : family === "legendre" ? t(
+            "Optimum-L-Polynom nach Papoulis, aus Legendre-Polynomen abgeleitet: monotoner Betragsgang ohne Welligkeit. Dargestellt ist Fₙ² = Lₙ(Ω²); Lₙ(1) = 1 entspricht −3,0103 dB.",
+            "Papoulis optimum-L polynomial derived from Legendre polynomials: monotonic magnitude response without ripple. Fₙ² = Lₙ(Ω²) is shown; Lₙ(1) = 1 corresponds to −3.0103 dB.",
           ) : t(
             `Elliptische rationale Funktion: Welligkeit in Durchlass- und Sperrbereich. Rₙ(1) = 1; normierte Sperrbandgrenze Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
             `Elliptic rational function: ripple in the passband and stopband. Rₙ(1) = 1; normalized stopband edge Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,

@@ -2,6 +2,12 @@ import type { Language } from "./preference-storage";
 
 /** Engine messages stay canonical German so open diagnostics can change language. */
 const english: Record<string, string> = {
+  "Bessel und Legendre unterstützen Grade von 1 bis 20.":
+    "Bessel and Legendre support orders from 1 to 20.",
+  "Bessel / Thomson: maximal flache Gruppenlaufzeit des Tiefpass-Prototyps; auf den −3,0103-dB-Punkt normiert.":
+    "Bessel / Thomson: maximally flat group delay of the low-pass prototype; normalized to the −3.0103 dB point.",
+  "Legendre / Papoulis: monotoner Betragsgang ohne Welligkeit; auf den −3,0103-dB-Punkt normiert.":
+    "Legendre / Papoulis: monotonic magnitude response without ripple; normalized to the −3.0103 dB point.",
   "Die Chebyshev-II-Synthese unterstützt ungerade Grade von 1 bis 11.":
     "Chebyshev II synthesis supports odd orders from 1 to 11.",
   "Chebyshev II benötigt 20–80 dB Sperrdämpfung; ab Grad 5 mindestens 30 dB, ab Grad 7 mindestens 60 dB und bei Grad 11 genau 80 dB.":

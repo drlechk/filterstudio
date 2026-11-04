@@ -6,11 +6,14 @@ import {
   type Polynomial,
 } from "./network";
 import { ellipticPrototype } from "./synthesis";
+import { hasHalfPowerCutoff, isMonotonicFamily, monotonicPrototype } from "./monotonic";
 import type { FilterSettings } from "./types";
 
 export type FilterApproximation = {
   numerator: Polynomial;
   denominator: Polynomial;
+  /** Whether numerator/denominator represents F or F² (Bessel/Legendre). */
+  characteristicPower: 1 | 2;
   epsilon: number;
   stopbandRatio?: number;
   latex: { characteristic: string; response: string; mapping: string };
@@ -52,11 +55,16 @@ export function filterApproximation(
     denominator: Polynomial = [1];
   let stopbandRatio: number | undefined;
   const epsilon =
-    family === "butterworth"
+    hasHalfPowerCutoff(family)
       ? 1
       : Math.sqrt(Math.expm1(((family === "chebyshev2" ? attenuation : ripple) * Math.LN10) / 10));
   let symbol: string;
-  if (family === "butterworth") {
+  if (isMonotonicFamily(family)) {
+    const prototype = monotonicPrototype(family, order);
+    numerator = Array<number>(2 * order + 1).fill(0);
+    prototype.loss.forEach((coefficient, i) => { numerator[2 * i] = coefficient; });
+    symbol = `F_{${order}}^2(\\Omega)=${family === "bessel" ? "Q" : "L"}_{${order}}(\\Omega^2)`;
+  } else if (family === "butterworth") {
     numerator = [...Array<number>(order).fill(0), 1];
     symbol = `F_{${order}}(\\Omega)`;
   } else if (family === "chebyshev") {
@@ -88,12 +96,17 @@ export function filterApproximation(
     denominator.length === 1
       ? polynomialLatex(numerator, "\\Omega")
       : `\\frac{${polynomialLatex(numerator, "\\Omega")}}{${polynomialLatex(denominator, "\\Omega")}}`;
-  const recurrence =
+  let recurrence =
     family === "chebyshev" || family === "chebyshev2"
       ? "\\\\ T_0(\\Omega)=1,\\quad T_1(\\Omega)=\\Omega,\\quad T_{k+1}(\\Omega)=2\\Omega T_k(\\Omega)-T_{k-1}(\\Omega)"
       : "";
+  if (family === "bessel") {
+    const alpha = monotonicPrototype(family, order).alpha;
+    recurrence = `\\\\ H_{\\mathrm{ref}}(q)=\\frac{\\theta_{${order}}(0)}{\\theta_{${order}}(\\alpha_{${order}}q)},\\quad \\alpha_{${order}}\\approx ${scalarLatex(alpha)}`
+      + `\\\\ \\theta_n(q)=\\sum_{k=0}^{n}\\frac{(2n-k)!}{2^{n-k}(n-k)!\\,k!}q^k,\\quad Q_n(\\Omega^2)=\\left|\\frac{\\theta_n(j\\alpha_n\\Omega)}{\\theta_n(0)}\\right|^2-1`;
+  }
   const parameter =
-    family === "butterworth"
+    hasHalfPowerCutoff(family)
       ? "\\epsilon=1"
       : family === "chebyshev2" ? `\\epsilon=\\sqrt{10^{R_s/10}-1}\\approx ${scalarLatex(epsilon)},\\quad R_s=${scalarLatex(attenuation)}\\,\\mathrm{dB}`
       : `\\epsilon=\\sqrt{10^{R_p/10}-1}\\approx ${scalarLatex(epsilon)},\\quad R_p=${scalarLatex(ripple)}\\,\\mathrm{dB}${family === "cauer" ? `,\\quad R_s=${scalarLatex(attenuation)}\\,\\mathrm{dB}` : ""}`;
@@ -107,6 +120,7 @@ export function filterApproximation(
   return {
     numerator,
     denominator,
+    characteristicPower: isMonotonicFamily(family) ? 2 : 1,
     epsilon,
     stopbandRatio,
     latex: {
