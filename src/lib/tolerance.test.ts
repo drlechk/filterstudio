@@ -186,7 +186,7 @@ describe("analog tolerance-mask design", () => {
       );
       expect(design.issue).toBe("order");
       expect(design.settings).toBeNull();
-      expect(design.minimumOrder).toBeGreaterThan(family === "cauer" ? 19 : 20);
+      expect(design.minimumOrder).toBeGreaterThan(family === "cauer" ? 19 : 100);
     }
     const narrow = {
       ...masks.bandpass,

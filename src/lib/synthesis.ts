@@ -1,6 +1,7 @@
 import type { FilterSettings, Section } from './types';
 import { MIN_RELATIVE_BANDWIDTH } from './frequency';
 import { hasHalfPowerCutoff, isMonotonicFamily, monotonicPrototype } from './monotonic';
+import { linkwitzRileyPrototype } from './linkwitz-riley';
 import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from './filter-limits';
 
 /** Normalized LC ladder synthesis. Frequencies are angular internally.
@@ -422,7 +423,7 @@ function bandTransform(section: Section, b: number, response: 'bandpass' | 'band
 
 export function synthesize(settings: FilterSettings): SynthesisResult {
   const { family, response, order: n, cutoff, impedance: z, ripple, attenuation } = settings;
-  if (!Number.isInteger(n) || n < 1 || n > MAX_PROTOTYPE_ORDER) throw new Error('Der Filtergrad muss zwischen 1 und 20 liegen.');
+  if (!Number.isInteger(n) || n < 1 || n > MAX_PROTOTYPE_ORDER) throw new Error('Der Filtergrad muss zwischen 1 und 100 liegen.');
   if (!(cutoff > 0) || !Number.isFinite(cutoff) || !(z > 0) || !Number.isFinite(z)) throw new Error('Frequenz und Impedanz müssen positiv sein.');
   if ((family === 'chebyshev' || family === 'cauer') && (!(ripple >= .01 && ripple <= 3) || !Number.isFinite(ripple))) throw new Error('Die Welligkeit muss zwischen 0,01 und 3 dB liegen.');
   const isBand = response === 'bandpass' || response === 'bandstop';
@@ -458,10 +459,17 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
     const g = family === 'butterworth'
       ? Array.from({ length: n }, (_, i) => 2 * Math.sin((2 * i + 1) * Math.PI / (2 * n)))
       : isMonotonicFamily(family) ? monotonicPrototype(family, n).g
+      : family === 'linkwitz-riley' ? linkwitzRileyPrototype(n).g
       : chebyshev(n, ripple).g;
     if (family === 'chebyshev') load = chebyshev(n, ripple).load;
     if (family === 'bessel') notes.push('Bessel / Thomson: maximal flache Gruppenlaufzeit des Tiefpass-Prototyps; auf den −3,0103-dB-Punkt normiert.');
     if (family === 'legendre') notes.push('Legendre / Papoulis: monotoner Betragsgang ohne Welligkeit; auf den −3,0103-dB-Punkt normiert.');
+    if (family === 'linkwitz-riley') {
+      notes.push('Linkwitz–Riley: quadrierte Butterworth-Übertragungsfunktion halben Grades, als passive LC-Leiter mit gleichen Abschlüssen realisiert.');
+      if (!isBand) notes.push(n % 4 === 0
+        ? 'Komplementäre Tief- und Hochpässe gleicher Ordnung und Übernahmefrequenz addieren sich gleichpolig mit konstantem Betrag. Jeder Entwurf enthält einen einzelnen Zweig.'
+        : 'Komplementäre Tief- und Hochpässe gleicher Ordnung und Übernahmefrequenz benötigen für die Summe mit konstantem Betrag eine Polungsumkehr eines Zweigs. Jeder Entwurf enthält einen einzelnen Zweig.');
+    }
     sections = g.map((v, i) => ({ id: `section-${i + 1}`, kind: i % 2 === 0 ? 'L' : 'C', connection: i % 2 === 0 ? 'series' : 'shunt', value: v }));
   }
   if (response === 'bandpass' || response === 'bandstop') {
@@ -486,6 +494,7 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
     return scaled;
   });
   if (family === 'chebyshev2') notes.push(isBand ? 'Die beiden Bandgrenzen bezeichnen die Sperrbandgrenzen bei −Rs dB.' : 'Die Grenzfrequenz bezeichnet die Sperrbandgrenze bei −Rs dB.');
+  else if (family === 'linkwitz-riley') notes.push(isBand ? 'Transformierter Linkwitz–Riley-Prototyp: Die beiden Bandgrenzen liegen bei −6,0206 dB.' : 'Die Übernahmefrequenz bezeichnet den −6,0206-dB-Punkt.');
   else if (isBand) notes.push(hasHalfPowerCutoff(family) ? 'Die beiden Bandgrenzen liegen bei −3,0103 dB.' : 'Die beiden Bandgrenzen liegen bei −Rp dB; die Sperrdämpfung wird innerhalb des Sperrbereichs erreicht.');
   else if (hasHalfPowerCutoff(family)) notes.push('Die Grenzfrequenz bezeichnet den −3,0103-dB-Punkt.');
   else notes.push('Die Grenzfrequenz bezeichnet die Durchlassbandgrenze bei −Rp dB.');

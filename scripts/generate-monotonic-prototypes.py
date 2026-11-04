@@ -1,15 +1,16 @@
-"""Regenerate Bessel/Legendre LC prototypes and independent response fixtures.
+"""Regenerate Bessel/Legendre/Linkwitz–Riley LC prototypes and reference fixtures.
 
 Optional development tool: numpy==2.4.6, scipy==1.17.1, mpmath==1.3.0.
 Run from any directory; no Python dependency at runtime or during npm test/build.
 
 All polynomial coefficients are ascending. Fraction arithmetic constructs the
 reverse Bessel polynomial and Papoulis loss polynomial exactly. Spectral factors
-and Cauer continued-fraction extraction use 120 decimal digits before rounding
+and Cauer continued-fraction extraction use 120 decimal digits (500 for LR > 20) before rounding
 the final LC values to binary64. No published component tables are copied.
 
 Bessel normalization: https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.besselap.html
 Papoulis definition: https://www.radioeng.cz/fulltexts/2021/21_03_0569_0575.pdf
+Linkwitz–Riley definition: https://www.linkwitzlab.com/crossovers.htm
 Element extraction: https://eng.libretexts.org/Courses/Fontys_University_of_Applied_Sciences/Telecommunications/04%3A_Filters/4.06%3A_Element_Extraction
 """
 
@@ -19,7 +20,7 @@ import numpy as np
 import mpmath as mp
 from fractions import Fraction as F
 from math import factorial
-from scipy.signal import besselap, freqs_zpk
+from scipy.signal import besselap, buttap, freqs_zpk
 from scipy.special import eval_legendre, roots_legendre
 mp.mp.dps=120
 
@@ -67,7 +68,7 @@ def roots(p):
             delta/=1-delta*sum(1/(z-t) for j,t in enumerate(r) if i!=j)
             new.append(z-delta)
         error=max(abs(a-b) for a,b in zip(r,new));r=new
-        if error<mp.mpf('1e-100'):break
+        if error<mp.power(10,20-mp.mp.dps):break
     else: raise ValueError('root convergence')
     reconstructed=[mp.mpc(1)]
     for z in r: reconstructed=mul(reconstructed,[-z,1])
@@ -90,6 +91,12 @@ def poly_roots(r):
     return [v.real for v in p]
 
 def prototype(family,n):
+    # High-order LR extraction amplifies tiny spectral-factor errors. Keep ample
+    # guard digits offline; the browser only loads verified binary64 LC values.
+    with mp.workdps(500 if family=='linkwitz-riley' and n>20 else 120):
+        return extract_prototype(family,n)
+
+def extract_prototype(family,n):
     if family=='bessel':
         raw=[F(factorial(2*n-k),2**(n-k)*factorial(n-k)*factorial(k)) for k in range(n+1)]
         raw=[v/raw[0] for v in raw]
@@ -98,6 +105,16 @@ def prototype(family,n):
         D=list(map(mpf,raw))
         cutoff=mp.findroot(lambda w:mp.polyval(loss[::-1],w*w)-1,(mp.sqrt(n),mp.sqrt(n+1)))
         poles=roots(D)
+    elif family=='linkwitz-riley':
+        assert n%2==0 and 2<=n<=100
+        m=n//2
+        # Square the Butterworth denominator explicitly: solving a polynomial
+        # with repeated poles would unnecessarily lose numerical precision.
+        butter=[mp.exp(1j*mp.pi*(2*k+m+1)/(2*m)) for k in range(m)]
+        poles=butter+butter
+        D=poly_roots(poles); D=[v/D[0] for v in D]
+        loss=[mp.mpf(0)]*(n+1); loss[m]=2; loss[n]=1
+        cutoff=mp.mpf(1)  # -6.0206 dB, not half power
     else:
         loss=list(map(mpf,legendre(n))); cutoff=mp.mpf(1)
         poles=stable_roots([1]+loss[1:])
@@ -181,4 +198,18 @@ if __name__=='__main__':
     (root/'fixtures/monotonic-reference.json').write_text(json.dumps(dict(
         source='Bessel: SciPy 1.17.1 besselap(norm="mag") / freqs_zpk. Legendre: independent 32-point Gaussian quadrature of the defining squared-Legendre integral (scipy.special); no LC values or spectral factors used. Frequency normalized to half-power cutoff 1 rad/s.',
         cases=cases),indent=2)+'\n')
-    print('Generated and verified 40 positive LC ladders and 640 independent response samples.')
+    lr=[]; lr_cases=[]
+    for n in range(2,101,2):
+        p=prototype('linkwitz-riley',n); lr.append(dict(g=p['g']))
+        z,poles,k=buttap(n//2)
+        _,butter=freqs_zpk(z,poles,k,frequencies)
+        samples=[]
+        for w,h in zip(frequencies,butter**2):
+            assert abs(ladder_response(p['g'],w)-h)<1e-10
+            samples.append(dict(frequency=float(w),re=float(h.real),im=float(h.imag)))
+        lr_cases.append(dict(order=n,samples=samples))
+    (root/'linkwitz-riley-prototypes.json').write_text(json.dumps(lr,indent=2)+'\n')
+    (root/'fixtures/linkwitz-riley-reference.json').write_text(json.dumps(dict(
+        source='SciPy 1.17.1 buttap(n/2) / freqs_zpk, complex response squared. Crossover frequency 1 rad/s at -6.020599913 dB. Independent of LC extraction.',
+        cases=lr_cases),indent=2)+'\n')
+    print('Generated and verified 90 positive LC ladders and 1440 independent response samples.')

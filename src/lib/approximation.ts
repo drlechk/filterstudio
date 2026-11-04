@@ -7,12 +7,13 @@ import {
 } from "./network";
 import { ellipticPrototype } from "./synthesis";
 import { hasHalfPowerCutoff, isMonotonicFamily, monotonicPrototype } from "./monotonic";
+import { linkwitzRileyPrototype } from "./linkwitz-riley";
 import type { FilterSettings } from "./types";
 
 export type FilterApproximation = {
   numerator: Polynomial;
   denominator: Polynomial;
-  /** Whether numerator/denominator represents F or F² (Bessel/Legendre). */
+  /** Whether numerator/denominator represents F or F². */
   characteristicPower: 1 | 2;
   epsilon: number;
   stopbandRatio?: number;
@@ -55,11 +56,16 @@ export function filterApproximation(
     denominator: Polynomial = [1];
   let stopbandRatio: number | undefined;
   const epsilon =
-    hasHalfPowerCutoff(family)
+    hasHalfPowerCutoff(family) || family === "linkwitz-riley"
       ? 1
       : Math.sqrt(Math.expm1(((family === "chebyshev2" ? attenuation : ripple) * Math.LN10) / 10));
   let symbol: string;
-  if (isMonotonicFamily(family)) {
+  if (family === "linkwitz-riley") {
+    linkwitzRileyPrototype(order); // Validate the even prototype order.
+    numerator = Array<number>(2 * order + 1).fill(0);
+    numerator[order] = 2; numerator[2 * order] = 1;
+    symbol = `F_{${order}}^2(\\Omega)`;
+  } else if (isMonotonicFamily(family)) {
     const prototype = monotonicPrototype(family, order);
     numerator = Array<number>(2 * order + 1).fill(0);
     prototype.loss.forEach((coefficient, i) => { numerator[2 * i] = coefficient; });
@@ -105,8 +111,12 @@ export function filterApproximation(
     recurrence = `\\\\ H_{\\mathrm{ref}}(q)=\\frac{\\theta_{${order}}(0)}{\\theta_{${order}}(\\alpha_{${order}}q)},\\quad \\alpha_{${order}}\\approx ${scalarLatex(alpha)}`
       + `\\\\ \\theta_n(q)=\\sum_{k=0}^{n}\\frac{(2n-k)!}{2^{n-k}(n-k)!\\,k!}q^k,\\quad Q_n(\\Omega^2)=\\left|\\frac{\\theta_n(j\\alpha_n\\Omega)}{\\theta_n(0)}\\right|^2-1`;
   }
+  if (family === "linkwitz-riley") {
+    recurrence = `\\\\ H_{\\mathrm{ref}}(q)=\\left[H_{\\mathrm{Butterworth},${order / 2}}(q)\\right]^2,\\quad |H_{\\mathrm{ref}}(j\\Omega)|=\\frac{1}{1+\\Omega^{${order}}}`
+      + `\\\\ 20\\log_{10}|H_{\\mathrm{ref}}(j)|=-20\\log_{10}2\\approx -6.0206\\,\\mathrm{dB}`;
+  }
   const parameter =
-    hasHalfPowerCutoff(family)
+    hasHalfPowerCutoff(family) || family === "linkwitz-riley"
       ? "\\epsilon=1"
       : family === "chebyshev2" ? `\\epsilon=\\sqrt{10^{R_s/10}-1}\\approx ${scalarLatex(epsilon)},\\quad R_s=${scalarLatex(attenuation)}\\,\\mathrm{dB}`
       : `\\epsilon=\\sqrt{10^{R_p/10}-1}\\approx ${scalarLatex(epsilon)},\\quad R_p=${scalarLatex(ripple)}\\,\\mathrm{dB}${family === "cauer" ? `,\\quad R_s=${scalarLatex(attenuation)}\\,\\mathrm{dB}` : ""}`;
@@ -120,7 +130,7 @@ export function filterApproximation(
   return {
     numerator,
     denominator,
-    characteristicPower: isMonotonicFamily(family) ? 2 : 1,
+    characteristicPower: isMonotonicFamily(family) || family === "linkwitz-riley" ? 2 : 1,
     epsilon,
     stopbandRatio,
     latex: {

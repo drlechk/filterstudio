@@ -31,6 +31,7 @@ export function ApproximationView({
         : family === "chebyshev2" ? "Chebyshev II"
         : family === "bessel" ? "Bessel / Thomson"
         : family === "legendre" ? "Legendre / Papoulis"
+        : family === "linkwitz-riley" ? "Linkwitz–Riley"
         : t("Cauer / elliptisch", "Cauer / elliptic");
   const responseName = {
     lowpass: t("Tiefpass", "low-pass"),
@@ -58,6 +59,9 @@ export function ApproximationView({
           ) : family === "legendre" ? t(
             "Optimum-L-Polynom nach Papoulis, aus Legendre-Polynomen abgeleitet: monotoner Betragsgang ohne Welligkeit. Dargestellt ist Fₙ² = Lₙ(Ω²); Lₙ(1) = 1 entspricht −3,0103 dB.",
             "Papoulis optimum-L polynomial derived from Legendre polynomials: monotonic magnitude response without ripple. Fₙ² = Lₙ(Ω²) is shown; Lₙ(1) = 1 corresponds to −3.0103 dB.",
+          ) : family === "linkwitz-riley" ? t(
+            "Quadrierte Butterworth-Übertragungsfunktion der Ordnung n/2. Gerade Grade 2–100; bei |Ω| = 1 liegt jeder Zweig bei −6,0206 dB. Dargestellt ist Fₙ² = 2Ωⁿ + Ω²ⁿ. Bandfilter entstehen durch Transformation dieses Prototyps.",
+            "Squared Butterworth transfer function of order n/2. Even orders 2–100; each branch is at −6.0206 dB for |Ω| = 1. Fₙ² = 2Ωⁿ + Ω²ⁿ is shown. Band filters are transformations of this prototype.",
           ) : t(
             `Elliptische rationale Funktion: Welligkeit in Durchlass- und Sperrbereich. Rₙ(1) = 1; normierte Sperrbandgrenze Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
             `Elliptic rational function: ripple in the passband and stopband. Rₙ(1) = 1; normalized stopband edge Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,

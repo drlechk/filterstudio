@@ -13,7 +13,7 @@ const make = (settings: Partial<FilterSettings>) => {
 
 describe('passive analog synthesis', () => {
   it('agrees with the Butterworth power response at all supported orders', () => {
-    for (let order = 1; order <= 20; order++) {
+    for (let order = 1; order <= 100; order++) {
       const { network } = make({ order });
       for (const ratio of [0, .1, .5, .8, 1, 1.5, 3, 10]) {
         expect(magnitude(network.evaluate(ratio * defaults.cutoff).s21) ** 2).toBeCloseTo(1 / (1 + ratio ** (2 * order)), 9);
@@ -22,7 +22,7 @@ describe('passive analog synthesis', () => {
   });
 
   it('matches Chebyshev I including the unequal termination of even orders', () => {
-    for (let order = 1; order <= 20; order++) for (const ripple of [.1, .5, 3]) {
+    for (let order = 1; order <= 100; order++) for (const ripple of [.1, .5, 3]) {
       const { network, result } = make({ family: 'chebyshev', order, ripple });
       expect(result.z2 >= defaults.impedance).toBe(true);
       if (order % 2) expect(result.z2).toBe(defaults.impedance);
@@ -92,7 +92,7 @@ describe('passive analog synthesis', () => {
     expect(() => synthesize({ ...defaults, family: 'chebyshev', ripple: 0 })).toThrow();
     expect(() => synthesize({ ...defaults, family: 'cauer', order: 4 })).toThrow();
     expect(() => synthesize({ ...defaults, family: 'cauer', order: 7, attenuation: 20 })).toThrow();
-    for (const order of [0, 21]) expect(() => synthesize({ ...defaults, order })).toThrow();
+    for (const order of [0, 101]) expect(() => synthesize({ ...defaults, order })).toThrow();
     expect(() => synthesize({ ...defaults, family: 'cauer', order: 20 })).toThrow();
     expect(() => synthesize({ ...defaults, family: 'cauer', order: 19, attenuation: 39 })).toThrow();
   });

@@ -114,6 +114,7 @@ const familyNames: Record<FilterFamily, string> = {
   cauer: "Cauer",
   bessel: "Bessel",
   legendre: "Legendre",
+  "linkwitz-riley": "Linkwitz–Riley",
 };
 const getFamilyDescriptions = (t: Translator) => ({
   butterworth: t("Maximal flacher Durchlassbereich", "Maximally flat passband"),
@@ -122,6 +123,7 @@ const getFamilyDescriptions = (t: Translator) => ({
   cauer: t("Elliptisch · steile Filterflanken", "Elliptic · steep roll-off"),
   bessel: t("Thomson · flache Gruppenlaufzeit", "Thomson · flat group delay"),
   legendre: t("Papoulis · monoton ohne Welligkeit", "Papoulis · monotonic, no ripple"),
+  "linkwitz-riley": t("Butterworth² · Übernahme bei −6 dB", "Butterworth² · crossover at −6 dB"),
 });
 const getPalette = (t: Translator) => [
   {
@@ -1260,7 +1262,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
               </button>
               <div id={`characteristic-${tabId}`} className="generator-section-content" hidden={!characteristicExpanded}>
                 <div className="family-list">
-                  {(["butterworth", "chebyshev", "chebyshev2", "cauer", "bessel", "legendre"] as FilterFamily[]).map(
+                  {(["butterworth", "chebyshev", "chebyshev2", "cauer", "bessel", "legendre", "linkwitz-riley"] as FilterFamily[]).map(
                     (family, i) => (
                       <button
                         key={family}
@@ -1282,6 +1284,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                                     : i === 2 ? "M2 5C15 5 17 5 21 14L24 23Q27 13 29 23L33 19"
                                     : i === 4 ? "M2 5C11 5 16 8 21 13S29 22 33 23"
                                     : i === 5 ? "M2 5C7 5 8 8 14 8S20 9 23 15S28 23 33 23"
+                                    : i === 6 ? "M2 5C12 5 16 6 20 12S27 22 33 23"
                                     : "M2 6Q5 1 9 6T17 6Q21 1 22 12L24 23Q27 13 29 23L33 19"
                               }
                               fill="none"
@@ -1439,6 +1442,10 @@ const FilterWorkspace = memo(function FilterWorkspace({
                       "Passive LC-Leiter: ungerade Grade 1–11; ab n = 5 mindestens 30 dB, ab n = 7 mindestens 60 dB, bei n = 11 genau 80 dB. Die Frequenzgrenzen liegen bei −Rs dB.",
                       "Passive LC ladder: odd orders 1–11; at least 30 dB for n ≥ 5, 60 dB for n ≥ 7, exactly 80 dB for n = 11. Frequency edges are at −Rs dB.",
                     )}</p>}
+                    {settings.family === "linkwitz-riley" && <p className="band-order-note">{t(
+                      "Gerade Grade 2–100. Ein Zweig mit quadrierter Butterworth-Übertragungsfunktion der Ordnung n/2; Übernahme bei −6,0206 dB.",
+                      "Even orders 2–100. One branch with the squared Butterworth transfer function of order n/2; crossover at −6.0206 dB.",
+                    )}</p>}
                     {draftBand ? (
                       <>
                         <p className="band-order-note">
@@ -1498,6 +1505,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                             {t("Grenzen bei", "Edges at")}{" "}
                             {hasHalfPowerCutoff(settings.family)
                               ? `−${number(3.01)}`
+                              : settings.family === "linkwitz-riley" ? `−${number(6.02)}`
                               : `−${number(settings.family === "chebyshev2" ? settings.attenuation : settings.ripple)}`}{" "}
                             dB · f₀ = √(f₁ f₂)
                           </small>
@@ -1516,6 +1524,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                         <label className="field-label">
                           {hasHalfPowerCutoff(settings.family)
                             ? t("Grenzfrequenz", "Cutoff frequency")
+                            : settings.family === "linkwitz-riley" ? t("Übernahmefrequenz", "Crossover frequency")
                             : settings.family === "chebyshev2" ? t("Sperrbandgrenze", "Stopband edge") : t("Durchlassgrenze", "Passband edge")}{" "}
                           <span>f₀</span>
                         </label>
@@ -1523,6 +1532,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                           {...frequencyInputUnit}
                           label={hasHalfPowerCutoff(settings.family)
                             ? t("Grenzfrequenz", "Cutoff frequency")
+                            : settings.family === "linkwitz-riley" ? t("Übernahmefrequenz", "Crossover frequency")
                             : settings.family === "chebyshev2" ? t("Sperrbandgrenze", "Stopband edge") : t("Durchlassgrenze", "Passband edge")}
                           value={settings.cutoff}
                           onChange={(n) => updateSettings({ cutoff: n })}
@@ -2337,6 +2347,10 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     "Polynomials of the current circuit",
                   )}
                 </h3>
+                {evaluation.sections.length > 20 && <p className="approximation-explanation">{t(
+                  "Bei hohen Ordnungen sind ausmultiplizierte Polynomkoeffizienten empfindlich gegenüber Rundung und Auslöschung. Die Frequenzgänge werden deshalb direkt aus den einzelnen Zweitoren berechnet.",
+                  "At high orders, expanded polynomial coefficients are sensitive to rounding and cancellation. Frequency responses are therefore evaluated directly from the individual two-port sections.",
+                )}</p>}
                 <MathView
                   title={t(
                     "Charakteristische Funktion Ψ(p)",
@@ -2673,6 +2687,10 @@ const FilterWorkspace = memo(function FilterWorkspace({
             </div>
             <div className="help-methods">
               <h3>{t("Das verwendete Modell", "The underlying model")}</h3>
+              <p>{t(
+                "Linkwitz–Riley unterstützt gerade Prototypgrade 2–100 mit −6,0206 dB bei der Übernahmefrequenz beziehungsweise an beiden Bandgrenzen. Jeder Entwurf enthält einen einzelnen Filterzweig. Komplementäre Tief- und Hochpässe gleicher Ordnung und Übernahmefrequenz ergeben bei passender Polung eine Summe mit konstantem Betrag: gleichpolig für n = 4, 8, …; ein Zweig umgepolt für n = 2, 6, … . Die akustische Summe einer Lautsprecherweiche hängt zusätzlich von den Treibern und ihrer Anordnung ab.",
+                "Linkwitz–Riley supports even prototype orders 2–100 with −6.0206 dB at the crossover frequency or both band edges. Each design contains a single filter branch. Complementary low-pass and high-pass filters with matching order and crossover frequency sum to a constant magnitude with suitable polarity: same polarity for n = 4, 8, …; one branch inverted for n = 2, 6, … . The acoustic sum of a loudspeaker crossover also depends on the drivers and their placement.",
+              )}</p>
               <p>
                 {t(
                   "Serienimpedanzen und Queradmittanzen werden als Zweitore mit gemeinsamer Masse kaskadiert. Jedes Tor besitzt einen Signal- und einen Masseanschluss. Die durchgehende untere Masseleitung verbindet beide Tore und alle Querzweige. Die Signalverbindungen bestimmen die Reihenfolge. Freie Brückenschaltungen und Rückkopplungen sind nicht Teil dieses Editors.",
@@ -2681,8 +2699,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
               </p>
               <p>
                 {t(
-                  "Beim Tief- und Hochpass ist f₀ bei Butterworth/Bessel/Legendre die −3,01-dB-Grenze, bei Chebyshev I/Cauer die Durchlassgrenze und bei Chebyshev II die Sperrbandgrenze bei −Rₛ dB. Chebyshev I gerader Ordnung erhält automatisch die erforderliche Ausgangsimpedanz. Butterworth/Chebyshev I/Bessel/Legendre unterstützen n = 1–20, Chebyshev II ungerade Grade 1–11 und Cauer ungerade Grade 3–19. Die Mindest-Sperrdämpfung der jeweiligen LC-Leiter wird im Generator angezeigt. Die LC-Werte werden numerisch synthetisiert und geprüft.",
-                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth/Bessel/Legendre, the passband edge for Chebyshev I/elliptic, and the stopband edge at −Rₛ dB for Chebyshev II. Even-order Chebyshev I automatically receives the required output impedance. Butterworth/Chebyshev I/Bessel/Legendre support n = 1–20, Chebyshev II odd orders 1–11, and elliptic odd orders 3–19. The generator shows each ladder's minimum stopband attenuation. LC values are numerically synthesized and verified.",
+                  "Beim Tief- und Hochpass ist f₀ bei Butterworth/Bessel/Legendre die −3,01-dB-Grenze, bei Chebyshev I/Cauer die Durchlassgrenze und bei Chebyshev II die Sperrbandgrenze bei −Rₛ dB. Chebyshev I gerader Ordnung erhält automatisch die erforderliche Ausgangsimpedanz. Butterworth/Chebyshev I unterstützen n = 1–100, Bessel/Legendre n = 1–20, Chebyshev II ungerade Grade 1–11 und Cauer ungerade Grade 3–19. Die Mindest-Sperrdämpfung der jeweiligen LC-Leiter wird im Generator angezeigt. Die LC-Werte werden numerisch synthetisiert und geprüft.",
+                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth/Bessel/Legendre, the passband edge for Chebyshev I/elliptic, and the stopband edge at −Rₛ dB for Chebyshev II. Even-order Chebyshev I automatically receives the required output impedance. Butterworth/Chebyshev I support n = 1–100, Bessel/Legendre n = 1–20, Chebyshev II odd orders 1–11, and elliptic odd orders 3–19. The generator shows each ladder's minimum stopband attenuation. LC values are numerically synthesized and verified.",
                 )}
               </p>
               <p>

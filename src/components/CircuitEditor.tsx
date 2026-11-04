@@ -495,7 +495,7 @@ function Canvas(props: CircuitEditorProps) {
         duration: 320,
         padding: 0.18,
         maxZoom: 1.18,
-        minZoom: 0.025,
+        minZoom: 0.005,
       });
     }, 80);
     return () => window.clearTimeout(timer);
@@ -650,8 +650,8 @@ function Canvas(props: CircuitEditorProps) {
           setSelectedEdges([]);
         }}
         fitView
-        fitViewOptions={{ padding: 0.18, maxZoom: 1.18, minZoom: 0.025 }}
-        minZoom={0.025}
+        fitViewOptions={{ padding: 0.18, maxZoom: 1.18, minZoom: 0.005 }}
+        minZoom={0.005}
         maxZoom={2}
         snapToGrid
         snapGrid={CIRCUIT_SNAP_GRID}

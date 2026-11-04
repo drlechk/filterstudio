@@ -1,3 +1,4 @@
+import { nearestFilterOrder } from "../src/lib/filter-limits";
 import { z } from "zod";
 import { createCircuit, defaultSettings, orderedSections, parseProject } from "../src/lib/project";
 import { synthesize } from "../src/lib/synthesis";
@@ -51,6 +52,7 @@ const revision = { ...target, expectedRevision: z.number().int().nonnegative().d
 
 function generateProject({ name, settings: overrides, componentPrecision, tolerance }: z.infer<typeof generationInput>) {
   let settings = { ...defaultSettings, ...overrides };
+  if (overrides.order === undefined) settings.order = nearestFilterOrder(settings.family, settings.order);
   if (tolerance) {
     const design = designTolerance(tolerance, settings.family, settings.impedance);
     if (!design.settings) throw new Error(`Tolerance design is not realizable (${design.issue}; required order: ${design.minimumOrder ?? "unknown"}).`);

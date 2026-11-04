@@ -40,7 +40,7 @@ describe('JSON import boundary', () => {
   });
   it('round-trips the highest orders for every family and response, including large Cauer band circuits', () => {
     for (const family of ['butterworth', 'chebyshev', 'cauer'] as const) for (const response of ['lowpass', 'highpass', 'bandpass', 'bandstop'] as const) {
-      const settings = { ...defaultSettings, family, response, order: family === 'cauer' ? 19 : 20, bandwidth: .5e6 };
+      const settings = { ...defaultSettings, family, response, order: family === 'cauer' ? 19 : 100, bandwidth: .5e6 };
       const result = synthesize(settings);
       const generated = { ...project, settings, ...createCircuit(result.sections), z2: result.z2 };
       const reopened = parseProject(JSON.parse(JSON.stringify(generated)));
@@ -48,8 +48,8 @@ describe('JSON import boundary', () => {
       expect(orderedSections(reopened.nodes, reopened.wires)).toEqual(result.sections);
       if (family === 'cauer' && response.startsWith('band')) expect(reopened.nodes).toHaveLength(30);
     }
-    expect(() => parseProject({ ...project, settings: { ...defaultSettings, order: 21 } })).toThrow();
-    expect(() => parseProject({ ...project, nodes: Array.from({ length: 43 }, (_, i) => ({ id: `node-${i}`, x: i, y: 0 })) })).toThrow('42');
+    expect(() => parseProject({ ...project, settings: { ...defaultSettings, order: 101 } })).toThrow();
+    expect(() => parseProject({ ...project, nodes: Array.from({ length: 203 }, (_, i) => ({ id: `node-${i}`, x: i, y: 0 })) })).toThrow('202');
   });
   it('rejects physical parameters outside the supported input ranges', () => {
     for (const patch of [{ cutoff: .1 }, { cutoff: 1e13 }, { impedance: .001 }, { impedance: 1e7 }]) {

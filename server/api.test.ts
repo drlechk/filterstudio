@@ -108,8 +108,8 @@ describe("REST/OpenAPI", () => {
   });
 
   it("synthesizes and analyzes the maximum supported orders, including expanded Cauer band circuits", async () => {
-    for (const family of ['butterworth', 'chebyshev', 'chebyshev2', 'cauer', 'bessel', 'legendre']) {
-      const order = family === 'cauer' ? 19 : family === 'chebyshev2' ? 11 : 20;
+    for (const family of ['butterworth', 'chebyshev', 'chebyshev2', 'cauer', 'bessel', 'legendre', 'linkwitz-riley']) {
+      const order = family === 'cauer' ? 19 : family === 'chebyshev2' ? 11 : ['bessel', 'legendre'].includes(family) ? 20 : 100;
       for (const response of ['lowpass', 'bandpass']) {
         const generated = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family, order, response, cutoff: 1e6, bandwidth: .5e6, attenuation: 80 } }).expect(200);
         const candidate = generated.body.project;
@@ -117,11 +117,11 @@ describe("REST/OpenAPI", () => {
         if (family === 'cauer' && response === 'bandpass') expect(candidate.nodes).toHaveLength(30);
         await request(server.httpServer).post('/api/filters/validate').send({ project: candidate }).expect(200);
         const analyzed = await request(server.httpServer).post('/api/filters/analyze').send({ project: candidate, frequencies: [1e6] }).expect(200);
-        const expected = response === 'lowpass' ? (['butterworth', 'bessel', 'legendre'].includes(family) ? -3.0102999566 : family === 'chebyshev2' ? -80 : -.5) : (family === 'chebyshev' ? -.5 : 0);
+        const expected = response === 'lowpass' ? (['butterworth', 'bessel', 'legendre'].includes(family) ? -3.0102999566 : family === 'linkwitz-riley' ? -6.0205999133 : family === 'chebyshev2' ? -80 : -.5) : (family === 'chebyshev' ? -.5 : 0);
         expect(analyzed.body.samples[0].db.s21).toBeCloseTo(expected, 5);
       }
     }
-    await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { order: 21 } }).expect(400);
+    await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { order: 101 } }).expect(400);
     await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'cauer', order: 20 } }).expect(422);
   });
 
@@ -143,11 +143,23 @@ describe("REST/OpenAPI", () => {
     }
   });
 
-  it.each(['bessel', 'legendre'])("designs a %s tolerance mask and rejects an unrealizable mask", async family => {
+  it("defaults Linkwitz–Riley to LR4 and rejects unsupported odd orders", async () => {
+    const generated = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'linkwitz-riley' } }).expect(200);
+    const candidate = generated.body.project;
+    expect(candidate.settings.order).toBe(4);
+    const analyzed = await request(server.httpServer).post('/api/filters/analyze').send({ project: candidate, frequencies: [1e6] }).expect(200);
+    expect(analyzed.body.samples[0].db.s21).toBeCloseTo(-6.0205999133, 7);
+    for (const order of [1, 3, 19]) {
+      await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'linkwitz-riley', order } }).expect(422);
+      await request(server.httpServer).post('/api/filters/validate').send({ project: { ...candidate, settings: { ...candidate.settings, order } } }).expect(400);
+    }
+  });
+
+  it.each(['bessel', 'legendre', 'linkwitz-riley'])("designs a %s tolerance mask and rejects an unrealizable mask", async family => {
     const tolerance = { response: 'lowpass', passband: [1e6], stopband: [family === 'bessel' ? 8e6 : 2e6], passbandLoss: 1, stopbandLoss: 40 };
     const generated = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family }, tolerance }).expect(200);
     const candidate = generated.body.project;
-    expect(candidate.settings).toMatchObject({ family, order: family === 'bessel' ? 4 : 6 });
+    expect(candidate.settings).toMatchObject({ family, order: family === 'bessel' ? 4 : family === 'linkwitz-riley' ? 10 : 6 });
     expect(candidate.tolerance).toEqual(tolerance);
     await request(server.httpServer).post('/api/filters/validate').send({ project: candidate }).expect(200);
     const analyzed = await request(server.httpServer).post('/api/filters/analyze').send({ project: candidate, frequencies: [1e6, tolerance.stopband[0]] }).expect(200);
@@ -245,7 +257,7 @@ describe("new filter creation", () => {
     const { socket, snapshot } = browser;
     try {
       const commands = acknowledgeNewTabs(browser);
-      await request(server.httpServer).post("/api/filters").send({ settings: { order: 21 } }).expect(400);
+      await request(server.httpServer).post("/api/filters").send({ settings: { order: 101 } }).expect(400);
       await request(server.httpServer).post("/api/filters").send({ settings: { family: "cauer", order: 20 } }).expect(422);
       await request(server.httpServer).post("/api/filters").send({ settings: { response: "bandpass" } }).expect(422);
       await request(server.httpServer).post("/api/filters").send({ unexpected: true }).expect(400);

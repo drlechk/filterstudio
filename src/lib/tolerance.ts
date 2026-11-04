@@ -1,7 +1,7 @@
 import { bandEdges, isBandResponse, MIN_RELATIVE_BANDWIDTH } from "./frequency";
 import { ellipticK, ellipticPrototype } from "./synthesis";
 import { isMonotonicFamily, monotonicAttenuation, monotonicFrequency } from "./monotonic";
-import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from "./filter-limits";
+import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, filterOrderLimits, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from "./filter-limits";
 import type { FilterFamily, FilterSettings, ToleranceSpec } from "./types";
 
 export const MIN_MASK_FREQUENCY = 1;
@@ -145,6 +145,7 @@ export function designTolerance(
   family: FilterFamily,
   impedance: number,
 ): ToleranceDesign {
+  const { max: maximumOrder } = filterOrderLimits(family);
   const issue = validateTolerance(spec);
   if (issue)
     return { settings: null, minimumOrder: null, stopbandRatio: null, issue };
@@ -170,27 +171,30 @@ export function designTolerance(
   const m = 1 / (stopbandRatio * stopbandRatio),
     m1 = ep2 / es2;
   const fractional =
-    isMonotonicFamily(family) ? 1 : family === "butterworth"
+    family === "linkwitz-riley"
+      ? Math.log(Math.expm1(as * Math.LN10 / 20) / Math.expm1(ap * Math.LN10 / 20)) / Math.log(stopbandRatio)
+      : isMonotonicFamily(family) ? 1 : family === "butterworth"
       ? Math.log(ratio) / (2 * Math.log(stopbandRatio))
       : family === "chebyshev" || family === "chebyshev2"
         ? Math.acosh(Math.sqrt(ratio)) / Math.acosh(stopbandRatio)
         : (ellipticK(m) * ellipticK(1 - m1)) /
           (ellipticK(1 - m) * ellipticK(m1));
   let minimumOrder = Math.max(1, Math.ceil(fractional - 1e-10));
+  if (family === "linkwitz-riley") minimumOrder = 2 * Math.ceil(minimumOrder / 2);
   let order = minimumOrder,
     attenuation = as, monotonicScale = 1;
   if (isMonotonicFamily(family)) {
     // Place Ap exactly at the specified passband edge, then check the stricter
     // transformed stopband edge. These families have no elliptic order formula.
     order = 0;
-    for (let n = 1; n <= MAX_PROTOTYPE_ORDER; n++) {
+    for (let n = 1; n <= maximumOrder; n++) {
       const passFrequency = monotonicFrequency(family, n, ap);
       if (monotonicAttenuation(family, n, stopbandRatio * passFrequency) >= as - 1e-10) {
         order = n; monotonicScale = 1 / passFrequency; break;
       }
     }
     // Only the supported range is searched; do not invent a minimum beyond it.
-    minimumOrder = order || MAX_PROTOTYPE_ORDER + 1;
+    minimumOrder = order || maximumOrder + 1;
   } else if (family === "cauer") {
     // Choose the smallest supported odd prototype satisfying the mask.
     order =
@@ -209,10 +213,11 @@ export function designTolerance(
     }) ?? 0;
     if (order) attenuation = Math.max(chebyshevIIMinimumAttenuation(order), as);
   }
-  if (!Number.isFinite(order) || order < 1 || order > MAX_PROTOTYPE_ORDER)
+  if (!Number.isFinite(order) || order < 1 || order > maximumOrder)
     return { settings: null, minimumOrder, stopbandRatio, issue: "order" };
   const scale =
     isMonotonicFamily(family) ? monotonicScale
+      : family === "linkwitz-riley" ? Math.exp(-Math.log(Math.expm1(ap * Math.LN10 / 20)) / order)
       : family === "butterworth" ? Math.exp(-Math.log(ep2) / (2 * order))
       : family === "chebyshev2" ? Math.cosh(Math.acosh(Math.sqrt(Math.expm1(attenuation * Math.LN10 / 10) / ep2)) / order) : 1;
   const cutoff =

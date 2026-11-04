@@ -7,7 +7,7 @@ export type Section = {
   resonator?: "series" | "parallel";
   label?: string;
 };
-export type FilterFamily = "butterworth" | "chebyshev" | "chebyshev2" | "cauer" | "bessel" | "legendre";
+export type FilterFamily = "butterworth" | "chebyshev" | "chebyshev2" | "cauer" | "bessel" | "legendre" | "linkwitz-riley";
 export type FilterResponse = "lowpass" | "highpass" | "bandpass" | "bandstop";
 export type FilterSettings = {
   family: FilterFamily;

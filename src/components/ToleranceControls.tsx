@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { usePreferences } from "../lib/preferences";
 import { formatEngineering } from "../lib/network";
 import { filterDegree, isBandResponse } from "../lib/frequency";
+import { filterOrderLimits } from "../lib/filter-limits";
 import { hasHalfPowerCutoff } from "../lib/monotonic";
 import {
   moveToleranceEdge,
@@ -254,15 +255,20 @@ export function ToleranceControls({
             : family === "chebyshev2" ? t(
                 "Chebyshev-II-Leiter: ungerade Grade 1–11. Mindest-Sperrdämpfung: 20 dB (n = 1/3), 30 dB (5), 60 dB (7/9), 80 dB (11).",
                 "Chebyshev II ladder: odd orders 1–11. Minimum attenuation: 20 dB (n = 1/3), 30 dB (5), 60 dB (7/9), 80 dB (11).",
+              ) : family === "linkwitz-riley" ? t(
+                "Verfügbare Linkwitz–Riley-Prototypgrade: gerade 2–100.",
+                "Available Linkwitz–Riley prototype orders: even 2–100.",
               ) : t(
-                "Verfügbare Prototypgrade: 1–20.",
-                "Available prototype orders: 1–20.",
+                `Verfügbare Prototypgrade: 1–${filterOrderLimits(family).max}.`,
+                `Available prototype orders: 1–${filterOrderLimits(family).max}.`,
               )}
         </small>
-        {design.settings && (hasHalfPowerCutoff(design.settings.family) || design.settings.family === "chebyshev2") && (
+        {design.settings && (hasHalfPowerCutoff(design.settings.family) || design.settings.family === "chebyshev2" || design.settings.family === "linkwitz-riley") && (
           <small>
             {design.settings.family === "chebyshev2"
               ? band ? t("Abgeleitete Sperrbandbreite", "Derived stopband width") : t("Abgeleitete Sperrbandgrenze", "Derived stopband edge")
+              : design.settings.family === "linkwitz-riley"
+              ? band ? t("Abgeleitete −6-dB-Bandbreite", "Derived −6 dB bandwidth") : t("Abgeleitete Übernahmefrequenz (−6 dB)", "Derived crossover frequency (−6 dB)")
               : band
               ? t("Abgeleitete −3-dB-Bandbreite", "Derived −3 dB bandwidth")
               : t("Abgeleitete −3-dB-Frequenz", "Derived −3 dB frequency")}

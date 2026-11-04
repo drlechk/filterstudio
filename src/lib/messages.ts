@@ -2,6 +2,18 @@ import type { Language } from "./preference-storage";
 
 /** Engine messages stay canonical German so open diagnostics can change language. */
 const english: Record<string, string> = {
+  "Linkwitz–Riley unterstützt gerade Grade von 2 bis 100.":
+    "Linkwitz–Riley supports even orders from 2 to 100.",
+  "Linkwitz–Riley: quadrierte Butterworth-Übertragungsfunktion halben Grades, als passive LC-Leiter mit gleichen Abschlüssen realisiert.":
+    "Linkwitz–Riley: squared Butterworth transfer function of half the order, realized as a passive LC ladder with equal terminations.",
+  "Komplementäre Tief- und Hochpässe gleicher Ordnung und Übernahmefrequenz addieren sich gleichpolig mit konstantem Betrag. Jeder Entwurf enthält einen einzelnen Zweig.":
+    "Complementary low-pass and high-pass filters with matching order and crossover frequency sum to a constant magnitude with the same polarity. Each design contains a single branch.",
+  "Komplementäre Tief- und Hochpässe gleicher Ordnung und Übernahmefrequenz benötigen für die Summe mit konstantem Betrag eine Polungsumkehr eines Zweigs. Jeder Entwurf enthält einen einzelnen Zweig.":
+    "Complementary low-pass and high-pass filters with matching order and crossover frequency require one branch to be inverted for a constant-magnitude sum. Each design contains a single branch.",
+  "Transformierter Linkwitz–Riley-Prototyp: Die beiden Bandgrenzen liegen bei −6,0206 dB.":
+    "Transformed Linkwitz–Riley prototype: both band edges are at −6.0206 dB.",
+  "Die Übernahmefrequenz bezeichnet den −6,0206-dB-Punkt.":
+    "The crossover frequency is the −6.0206 dB point.",
   "Bessel und Legendre unterstützen Grade von 1 bis 20.":
     "Bessel and Legendre support orders from 1 to 20.",
   "Bessel / Thomson: maximal flache Gruppenlaufzeit des Tiefpass-Prototyps; auf den −3,0103-dB-Punkt normiert.":
@@ -52,8 +64,8 @@ const english: Record<string, string> = {
     "Bandwidth must be positive, finite, and at most 1 THz.",
   "Beide Bandgrenzen müssen zwischen 1 Hz und 1 THz liegen.":
     "Both band edges must be between 1 Hz and 1 THz.",
-  "Die Datei muss 2 bis 42 Schaltungsknoten enthalten.":
-    "The file must contain 2 to 42 circuit nodes.",
+  "Die Datei muss 2 bis 202 Schaltungsknoten enthalten.":
+    "The file must contain 2 to 202 circuit nodes.",
   "Ungültige oder doppelte Schaltungsknoten.":
     "Circuit nodes are invalid or duplicated.",
   "Ein Tor darf kein Bauelement sein.": "A port cannot be a component.",
@@ -73,8 +85,8 @@ const english: Record<string, string> = {
     "These Cauer specifications could not be synthesized reliably. Increase the stopband attenuation or reduce the order.",
   "Diese Prototyp-Struktur kann nicht als Bandfilter transformiert werden.":
     "This prototype topology cannot be transformed into a band filter.",
-  "Der Filtergrad muss zwischen 1 und 20 liegen.":
-    "The filter order must be between 1 and 20.",
+  "Der Filtergrad muss zwischen 1 und 100 liegen.":
+    "The filter order must be between 1 and 100.",
   "Frequenz und Impedanz müssen positiv sein.":
     "Frequency and impedance must be positive.",
   "Die Welligkeit muss zwischen 0,01 und 3 dB liegen.":
