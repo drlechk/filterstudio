@@ -1,0 +1,99 @@
+import type { WdfAdaptor } from './wdf';
+import { compactAdaptor, type CompactAdaptor, type SignalOperation } from './wdf-signal-flow';
+import { routeSignalWires, signalWireGeometry, type Direction, type Point, type Rect, type WireRequest } from './signal-routing';
+
+export type SignalSymbol = { operation: SignalOperation; position: Point };
+export type SignalPort = { id: string; waveId: string; port: number; direction: 'a' | 'b'; side: 'left' | 'right'; position: Point };
+export type AdaptorDrawing = {
+  width: number; height: number; compact: CompactAdaptor; symbols: SignalSymbol[]; ports: SignalPort[];
+  requests: WireRequest[]; wires: ReturnType<typeof signalWireGeometry>;
+};
+
+const drawingCache = new Map<string, AdaptorDrawing>();
+
+export function adaptorSignalLayout(adaptor: WdfAdaptor): AdaptorDrawing {
+  const compact = compactAdaptor(adaptor);
+  const cacheKey = JSON.stringify([adaptor.kind, adaptor.ports.map(p => p.sign), adaptor.adaptedPort, compact.referencePort]);
+  const cached = drawingCache.get(cacheKey);
+  if (cached) {
+    const rename = (id: string) => { const parts = JSON.parse(id); parts[0] = adaptor.id; return JSON.stringify(parts); };
+    const operations = new Map(compact.nodes.map(node => [node.id, node]));
+    return { ...cached, compact, symbols: cached.symbols.map(symbol => ({ ...symbol, operation: operations.get(rename(symbol.operation.id))! })),
+      ports: cached.ports.map(port => ({ ...port, waveId: rename(port.waveId) })),
+      requests: cached.requests.map((request, i) => ({ ...request, id: `${adaptor.id}:${i}`, net: rename(request.net) })),
+      wires: { ...cached.wires, segments: cached.wires.segments.map(segment => ({ ...segment, net: rename(segment.net) })) } };
+  }
+  const depth = new Map(compact.inputs.map(id => [id, 0]));
+  const incoming = new Map(compact.nodes.map(node => [node.id, compact.edges.filter(e => e.target === node.id)]));
+  const level = (id: string): number => {
+    if (!depth.has(id)) depth.set(id, 1 + Math.max(0, ...incoming.get(id)!.map(e => level(e.source))));
+    return depth.get(id)!;
+  };
+  const operations = compact.nodes.filter(n => n.kind !== 'wave');
+  const layers: SignalOperation[][] = [];
+  operations.forEach(n => { const d = level(n.id) - 1; (layers[d] ??= []).push(n); });
+  const height = adaptor.ports.length <= 3 ? 680 : Math.max(640, ...layers.map(layer => layer.length * 160 + 160));
+  const width = adaptor.ports.length <= 3 ? 1000 : (layers.length + 1) * 180 + 140;
+  const ports: SignalPort[] = [];
+  let child = 0;
+  adaptor.ports.forEach((_, i) => {
+    const side = i === adaptor.adaptedPort ? 'left' : 'right';
+    const aY = side === 'left' ? height / 2 - 40 : 120 + child++ * 160;
+    for (const direction of ['a', 'b'] as const) ports.push({ id: `${direction}-${i}`, waveId: (direction === 'a' ? compact.inputs : compact.outputs)[i],
+      port: i, direction, side, position: { x: side === 'left' ? 0 : width, y: aY + (direction === 'a' ? 0 : 60) } });
+  });
+  const positions = new Map(ports.filter(p => p.direction === 'a').map(p => [p.waveId, p.position]));
+  const symbols: SignalSymbol[] = [];
+  layers.forEach((layer, col) => {
+    const desired = (node: SignalOperation) => incoming.get(node.id)!.reduce((sum, e) => sum + (positions.get(e.source)?.y ?? height / 2), 0) / incoming.get(node.id)!.length;
+    layer.sort((a, b) => desired(a) - desired(b));
+    layer.forEach((node, row) => {
+      let position = { x: 160 + col * 180, y: Math.round((height / 2 + (row - (layer.length - 1) / 2) * 180) / 20) * 20 };
+      if (adaptor.ports.length <= 3) {
+        const name = JSON.parse(node.id)[1] as string;
+        const independent = adaptor.ports.map((_, i) => i).filter(i => i !== adaptor.adaptedPort && i !== compact.referencePort);
+        const index = independent.indexOf(Number(name.split(':').at(-1)));
+        if (adaptor.kind === 'parallel') {
+          const adapted = adaptor.adaptedPort !== null;
+          if (name.startsWith('difference:')) position = { x: index === 0 ? 240 : 760, y: 180 };
+          else if (name.startsWith('gamma:')) position = { x: adapted ? 500 : index === 0 ? 340 : 660, y: 340 };
+          else if (name === 'up') position = { x: 760, y: 180 };
+          else if (name === 'reference') position = { x: adapted ? 760 : 500, y: 500 };
+          else position = { x: index === 0 ? 240 : 760, y: 500 };
+        } else {
+          const adapted = adaptor.adaptedPort !== null;
+          if (name.startsWith('polarity:a')) position = { x: 120, y: 140 };
+          else if (name.startsWith('polarity:b')) position = { x: 120, y: 560 };
+          else if (name === 'up') position = { x: 500, y: 140 };
+          else if (name === 'up:negative') position = { x: 800, y: 140 };
+          else if (name === 'total') position = { x: adapted ? 800 : 500, y: adapted ? 340 : 160 };
+          else if (name.startsWith('gamma:')) position = { x: adapted ? 500 : index === 0 ? 340 : 660, y: 340 };
+          else if (name.startsWith('out:')) position = { x: index === 0 ? 240 : 800, y: adapted ? 340 : 460 };
+          else position = { x: 500, y: 540 };
+        }
+      }
+      positions.set(node.id, position); symbols.push({ operation: node, position });
+    });
+  });
+  const portByWave = new Map(ports.map(p => [p.waveId, p]));
+  const obstacles: Rect[] = symbols.flatMap(({ position: p, operation: node }) => [
+    { x: p.x - 20, y: p.y - 20, width: 40, height: 40 },
+    ...(node.kind === 'gain' ? [{ x: p.x - 70, y: p.y + 35, width: 140, height: 35 }] : []),
+  ]);
+  obstacles.push(...ports.map(port => ({ x: port.side === 'left' ? 0 : width - 80, y: port.position.y - 35, width: 80, height: 30 })));
+  const requests: WireRequest[] = compact.edges.map((edge, i) => {
+    const source = portByWave.get(edge.source), target = portByWave.get(edge.target);
+    const sourcePosition = source?.position ?? positions.get(edge.source)!;
+    const targetPosition = target?.position ?? positions.get(edge.target)!;
+    const inputIndex = incoming.get(edge.target)!.indexOf(edge);
+    const targetDirection: Direction = target ? target.side === 'left' ? 'right' : 'left' : inputIndex === 0 ? 'left' : inputIndex === 1 ? 'up' : 'down';
+    const offset = targetDirection === 'left' ? { x: -20, y: 0 } : targetDirection === 'up' ? { x: 0, y: -20 } : { x: 0, y: 20 };
+    return { id: `${adaptor.id}:${i}`, net: edge.source, sign: edge.sign,
+      start: source ? sourcePosition : { x: sourcePosition.x + 20, y: sourcePosition.y }, startDirection: source?.side === 'right' ? 'left' : 'right',
+      end: target ? targetPosition : { x: targetPosition.x + offset.x, y: targetPosition.y + offset.y }, endDirection: targetDirection };
+  });
+  const wires = signalWireGeometry(routeSignalWires(width, height, obstacles, requests));
+  const drawing = { width, height, compact, symbols, ports, requests, wires };
+  drawingCache.set(cacheKey, drawing);
+  return drawing;
+}

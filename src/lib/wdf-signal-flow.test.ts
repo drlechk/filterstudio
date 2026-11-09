@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildWdf, createWdfProcessor } from './wdf';
-import { buildWdfSignalFlow, createSignalFlowProcessor } from './wdf-signal-flow';
+import { buildWdfSignalFlow, compactAdaptor, createSignalFlowProcessor } from './wdf-signal-flow';
 import { createCircuit, defaultSettings } from './project';
 import { synthesize } from './synthesis';
 import type { Project, Section } from './types';
@@ -16,21 +16,32 @@ const project = (parts = sections): Project => ({ version: 1, name: 'Signal flow
   z2: 75, sweep: { min: 100, max: 20000, points: 501 }, ...createCircuit(parts) });
 
 describe('scalar WDF signal-flow expansion', () => {
-  it('keeps every nonzero scattering branch and omits only exact zero multipliers', () => {
+  it('uses one independent gamma at each adapted three-port and two at the root', () => {
     const model = buildWdf(project(), 48000, 'resonator:lc1'), graph = buildWdfSignalFlow(model);
     for (const adaptor of model.adaptors) {
-      const branches = graph.adaptors.find(a => a.id === adaptor.id)!.branches;
-      expect(branches).toHaveLength(adaptor.matrix.flat().filter(value => value !== 0).length);
-      for (const branch of branches) {
-        expect(branch.coefficient).toBe(adaptor.matrix[branch.output][branch.input]);
-        expect(branch.expression).toContain('γ');
-        expect(graph.nodes.find(node => node.id === branch.id)?.kind).toBe('gain');
-      }
-      if (adaptor.adaptedPort !== null) expect(branches.some(b => b.input === adaptor.adaptedPort && b.output === adaptor.adaptedPort)).toBe(false);
+      const compact = graph.adaptors.find(a => a.id === adaptor.id)!;
+      expect(compact.multipliers).toHaveLength(adaptor.ports.length - (adaptor.adaptedPort === null ? 1 : 2));
+      expect(compact.multipliers.every(node => node.expression?.startsWith('−γ'))).toBe(true);
     }
     expect(graph.nodes.filter(n => n.kind === 'delay')).toHaveLength(model.elements.filter(e => e.kind === 'C' || e.kind === 'L').length);
     expect(new Set(graph.nodes.map(node => node.id)).size).toBe(graph.nodes.length);
     expect(graph.nodes.find(n => n.id === graph.outputId)).toMatchObject({ kind: 'output', coefficient: .5 });
+  });
+
+  it('reproduces every scattering column, including adapted-port zeros and physical polarities', () => {
+    for (const root of buildWdf(project(), 48000).adaptors) {
+      for (const adaptor of buildWdf(project(), 48000, root.id).adaptors) {
+        const compact = compactAdaptor(adaptor);
+        for (let column = 0; column < adaptor.ports.length; column++) {
+          for (let row = 0; row < adaptor.ports.length; row++) {
+            const graph = { nodes: compact.nodes.map(node => compact.inputs.includes(node.id)
+              ? { ...node, kind: node.id === compact.inputs[column] ? 'input' as const : 'zero' as const } : node),
+              edges: compact.edges, inputId: compact.inputs[column], outputId: compact.outputs[row], adaptors: [], links: [] };
+            expect(createSignalFlowProcessor(graph).process(1)).toBeCloseTo(adaptor.matrix[row][column], 14);
+          }
+        }
+      }
+    }
   });
 
   it.each([8000, 48000, 96000])('matches the independent tree processor sample by sample for every root at %i Hz', sampleRate => {
@@ -55,7 +66,7 @@ describe('scalar WDF signal-flow expansion', () => {
     }
     const model = buildWdf({ ...project([]), z2: 1e-12 }, 48000);
     const graph = buildWdfSignalFlow(model);
-    expect(graph.adaptors[0].branches.some(branch => Math.abs(branch.coefficient) < 1e-10)).toBe(true);
+    expect(graph.adaptors[0].multipliers.some(node => Math.abs(node.coefficient!) < 1e-10)).toBe(true);
   });
 
   it('compiles high-order band ladders without algebraic loops or missing delays', () => {

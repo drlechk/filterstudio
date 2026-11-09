@@ -23,3 +23,6 @@
 .wdf-signal-tools .button:hover { background: var(--surface-hover); }
 .wdf-signal-note { position: absolute; bottom: 12px; left: 48px; right: 12px; text-align: right; font-size: 10px; color: var(--text-muted); pointer-events: none; }
 @media (max-width: 600px) { .wdf-diagram.wdf-signal-diagram { height: 440px; } .wdf-signal-note { max-width: 240px; margin-left: auto; } }
+.wdf-signal-port { stroke: var(--text-muted); stroke-width: 1.5; fill: var(--surface); }
+.wdf-signal-node .wdf-signal-input-sign { font-size: 18px; font-weight: 650; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
+.wdf-signal-node .wdf-signal-negate { font-size: 15px; }
