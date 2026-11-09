@@ -504,7 +504,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const [characteristicExpanded, setCharacteristicExpanded] = useState(true);
   const [designExpanded, setDesignExpanded] = useState(true);
   const [resultTab, setResultTab] = useState<
-    "response" | "chain" | "polynomials" | "bom" | "tolerance"
+    "response" | "chain" | "polynomials" | "bom" | "tolerance" | "catalog"
   >(startingProject.tolerance ? "tolerance" : "response");
   const [frequencyScale, setFrequencyScale] = useState<FrequencyScale>("log");
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit>("MHz");
@@ -732,7 +732,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
   function selectDesignMode(mode: "parameters" | "tolerance") {
     setDesignMode(mode);
     if (mode === "tolerance") setResultTab("tolerance");
-    else if (resultTab === "tolerance") setResultTab("response");
+    else if (resultTab === "tolerance" || resultTab === "catalog") setResultTab("response");
   }
   function updateSettings(patch: Partial<FilterSettings>) {
     const next = { ...settings, ...patch };
@@ -1355,12 +1355,10 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     aria-pressed={designMode === "tolerance"}
                     onClick={() => selectDesignMode("tolerance")}
                   >
-                    {t("Filterkatalog", "Filter catalog")}
+                    {t("Toleranzmaske", "Tolerance mask")}
                   </button>
                 </div>
                 {designMode === "tolerance" ? (
-                  <>
-                  <p className="spec-hint">{t("Interaktiver Katalog · Auslegung nach Toleranzmaske", "Interactive catalog · tolerance-mask design")}</p>
                   <ToleranceControls
                     spec={toleranceDraft}
                     design={toleranceDesign}
@@ -1369,9 +1367,6 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     onFrequencyUnitChange={setFrequencyUnit}
                     onChange={setToleranceDraft}
                   />
-                  <FilterCatalog spec={toleranceDraft} settings={settings}
-                    onSelect={family => updateSettings({ family })} />
-                  </>
                 ) : (
                   <>
                     <div className="order-label">
@@ -2051,6 +2046,11 @@ const FilterWorkspace = memo(function FilterWorkspace({
                       icon: SlidersHorizontal,
                     },
                     {
+                      id: "catalog",
+                      label: t("Katalogentwurf", "Catalog design"),
+                      icon: BookOpen,
+                    },
+                    {
                       id: "chain",
                       label: t("Kettenmatrizen", "ABCD matrices"),
                       icon: Code2,
@@ -2074,9 +2074,10 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     key={t.id}
                     onClick={() => {
                       setResultTab(t.id);
-                      if (t.id === "tolerance") {
+                      if (t.id === "tolerance" || t.id === "catalog") {
                         setDesignMode("tolerance");
                         setPaletteTab("generator");
+                        setDesignExpanded(true);
                       }
                     }}
                   >
@@ -2090,7 +2091,17 @@ const FilterWorkspace = memo(function FilterWorkspace({
                 {t("Automatisch aktualisiert", "Automatically updated")}
               </span>
             </div>
-            {resultTab === "tolerance" ? (
+            {resultTab === "catalog" ? (
+              <FilterCatalog
+                spec={toleranceDraft}
+                settings={settings}
+                onSelect={family => updateSettings({ family })}
+                onGenerate={() => void generate()}
+                onShowMask={() => setResultTab("tolerance")}
+                generating={generating}
+                previewError={tolerancePreview.error}
+              />
+            ) : resultTab === "tolerance" ? (
               <TolerancePlot
                 {...plotScales}
                 spec={toleranceDraft}
