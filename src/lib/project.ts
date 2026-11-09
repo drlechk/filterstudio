@@ -101,7 +101,12 @@ export function parseProject(raw: unknown): Project {
   const tolerance = raw.tolerance === undefined ? undefined : parseTolerance(raw.tolerance);
   if (tolerance && tolerance.response !== settings.response) throw new Error('Ungültiges Toleranzschema in der Datei.');
   if (raw.componentPrecision !== undefined && !isComponentPrecision(raw.componentPrecision)) throw new Error('Ungültige Anzeigegenauigkeit für Bauteilwerte.');
-  return { version: 1, name: raw.name, settings, nodes, wires, z2: raw.z2, ...(tolerance ? { tolerance } : {}), ...(raw.componentPrecision !== undefined ? { componentPrecision: raw.componentPrecision } : {}), sweep: { min: sweep.min, max: sweep.max, points: sweep.points } };
+  let wdf: Project['wdf'];
+  if (raw.wdf !== undefined) {
+    if (!object(raw.wdf) || !range(raw.wdf.sampleRate, 1, 1e15) || (raw.wdf.rootId !== undefined && (typeof raw.wdf.rootId !== 'string' || !raw.wdf.rootId.length || raw.wdf.rootId.length > 256))) throw new Error('Ungültige WDF-Einstellungen in der Datei.');
+    wdf = { sampleRate: raw.wdf.sampleRate, ...(typeof raw.wdf.rootId === 'string' ? { rootId: raw.wdf.rootId } : {}) };
+  }
+  return { version: 1, name: raw.name, settings, nodes, wires, z2: raw.z2, ...(tolerance ? { tolerance } : {}), ...(raw.componentPrecision !== undefined ? { componentPrecision: raw.componentPrecision } : {}), ...(wdf ? { wdf } : {}), sweep: { min: sweep.min, max: sweep.max, points: sweep.points } };
 }
 export function downloadFile(name: string, content: string | Blob, type = 'text/plain') {
   const url = URL.createObjectURL(content instanceof Blob ? content : new Blob([content], { type }));

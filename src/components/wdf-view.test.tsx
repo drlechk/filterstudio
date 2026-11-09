@@ -1,0 +1,48 @@
+import { expect, it } from 'vitest';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { WdfView } from './WdfView';
+import { PreferencesProvider } from '../lib/preferences';
+import { createCircuit, defaultSettings, orderedSections } from '../lib/project';
+import { analyzeNetwork } from '../lib/network';
+import type { Project } from '../lib/types';
+
+const project: Project = { version: 1, name: 'WDF test', settings: defaultSettings, z2: 50, sweep: { min: 1e5, max: 1e7, points: 501 },
+  ...createCircuit([{ id: 'res', kind: 'LC', connection: 'shunt', resonator: 'series', value: 1e-5, value2: 1e-9 }]) };
+const analysis = analyzeNetwork(orderedSections(project.nodes, project.wires), { fRef: project.settings.cutoff, z1: project.settings.impedance, z2: project.z2 });
+const render = (p: Project) => renderToStaticMarkup(<PreferencesProvider><WdfView project={p} onChange={() => {}} analysis={analysis}
+  plotScales={{ frequencyScale: 'log', magnitudeScale: 'db', onFrequencyScaleChange() {}, onMagnitudeScaleChange() {} }} dbRange={100} onDbRangeChange={() => {}} /></PreferencesProvider>);
+
+it('exposes sample rate, every root including resonators, port coefficients, and the discretization convention', () => {
+  const html = render(project);
+  expect(html).toContain('aria-label="WDF sample rate (MHz)"');
+  expect(html).toContain('value="adaptor:res" selected=""');
+  expect(html).toContain('value="resonator:res"');
+  expect(html).toContain('Port resistances and coefficients');
+  expect(html).toContain('Numerical scattering matrix');
+  expect(html).toContain('Export WDF');
+  expect(html).toContain('Bilinear without prewarping · result tabs: analog circuit');
+  expect(html).toContain('WDF transfer function and analog reference');
+  expect(html).toContain('WDF magnitude response');
+  expect(html).toContain('WDF phase response');
+  expect(html).not.toContain('katex-error');
+});
+
+it('renders a persisted resonator root and sample rate', () => {
+  const html = render({ ...project, wdf: { sampleRate: 96000, rootId: 'resonator:res' } });
+  expect(html).toContain('aria-label="WDF sample rate (kHz)"');
+  expect(html).toContain('value="96"');
+  expect(html).toContain('value="resonator:res" selected=""');
+  expect(html).toContain('A1r · Series adaptor');
+});
+
+it('does not display or export a stale WDF when the analog circuit is incomplete', () => {
+  const html = render({ ...project, wires: [] });
+  expect(html).toContain('The analog circuit is not ready yet.');
+  expect(html).not.toContain('Port resistances and coefficients');
+  expect(html).not.toContain('WDF transfer function and analog reference');
+  expect(html).toContain('<button class="button" disabled=""');
+});
+
+it('explains a missing stored root instead of silently retaining stale parameters', () => {
+  expect(render({ ...project, wdf: { sampleRate: 48000, rootId: 'removed' } })).toContain('The saved adaptor no longer exists.');
+});

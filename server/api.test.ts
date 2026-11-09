@@ -96,6 +96,13 @@ describe("REST/OpenAPI", () => {
     expect(project.nodes[1].section!.value).toBe(originalValue);
   });
 
+  it("preserves and validates WDF sample rate and root through project API round-trips", async () => {
+    const wdf = { sampleRate: 48e6, rootId: 'adaptor:section-3' };
+    const result = await request(server.httpServer).post("/api/filters/validate").send({ project: { ...project, wdf } }).expect(200);
+    expect(result.body.project.wdf).toEqual(wdf);
+    await request(server.httpServer).post("/api/filters/validate").send({ project: { ...project, wdf: { ...wdf, sampleRate: 0 } } }).expect(400);
+  });
+
   it("handles band/tolerance designs and singular samples explicitly", async () => {
     const band = await request(server.httpServer).post("/api/filters/synthesize").send({ settings: { family: "cauer", response: "bandstop", order: 3, cutoff: 1e6, bandwidth: 2e5 } }).expect(200);
     const response = await request(server.httpServer).post("/api/filters/analyze").send({ project: band.body.project, frequencies: [0, 1e6] }).expect(200);

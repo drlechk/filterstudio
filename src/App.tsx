@@ -41,6 +41,11 @@ import {
   X,
 } from "lucide-react";
 import { CircuitEditor } from "./components/CircuitEditor";
+import { WdfView } from "./components/WdfView";
+import { DetachCanvasButton } from "./components/DetachCanvasButton";
+import { detachedCanvasRoute, detachedCanvasUrl, type CanvasSession, type CanvasSnapshot, type CanvasView, type CanvasWriter } from "./lib/detached-canvas";
+import { useCanvasHost, useDetachedCanvas } from "./lib/use-detached-canvas";
+import "./components/DetachedCanvas.css";
 import { ProjectTabs } from "./components/ProjectTabs";
 import { SiteFooter } from "./components/SiteFooter";
 import { createFilterTab, workspaceReducer, type Workspace } from "./lib/workspace";
@@ -314,6 +319,28 @@ function dbReadout(db: number, language: "de" | "en") {
 }
 
 export default function App() {
+  const [detached] = useState(() => detachedCanvasRoute(window.location.hash));
+  return detached ? <DetachedCanvasApp {...detached} /> : <StudioApp />;
+}
+
+const noOperation = () => {};
+type DetachedState = { session: CanvasSession; writer: CanvasWriter; snapshot: CanvasSnapshot; connected: boolean };
+
+function DetachedCanvasApp({ id, view }: { id: string; view: CanvasView }) {
+  const { t } = usePreferences();
+  const connection = useDetachedCanvas(id);
+  if (!connection.snapshot || !connection.session || !connection.writer) return <main className="detached-unavailable">
+    <h1>{t('Die ursprüngliche Ansicht ist nicht mehr erreichbar.', 'The original workspace is no longer available.')}</h1>
+    <p>{t('Öffne das Projekt im Studio und kopple die gewünschte Ansicht erneut ab.', 'Open the project in the studio and detach the desired view again.')}</p>
+    <a className="button primary" href="./">{t('Studio öffnen', 'Open studio')}</a>
+  </main>;
+  return <FilterWorkspace tabId={`detached-${id}`} active startingProject={connection.snapshot.project} startingDirty={false}
+    initialView={view} detached={{ session: connection.session, writer: connection.writer, snapshot: connection.snapshot, connected: connection.connected }}
+    registerRemote={noOperation} publishRemote={noOperation} remoteConnected={false} onOpenProject={noOperation}
+    onTabChange={noOperation} onOpenAcknowledgements={noOperation} onFocusTab={noOperation} navigation={null} />;
+}
+
+function StudioApp() {
   const { t } = usePreferences();
   const [showAcknowledgements, setShowAcknowledgements] = useState(isAcknowledgementsPage);
   const acknowledgementsReturnFocus = useRef<HTMLElement | null>(null);
@@ -428,6 +455,7 @@ export default function App() {
       onOpenProject={openProject}
       onTabChange={updateTab}
       onOpenAcknowledgements={openAcknowledgements}
+      onFocusTab={() => { closeAcknowledgements(); dispatch({ type: "select", id: tab.id }); }}
       navigation={
         tab.id === workspace.activeId && (
           <ProjectTabs
@@ -456,6 +484,9 @@ const FilterWorkspace = memo(function FilterWorkspace({
   onOpenProject,
   onTabChange,
   onOpenAcknowledgements,
+  onFocusTab,
+  detached,
+  initialView = "circuit",
   navigation,
 }: {
   tabId: string;
@@ -468,6 +499,9 @@ const FilterWorkspace = memo(function FilterWorkspace({
   onOpenProject: (project: Project) => void;
   onTabChange: (id: string, name: string, dirty: boolean) => void;
   onOpenAcknowledgements: () => void;
+  onFocusTab: () => void;
+  detached?: DetachedState;
+  initialView?: CanvasView;
   navigation: ReactNode;
 }) {
   const { language, setLanguage, theme, setTheme, circuitSymbols, setCircuitSymbols, showSourceAndLoad, setShowSourceAndLoad, t, translate, number } =
@@ -485,7 +519,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
         };
   const formatEngineering = (value: number, unit = "", digits = 4) =>
     engineering(value, unit, digits, language === "de" ? "de-DE" : "en-US");
-  const [project, setProject] = useState<Project>(startingProject);
+  const [localProject, setProject] = useState<Project>(startingProject);
+  const project = detached?.snapshot.project ?? localProject;
   const [settings, setSettings] = useState<FilterSettings>(
     startingProject.settings,
   );
@@ -498,6 +533,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
   );
   const [history, setHistory] = useState<Project[]>([]),
     [future, setFuture] = useState<Project[]>([]);
+  const canUndo = detached?.snapshot.canUndo ?? (history.length > 0);
+  const canRedo = detached?.snapshot.canRedo ?? (future.length > 0);
   const [paletteTab, setPaletteTab] = useState<"generator" | "elements">(
     "generator",
   );
@@ -517,13 +554,21 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const scatteringReadout = (value?: Complex) => !value ? "—" : magnitudeScale === "db"
     ? `${dbReadout(decibels(value), language)} dB` : number(magnitude(value), 6);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [circuitView, setCircuitView] = useState<CanvasView>(initialView);
+  useEffect(() => {
+    if (!detached) return;
+    document.title = `${project.name} · ${circuitView === 'wdf' ? 'WDF' : t('Schaltung', 'Circuit')}`;
+    const route = detachedCanvasRoute(window.location.hash);
+    if (route) window.history.replaceState(window.history.state, '', detachedCanvasUrl(window.location.href, route.id, circuitView));
+  }, [!!detached, project.name, circuitView, language, theme]);
   const [fitKey, setFitKey] = useState(0);
   const [toast, setToast] = useState("");
   const [showHelp, setShowHelp] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showCircuitExport, setShowCircuitExport] = useState(false);
   const [notes, setNotes] = useState<string[]>([]);
-  const [generating, setGenerating] = useState(false);
+  const [localGenerating, setGenerating] = useState(false);
+  const generating = detached?.snapshot.busy ?? localGenerating;
   const fileRef = useRef<HTMLInputElement>(null);
   const changeStamp = useRef(0);
   const [edited, setEdited] = useState(startingDirty);
@@ -554,6 +599,10 @@ const FilterWorkspace = memo(function FilterWorkspace({
     }
   }, [active]);
   function commit(next: Project, coalesce = false) {
+    if (detached) {
+      detachedAction(revision => detached.session.commit(next, revision, coalesce));
+      return;
+    }
     if (!coalesce || Date.now() - changeStamp.current > 700) {
       setHistory((h) => [...h.slice(-39), project]);
     }
@@ -563,6 +612,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
     setEdited(true);
   }
   function undo() {
+    if (detached) { detachedAction(revision => detached.session.undo(revision)); setSelectedId(null); return; }
     if (!history.length) return;
     setFuture((f) => [project, ...f]);
     const previous = history[history.length - 1];
@@ -573,6 +623,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
     setEdited(true);
   }
   function redo() {
+    if (detached) { detachedAction(revision => detached.session.redo(revision)); setSelectedId(null); return; }
     if (!future.length) return;
     setHistory((h) => [...h, project]);
     setProject(future[0]);
@@ -580,6 +631,24 @@ const FilterWorkspace = memo(function FilterWorkspace({
     setFuture(future.slice(1));
     setSelectedId(null);
     setEdited(true);
+  }
+  function detachedAction(action: (revision: number) => void) {
+    try {
+      if (!detached?.connected) throw new Error('Die Verbindung zum ursprünglichen Projekt wurde geschlossen.');
+      detached.writer.run(action);
+    } catch (error) {
+      // Errors thrown by the owner window belong to a different JS realm.
+      setToast(error && typeof error === 'object' && 'message' in error ? String(error.message) : String(error));
+    }
+  }
+  const canvasHost = useCanvasHost({ project, canUndo, canRedo, busy: generating }, {
+    commit, undo, redo, focus: view => { setCircuitView(view); onFocusTab(); },
+  }, !detached);
+  function detachCanvas(destination: 'window' | 'tab') {
+    if (!canvasHost.open(circuitView, destination)) setToast(t(
+      'Der Browser hat das neue Fenster blockiert. Erlaube Pop-ups für Filterstudio und versuche es erneut.',
+      'The browser blocked the new window. Allow pop-ups for Filterstudio and try again.',
+    ));
   }
   const evaluation = useMemo(() => {
     try {
@@ -1034,6 +1103,365 @@ const FilterWorkspace = memo(function FilterWorkspace({
     downloadFile("filter.s2p", lines.join("\n"));
     setShowExport(false);
   }
+  const canvasPanel = (
+    <section
+            className="circuit-panel"
+            aria-label={t("Schaltung", "Circuit")}
+          >
+            <div className="panel-toolbar">
+              <div className="panel-title">
+                <span className="mini-icon">
+                  <MousePointer2 size={14} />
+                </span>
+                <div className="circuit-view-switch" role="group" aria-label={t("Schaltungsansicht", "Circuit view")}>
+                  <button aria-pressed={circuitView === "circuit"} onClick={() => setCircuitView("circuit")}>{t("Schaltung", "Circuit")}</button>
+                  <button aria-pressed={circuitView === "wdf"} onClick={() => setCircuitView("wdf")}>WDF</button>
+                </div>
+                <span
+                  className={`live-badge ${circuitIsEmpty ? "empty" : evaluation.error ? "warning" : ""}`}
+                >
+                  <i />
+                  {circuitIsEmpty
+                    ? t("Leer", "Empty")
+                    : evaluation.error
+                      ? t("Offen", "Open circuit")
+                      : "Live"}
+                </span>
+                {!detached && <DetachCanvasButton onOpen={detachCanvas} />}
+              </div>
+              {circuitView === "circuit" ? <div className="canvas-actions">
+                <span className="canvas-hint">
+                  {t(
+                    "Anklicken, verschieben, verbinden",
+                    "Select, move, connect",
+                  )}
+                </span>
+                <label className="circuit-symbols-control">
+                  {t("Schaltzeichen", "Circuit symbols")}
+                  <select
+                    value={circuitSymbols}
+                    onChange={event => setCircuitSymbols(event.target.value as typeof circuitSymbols)}
+                  >
+                    <option value="european">{t("Europäisch (IEC)", "European (IEC)")}</option>
+                    <option value="american">{t("Amerikanisch (ANSI)", "American (ANSI)")}</option>
+                  </select>
+                </label>
+                <label
+                  className="circuit-terminations-control"
+                  title={t("Spannungsquelle, R1 und R2 ein- oder ausblenden", "Show or hide voltage source, R1 and R2")}
+                >
+                  {t("Quelle und Last", "Source and load")}
+                  <input
+                    className="circuit-visibility-switch"
+                    type="checkbox"
+                    role="switch"
+                    checked={showSourceAndLoad}
+                    onChange={event => setShowSourceAndLoad(event.target.checked)}
+                  />
+                </label>
+                <button
+                  className="circuit-align-button"
+                  onClick={alignCircuit}
+                  disabled={generating}
+                  title={t("Bauelemente entlang der Verbindungen automatisch ausrichten.", "Automatically align components along their connections.")}
+                >
+                  <AlignHorizontalDistributeCenter size={15} />
+                  {t("Ausrichten", "Straighten circuit")}
+                </button>
+                <button
+                  className="circuit-rounding-button"
+                  aria-expanded={showRounding}
+                  aria-controls={`component-rounding-${tabId}`}
+                  onClick={() => setShowRounding((show) => !show)}
+                >
+                  <SlidersHorizontal size={15} />
+                  {t("Rundung", "Rounding")}
+                </button>
+                <button
+                  className="circuit-clear-button"
+                  onClick={clearCircuit}
+                  disabled={circuitIsEmpty || generating}
+                  title={t(
+                    "Alle Bauelemente und Signalverbindungen entfernen. Rückgängig ist möglich.",
+                    "Remove all components and signal connections. This can be undone.",
+                  )}
+                >
+                  <Trash2 size={15} />
+                  {t("Schaltung leeren", "Clear circuit")}
+                </button>
+                <span className="toolbar-separator" />
+                <button
+                  className="icon-button"
+                  onClick={undo}
+                  disabled={!canUndo || generating}
+                  aria-label={t("Rückgängig", "Undo")}
+                  title={t("Rückgängig", "Undo")}
+                >
+                  <Undo2 size={16} />
+                </button>
+                <button
+                  className="icon-button"
+                  onClick={redo}
+                  disabled={!canRedo || generating}
+                  aria-label={t("Wiederholen", "Redo")}
+                  title={t("Wiederholen", "Redo")}
+                >
+                  <Redo2 size={16} />
+                </button>
+                <span className="toolbar-separator" />
+                <button
+                  className="icon-button"
+                  aria-label={t("Schaltung einpassen", "Fit circuit to view")}
+                  title={t("Schaltung einpassen", "Fit circuit to view")}
+                  onClick={() => setFitKey((k) => k + 1)}
+                >
+                  <Maximize size={16} />
+                </button>
+              </div> : <div className="canvas-actions">
+                <span className="canvas-hint">{t("Wellen-Digitalfilter aus der analogen Struktur", "Wave digital filter from the analog circuit")}</span>
+                <button className="icon-button" onClick={undo} disabled={!canUndo || generating} aria-label={t("Rückgängig", "Undo")} title={t("Rückgängig", "Undo")}><Undo2 size={16} /></button>
+                <button className="icon-button" onClick={redo} disabled={!canRedo || generating} aria-label={t("Wiederholen", "Redo")} title={t("Wiederholen", "Redo")}><Redo2 size={16} /></button>
+              </div>}
+            </div>
+            {circuitView === "wdf" ? <WdfView project={project} onChange={wdf => commit({ ...project, wdf })}
+              analysis={analysis} plotScales={plotScales} dbRange={sParameterDbRange} onDbRangeChange={setSParameterDbRange} /> : <>
+            <ComponentRoundingControls
+              id={`component-rounding-${tabId}`}
+              open={showRounding}
+              nodes={project.nodes}
+              precision={componentPrecision}
+              disabled={generating}
+              onPrecisionChange={(componentPrecision) => commit({ ...project, componentPrecision })}
+              onRound={(nodes) => {
+                commit({ ...project, nodes });
+                setToast(t(
+                  "Bauteilwerte gerundet. Rückgängig stellt die vorherigen Werte wieder her.",
+                  "Component values rounded. Undo restores the previous values.",
+                ));
+              }}
+            />
+            <div className={`canvas-area ${selected ? "has-inspector" : ""}`}>
+              <div className="canvas-inner">
+                <CircuitEditor
+                  id={tabId}
+                  active={active}
+                  precision={componentPrecision}
+                  nodes={project.nodes}
+                  wires={project.wires}
+                  selectedId={selectedId}
+                  onChange={(nodes: CircuitNode[], wires: CircuitWire[]) =>
+                    commit({ ...project, nodes, wires }, true)
+                  }
+                  onSelect={setSelectedId}
+                  onDropSection={addSection}
+                  fitKey={fitKey}
+                />
+                <div className="canvas-corner-label">
+                  {project.nodes.filter((n) => n.section).length === 0
+                    ? t(
+                        "DEIN EXPERIMENT BEGINNT HIER",
+                        "YOUR EXPERIMENT STARTS HERE",
+                      )
+                    : t("ANALOGE LEITERSCHALTUNG", "ANALOG LADDER CIRCUIT")}
+                </div>
+              </div>
+              {selected && (
+                <aside className="component-inspector">
+                  <div className="inspector-title">
+                    <h3>
+                      {selected.section?.label ??
+                        (selected.port === "input"
+                          ? t("Tor 1", "Port 1")
+                          : t("Tor 2", "Port 2"))}
+                    </h3>
+                    <button
+                      className="icon-button"
+                      onClick={() => setSelectedId(null)}
+                      aria-label={t(
+                        "Eigenschaften schließen",
+                        "Close properties",
+                      )}
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                  {selected.section ? (
+                    <>
+                      <span className="inspector-type">
+                        {selected.section.kind === "L"
+                          ? t("Induktivität", "Inductor")
+                          : selected.section.kind === "C"
+                            ? t("Kapazität", "Capacitor")
+                            : selected.section.kind === "R"
+                              ? t("Widerstand", "Resistor")
+                              : t("LC-Resonator", "LC resonator")}
+                      </span>
+                      <label className="field-label">
+                        {selected.section.kind === "C"
+                          ? t("Kapazität", "Capacitance")
+                          : selected.section.kind === "R"
+                            ? t("Widerstand", "Resistance")
+                            : t("Induktivität", "Inductance")}
+                      </label>
+                      <ComponentValueInput
+                        key={`${selected.id}:value`}
+                        label={t("Bauteilwert", "Component value")}
+                        quantity={
+                          selected.section.kind === "LC"
+                            ? "L"
+                            : selected.section.kind
+                        }
+                        value={selected.section.value}
+                        onChange={(value) => updateSection({ value })}
+                      />
+                      {selected.section.kind === "LC" && (
+                        <>
+                          <label className="field-label">
+                            {t("Kapazität", "Capacitance")}
+                          </label>
+                          <ComponentValueInput
+                            key={`${selected.id}:value2`}
+                            label={t(
+                              "Resonator-Kapazität",
+                              "Resonator capacitance",
+                            )}
+                            quantity="C"
+                            value={selected.section.value2!}
+                            onChange={(value2) => updateSection({ value2 })}
+                          />
+                          <label className="field-label">Resonator</label>
+                          <select
+                            aria-label={t("Resonatorart", "Resonator type")}
+                            value={selected.section.resonator}
+                            onChange={(e) =>
+                              updateSection({
+                                resonator: e.target
+                                  .value as Section["resonator"],
+                              })
+                            }
+                          >
+                            <option value="series">
+                              {t("Serienresonanz", "Series resonance")}
+                            </option>
+                            <option value="parallel">
+                              {t("Parallelresonanz", "Parallel resonance")}
+                            </option>
+                          </select>
+                        </>
+                      )}
+                      <label className="field-label">
+                        {t("Anordnung", "Configuration")}
+                      </label>
+                      <select
+                        aria-label={t(
+                          "Bauteilanordnung",
+                          "Component configuration",
+                        )}
+                        value={selected.section.connection}
+                        onChange={(e) =>
+                          updateSection({
+                            connection: e.target.value as Section["connection"],
+                          })
+                        }
+                      >
+                        <option value="series">
+                          {t("Serienzweig", "Series branch")}
+                        </option>
+                        <option value="shunt">
+                          {t("Querzweig nach Masse", "Shunt to ground")}
+                        </option>
+                      </select>
+                      <button
+                        className="delete-component"
+                        onClick={removeSelected}
+                      >
+                        <Trash2 size={13} />{" "}
+                        {t("Bauelement entfernen", "Remove component")}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="inspector-type">
+                        {t("Reelle Bezugsimpedanz", "Real reference impedance")}
+                      </p>
+                      <PositiveInput
+                        label={t("Torimpedanz", "Port impedance")}
+                        value={
+                          selected.port === "input"
+                            ? project.settings.impedance
+                            : project.z2
+                        }
+                        unit="Ω"
+                        min={0.01}
+                        max={selected.port === "input" ? 1e6 : 1e9}
+                        onChange={(n) =>
+                          selected.port === "input"
+                            ? commit({
+                                ...project,
+                                settings: { ...project.settings, impedance: n },
+                              })
+                            : commit({ ...project, z2: n })
+                        }
+                      />
+                      <p className="inspector-note">
+                        {t(
+                          "Die S-Parameter werden mit dieser Torimpedanz neu berechnet.",
+                          "S-parameters are recalculated using this port impedance.",
+                        )}
+                      </p>
+                    </>
+                  )}
+                </aside>
+              )}
+            </div>
+            <div className="circuit-caption">
+              <span>
+                <span className="caption-dot" />
+                {evaluation.error
+                  ? t(
+                      "Verbinde alle Bauelemente zu einer durchgehenden Kaskade.",
+                      "Connect all components into a continuous cascade.",
+                    )
+                  : t(
+                      "Ideale Bauelemente · Änderungen werden sofort berechnet",
+                      "Ideal components · changes are calculated instantly",
+                    )}
+              </span>
+              <span>
+                Z₁ = {formatEngineering(project.settings.impedance, "Ω")}
+                <span className="caption-slash">/</span>Z₂ ={" "}
+                {formatEngineering(project.z2, "Ω")}
+              </span>
+            </div>
+            </>}
+          </section>
+  );
+
+  if (detached) return <div className="detached-canvas-shell">
+    <header className="detached-canvas-header">
+      <div className="detached-canvas-title"><Activity size={22} aria-hidden="true" /><div>
+        <strong>{project.name}</strong><span>Filterstudio · {t('Ausgelagerte Ansicht', 'Detached view')}</span>
+      </div></div>
+      <div className="detached-canvas-actions">
+        <span className={`live-badge ${detached.connected ? '' : 'warning'}`}><i />{detached.connected ? t('Mit Studio verbunden', 'Connected to studio') : t('Verbindung geschlossen', 'Disconnected')}</span>
+        <button className="button" onClick={() => downloadFile(`${project.name || 'filter'}-copy.json`, JSON.stringify(project, null, 2), 'application/json')}>
+          <Download size={15} />{t('Projektkopie speichern', 'Save project copy')}
+        </button>
+        <button className="button" disabled={!detached.connected} onClick={() => { detached.session.focus(circuitView); window.close(); }}>
+          <ArrowRight size={15} />{t('Wieder andocken', 'Dock back')}
+        </button>
+      </div>
+    </header>
+    {!detached.connected && <p className="detached-disconnected" role="status">{t(
+      'Das ursprüngliche Projekt wurde geschlossen. Die letzte Ansicht bleibt lesbar; du kannst eine Projektkopie speichern.',
+      'The original project has closed. The last view remains visible; you can save a project copy.',
+    )}</p>}
+    <main inert={!detached.connected}>{canvasPanel}</main>
+    {toast && <div className="toast" role="status"><Info size={17} /><span>{translate(toast)}</span>
+      <button aria-label={t('Hinweis schließen', 'Dismiss notification')} onClick={() => setToast('')}><X size={15} /></button>
+    </div>}
+  </div>;
+
   return (
     <div className="app-shell" hidden={!active}>
       <header className="app-header">
@@ -1703,326 +2131,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
           </div>
         </aside>
         <div className="workspace">
-          <section
-            className="circuit-panel"
-            aria-label={t("Schaltung", "Circuit")}
-          >
-            <div className="panel-toolbar">
-              <div className="panel-title">
-                <span className="mini-icon">
-                  <MousePointer2 size={14} />
-                </span>
-                <h2>{t("Schaltung", "Circuit")}</h2>
-                <span
-                  className={`live-badge ${circuitIsEmpty ? "empty" : evaluation.error ? "warning" : ""}`}
-                >
-                  <i />
-                  {circuitIsEmpty
-                    ? t("Leer", "Empty")
-                    : evaluation.error
-                      ? t("Offen", "Open circuit")
-                      : "Live"}
-                </span>
-              </div>
-              <div className="canvas-actions">
-                <span className="canvas-hint">
-                  {t(
-                    "Anklicken, verschieben, verbinden",
-                    "Select, move, connect",
-                  )}
-                </span>
-                <label className="circuit-symbols-control">
-                  {t("Schaltzeichen", "Circuit symbols")}
-                  <select
-                    value={circuitSymbols}
-                    onChange={event => setCircuitSymbols(event.target.value as typeof circuitSymbols)}
-                  >
-                    <option value="european">{t("Europäisch (IEC)", "European (IEC)")}</option>
-                    <option value="american">{t("Amerikanisch (ANSI)", "American (ANSI)")}</option>
-                  </select>
-                </label>
-                <label
-                  className="circuit-terminations-control"
-                  title={t("Spannungsquelle, R1 und R2 ein- oder ausblenden", "Show or hide voltage source, R1 and R2")}
-                >
-                  {t("Quelle und Last", "Source and load")}
-                  <input
-                    className="circuit-visibility-switch"
-                    type="checkbox"
-                    role="switch"
-                    checked={showSourceAndLoad}
-                    onChange={event => setShowSourceAndLoad(event.target.checked)}
-                  />
-                </label>
-                <button
-                  className="circuit-align-button"
-                  onClick={alignCircuit}
-                  disabled={generating}
-                  title={t("Bauelemente entlang der Verbindungen automatisch ausrichten.", "Automatically align components along their connections.")}
-                >
-                  <AlignHorizontalDistributeCenter size={15} />
-                  {t("Ausrichten", "Straighten circuit")}
-                </button>
-                <button
-                  className="circuit-rounding-button"
-                  aria-expanded={showRounding}
-                  aria-controls={`component-rounding-${tabId}`}
-                  onClick={() => setShowRounding((show) => !show)}
-                >
-                  <SlidersHorizontal size={15} />
-                  {t("Rundung", "Rounding")}
-                </button>
-                <button
-                  className="circuit-clear-button"
-                  onClick={clearCircuit}
-                  disabled={circuitIsEmpty || generating}
-                  title={t(
-                    "Alle Bauelemente und Signalverbindungen entfernen. Rückgängig ist möglich.",
-                    "Remove all components and signal connections. This can be undone.",
-                  )}
-                >
-                  <Trash2 size={15} />
-                  {t("Schaltung leeren", "Clear circuit")}
-                </button>
-                <span className="toolbar-separator" />
-                <button
-                  className="icon-button"
-                  onClick={undo}
-                  disabled={!history.length}
-                  aria-label={t("Rückgängig", "Undo")}
-                  title={t("Rückgängig", "Undo")}
-                >
-                  <Undo2 size={16} />
-                </button>
-                <button
-                  className="icon-button"
-                  onClick={redo}
-                  disabled={!future.length}
-                  aria-label={t("Wiederholen", "Redo")}
-                  title={t("Wiederholen", "Redo")}
-                >
-                  <Redo2 size={16} />
-                </button>
-                <span className="toolbar-separator" />
-                <button
-                  className="icon-button"
-                  aria-label={t("Schaltung einpassen", "Fit circuit to view")}
-                  title={t("Schaltung einpassen", "Fit circuit to view")}
-                  onClick={() => setFitKey((k) => k + 1)}
-                >
-                  <Maximize size={16} />
-                </button>
-              </div>
-            </div>
-            <ComponentRoundingControls
-              id={`component-rounding-${tabId}`}
-              open={showRounding}
-              nodes={project.nodes}
-              precision={componentPrecision}
-              disabled={generating}
-              onPrecisionChange={(componentPrecision) => commit({ ...project, componentPrecision })}
-              onRound={(nodes) => {
-                commit({ ...project, nodes });
-                setToast(t(
-                  "Bauteilwerte gerundet. Rückgängig stellt die vorherigen Werte wieder her.",
-                  "Component values rounded. Undo restores the previous values.",
-                ));
-              }}
-            />
-            <div className={`canvas-area ${selected ? "has-inspector" : ""}`}>
-              <div className="canvas-inner">
-                <CircuitEditor
-                  id={tabId}
-                  active={active}
-                  precision={componentPrecision}
-                  nodes={project.nodes}
-                  wires={project.wires}
-                  selectedId={selectedId}
-                  onChange={(nodes: CircuitNode[], wires: CircuitWire[]) =>
-                    commit({ ...project, nodes, wires }, true)
-                  }
-                  onSelect={setSelectedId}
-                  onDropSection={addSection}
-                  fitKey={fitKey}
-                />
-                <div className="canvas-corner-label">
-                  {project.nodes.filter((n) => n.section).length === 0
-                    ? t(
-                        "DEIN EXPERIMENT BEGINNT HIER",
-                        "YOUR EXPERIMENT STARTS HERE",
-                      )
-                    : t("ANALOGE LEITERSCHALTUNG", "ANALOG LADDER CIRCUIT")}
-                </div>
-              </div>
-              {selected && (
-                <aside className="component-inspector">
-                  <div className="inspector-title">
-                    <h3>
-                      {selected.section?.label ??
-                        (selected.port === "input"
-                          ? t("Tor 1", "Port 1")
-                          : t("Tor 2", "Port 2"))}
-                    </h3>
-                    <button
-                      className="icon-button"
-                      onClick={() => setSelectedId(null)}
-                      aria-label={t(
-                        "Eigenschaften schließen",
-                        "Close properties",
-                      )}
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-                  {selected.section ? (
-                    <>
-                      <span className="inspector-type">
-                        {selected.section.kind === "L"
-                          ? t("Induktivität", "Inductor")
-                          : selected.section.kind === "C"
-                            ? t("Kapazität", "Capacitor")
-                            : selected.section.kind === "R"
-                              ? t("Widerstand", "Resistor")
-                              : t("LC-Resonator", "LC resonator")}
-                      </span>
-                      <label className="field-label">
-                        {selected.section.kind === "C"
-                          ? t("Kapazität", "Capacitance")
-                          : selected.section.kind === "R"
-                            ? t("Widerstand", "Resistance")
-                            : t("Induktivität", "Inductance")}
-                      </label>
-                      <ComponentValueInput
-                        key={`${selected.id}:value`}
-                        label={t("Bauteilwert", "Component value")}
-                        quantity={
-                          selected.section.kind === "LC"
-                            ? "L"
-                            : selected.section.kind
-                        }
-                        value={selected.section.value}
-                        onChange={(value) => updateSection({ value })}
-                      />
-                      {selected.section.kind === "LC" && (
-                        <>
-                          <label className="field-label">
-                            {t("Kapazität", "Capacitance")}
-                          </label>
-                          <ComponentValueInput
-                            key={`${selected.id}:value2`}
-                            label={t(
-                              "Resonator-Kapazität",
-                              "Resonator capacitance",
-                            )}
-                            quantity="C"
-                            value={selected.section.value2!}
-                            onChange={(value2) => updateSection({ value2 })}
-                          />
-                          <label className="field-label">Resonator</label>
-                          <select
-                            aria-label={t("Resonatorart", "Resonator type")}
-                            value={selected.section.resonator}
-                            onChange={(e) =>
-                              updateSection({
-                                resonator: e.target
-                                  .value as Section["resonator"],
-                              })
-                            }
-                          >
-                            <option value="series">
-                              {t("Serienresonanz", "Series resonance")}
-                            </option>
-                            <option value="parallel">
-                              {t("Parallelresonanz", "Parallel resonance")}
-                            </option>
-                          </select>
-                        </>
-                      )}
-                      <label className="field-label">
-                        {t("Anordnung", "Configuration")}
-                      </label>
-                      <select
-                        aria-label={t(
-                          "Bauteilanordnung",
-                          "Component configuration",
-                        )}
-                        value={selected.section.connection}
-                        onChange={(e) =>
-                          updateSection({
-                            connection: e.target.value as Section["connection"],
-                          })
-                        }
-                      >
-                        <option value="series">
-                          {t("Serienzweig", "Series branch")}
-                        </option>
-                        <option value="shunt">
-                          {t("Querzweig nach Masse", "Shunt to ground")}
-                        </option>
-                      </select>
-                      <button
-                        className="delete-component"
-                        onClick={removeSelected}
-                      >
-                        <Trash2 size={13} />{" "}
-                        {t("Bauelement entfernen", "Remove component")}
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="inspector-type">
-                        {t("Reelle Bezugsimpedanz", "Real reference impedance")}
-                      </p>
-                      <PositiveInput
-                        label={t("Torimpedanz", "Port impedance")}
-                        value={
-                          selected.port === "input"
-                            ? project.settings.impedance
-                            : project.z2
-                        }
-                        unit="Ω"
-                        min={0.01}
-                        max={selected.port === "input" ? 1e6 : 1e9}
-                        onChange={(n) =>
-                          selected.port === "input"
-                            ? commit({
-                                ...project,
-                                settings: { ...project.settings, impedance: n },
-                              })
-                            : commit({ ...project, z2: n })
-                        }
-                      />
-                      <p className="inspector-note">
-                        {t(
-                          "Die S-Parameter werden mit dieser Torimpedanz neu berechnet.",
-                          "S-parameters are recalculated using this port impedance.",
-                        )}
-                      </p>
-                    </>
-                  )}
-                </aside>
-              )}
-            </div>
-            <div className="circuit-caption">
-              <span>
-                <span className="caption-dot" />
-                {evaluation.error
-                  ? t(
-                      "Verbinde alle Bauelemente zu einer durchgehenden Kaskade.",
-                      "Connect all components into a continuous cascade.",
-                    )
-                  : t(
-                      "Ideale Bauelemente · Änderungen werden sofort berechnet",
-                      "Ideal components · changes are calculated instantly",
-                    )}
-              </span>
-              <span>
-                Z₁ = {formatEngineering(project.settings.impedance, "Ω")}
-                <span className="caption-slash">/</span>Z₂ ={" "}
-                {formatEngineering(project.z2, "Ω")}
-              </span>
-            </div>
-          </section>
+          {canvasPanel}
           <section
             className="results-panel"
             aria-label={t("Analyseergebnisse", "Analysis results")}

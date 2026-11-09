@@ -2,6 +2,18 @@ import type { Language } from "./preference-storage";
 
 /** Engine messages stay canonical German so open diagnostics can change language. */
 const english: Record<string, string> = {
+  "Die Verbindung zum ursprünglichen Projekt wurde geschlossen.": "The connection to the original project has closed.",
+  "Das Filter wird gerade generiert. Bitte danach erneut versuchen.": "The filter is being generated. Please try again afterwards.",
+  "Das Projekt wurde inzwischen geändert. Die aktuelle Ansicht wurde übernommen; bitte die Änderung erneut ausführen.": "The project has changed. The latest view has been loaded; please repeat your change.",
+  "WDF: Die Frequenz muss zwischen 0 und der Nyquist-Frequenz liegen.":
+    "WDF: the frequency must lie between 0 and the Nyquist frequency.",
+  "WDF: Ungültiger Frequenzbereich.": "WDF: invalid frequency range.",
+  "WDF: Bauteilwerte und Torwiderstände müssen positiv und endlich sein.":
+    "WDF: component values and port resistances must be positive and finite.",
+  "WDF: Die Abtastrate muss zwischen 1 Hz und 1 PHz liegen.":
+    "WDF: the sample rate must be between 1 Hz and 1 PHz.",
+  "WDF: Der LC-Resonatortyp fehlt.": "WDF: the LC resonator type is missing.",
+  "Ungültige WDF-Einstellungen in der Datei.": "Invalid WDF settings in the file.",
   "Linkwitz–Riley unterstützt gerade Grade von 2 bis 100.":
     "Linkwitz–Riley supports even orders from 2 to 100.",
   "Linkwitz–Riley: quadrierte Butterworth-Übertragungsfunktion halben Grades, als passive LC-Leiter mit gleichen Abschlüssen realisiert.":

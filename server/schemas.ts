@@ -42,6 +42,7 @@ export const projectSchema = z.object({
   wires: z.array(z.object({ id: idSchema, source: idSchema, target: idSchema })).max(MAX_CIRCUIT_NODES),
   z2: z.number().min(0.01).max(1e9), tolerance: toleranceSchema.optional(),
   componentPrecision: precisionSchema.optional(), sweep: sweepSchema,
+  wdf: z.object({ sampleRate: z.number().min(1).max(1e15), rootId: z.string().min(1).max(256).optional() }).optional(),
 }).superRefine((project, context) => {
   try { parseProject(project); }
   catch (error) { context.addIssue({ code: "custom", message: error instanceof Error ? error.message : "Invalid project" }); }

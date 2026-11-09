@@ -6,6 +6,15 @@ import { frequencyUnits, frequencyUnitScale } from "./frequency-units";
 import { formatUnitValue, parseUnitValue } from "./unit-values";
 
 describe("frequency input units", () => {
+  it("accepts explicit DC only when requested, while still rejecting underflow and zero component values", () => {
+    for (const draft of ["0", "0.0", "+0,00", ".0", "0e9"]) {
+      expect(parseUnitValue(draft, 1e6, 0, 1e12, true)).toBe(0);
+      expect(parseUnitValue(draft, 1e6, 0, 1e12)).toBeNull();
+      expect(parseUnitValue(draft, 1e6, 1, 1e12, true)).toBeNull();
+    }
+    expect(parseUnitValue("1e-999", 1e6, 0, 1e12, true)).toBeNull();
+    expect(parseUnitValue("-0", 1, 0, 1e12, true)).toBeNull();
+  });
   it.each([
     ["Hz", "1000000"], ["kHz", "1000"], ["MHz", "1"], ["GHz", "0.001"],
   ] as const)("represents the same 1 MHz frequency in %s", (unit, expected) => {

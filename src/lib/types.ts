@@ -45,5 +45,7 @@ export type Project = {
   tolerance?: ToleranceSpec;
   /** Significant digits for component labels; omitted in legacy projects (4). */
   componentPrecision?: ComponentPrecision;
+  /** WDF discretization and preferred root adaptor; absent in analog-only files. */
+  wdf?: { sampleRate: number; rootId?: string };
   sweep: { min: number; max: number; points: number };
 };

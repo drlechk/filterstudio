@@ -39,6 +39,7 @@ export function parseUnitValue(
   scale: number,
   min = 0,
   max = Infinity,
+  allowZero = false,
 ): number | null {
   const normalized = draft.trim().replace(",", ".");
   if (!/^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(normalized))
@@ -51,7 +52,7 @@ export function parseUnitValue(
   return Number.isFinite(scale) &&
     scale > 0 &&
     Number.isFinite(value) &&
-    value > 0 &&
+    (value > 0 || (allowZero && value === 0 && /^\+?(?:0+(?:\.0*)?|\.0+)(?:e[+-]?\d+)?$/i.test(normalized))) &&
     value >= min &&
     value <= max
     ? value

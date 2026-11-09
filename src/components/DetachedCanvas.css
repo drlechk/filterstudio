@@ -1,0 +1,27 @@
+.detach-canvas-control { position: relative; }
+.detach-canvas-button { display: flex; align-items: center; gap: 5px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 5px; font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.detach-canvas-button:hover, .detach-canvas-button[aria-expanded="true"] { color: var(--accent-text); background: var(--accent-soft); }
+.detach-canvas-menu { position: absolute; z-index: 30; top: calc(100% + 6px); right: 0; min-width: 175px; padding: 5px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: 7px; box-shadow: 0 6px 22px var(--shadow-floating); }
+.detach-canvas-menu button { display: flex; gap: 9px; align-items: center; width: 100%; padding: 10px; text-align: left; font-size: 12px; border-radius: 4px; }
+.detach-canvas-menu button:hover, .detach-canvas-menu button:focus-visible { background: var(--surface-hover); }
+.detached-canvas-shell { min-height: 100dvh; }
+.detached-canvas-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
+.detached-canvas-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.detached-canvas-title > svg { color: var(--accent); flex-shrink: 0; }
+.detached-canvas-title > div { display: grid; gap: 3px; min-width: 0; }
+.detached-canvas-title strong { font-size: 14px; overflow-wrap: anywhere; }
+.detached-canvas-title span { color: var(--text-muted); font-size: 11px; }
+.detached-canvas-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.detached-canvas-actions .button { font-size: 12px; padding: 8px 10px; }
+.detached-canvas-shell > main { padding: 16px; }
+.detached-canvas-shell .canvas-area { height: calc(100dvh - 200px); min-height: 360px; }
+.detached-canvas-shell .wdf-diagram { height: clamp(380px, 65dvh, 850px); }
+.detached-disconnected { padding: 12px 20px; margin: 0; background: var(--warning-soft); color: var(--warning-text); font-size: 13px; }
+.detached-unavailable { max-width: 620px; margin: 12vh auto; padding: 24px; }
+.detached-unavailable h1 { font-size: 22px; margin-bottom: 16px; }
+.detached-unavailable p { color: var(--text-muted); margin-bottom: 20px; }
+@media (max-width: 600px) {
+  .detached-canvas-header { padding: 12px; }
+  .detached-canvas-shell > main { padding: 8px; }
+  .detached-canvas-shell .canvas-area { min-height: 440px; height: 68dvh; }
+}

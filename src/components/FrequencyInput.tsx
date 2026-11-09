@@ -26,7 +26,8 @@ export function FrequencyInput({ value, onChange, unit, onUnitChange, label, min
 
   function commit(): number | null {
     if (!dirty.current) return value;
-    const next = parseUnitValue(draft, scale, min, max);
+    // DC is permitted only when this frequency field explicitly starts at zero.
+    const next = parseUnitValue(draft, scale, min, max, min === 0);
     if (next === null) {
       setInvalid(true);
       return null;
