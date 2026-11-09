@@ -30,6 +30,7 @@
 .wdf-symbol.chosen .wdf-block { stroke: var(--accent); stroke-width: 3; }
 .wdf-symbol .wdf-kind { font-size: 25px; font-weight: 600; }
 .wdf-symbol .wdf-delay { font-size: 20px; }
+.wdf-symbol .wdf-ladder-label { font-weight: 700; }
 .wdf-symbol .wdf-glyph { stroke-width: 2; }
 .wdf-symbol .wdf-adapted-port { fill: var(--surface); stroke: var(--success); stroke-width: 2; }
 .wdf-wave-edge path { stroke: var(--text-muted); stroke-width: 1; fill: none; }

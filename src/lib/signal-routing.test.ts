@@ -5,6 +5,7 @@ import { buildWdf, type WdfAdaptor } from './wdf';
 import { createCircuit, defaultSettings } from './project';
 import { signalGraphLayout } from '../components/WdfSignalGraph';
 import { synthesize } from './synthesis';
+import type { PortSide } from './wdf-layout';
 
 function separated(segments: WireSegment[]) {
   for (let i = 0; i < segments.length; i++) for (const b of segments.slice(i + 1)) {
@@ -51,8 +52,11 @@ describe('signal net routing', () => {
         expect(drawing.symbols.filter(s => s.operation.kind === 'gain')).toHaveLength(adaptor.adaptedPort === null ? 2 : 1);
         expect(drawing.ports.filter(p => p.side === 'left')).toHaveLength(adaptor.adaptedPort === null ? 0 : 2);
       }
-      const layout = signalGraphLayout(model);
-      separated(layout.edges.flatMap(e => e.data!.segments));
+      for (const mode of ['ladder', 'tree'] as const) {
+        const layout = signalGraphLayout(model, mode);
+        separated(layout.edges.flatMap(e => e.data!.segments));
+        layout.nodes.forEach(node => { if (node.data.drawing) separated(node.data.drawing.wires.segments); });
+      }
     }
   });
 
@@ -65,12 +69,15 @@ describe('signal net routing', () => {
           const adaptor: WdfAdaptor = { id: `${kind}:${adaptedPort}:${reference}:${weight}`, label: 'Test', type: 'adaptor', kind, adaptedPort,
             parentId: adaptedPort === null ? null : 'parent', matrix: [], ports: coefficients.map((value, i) => ({ neighborId: String(i), resistance: 1,
               coefficient: i === adaptedPort ? 1 : value / total * (adaptedPort === null ? 2 : 1), reflection: 0, sign: kind === 'series' && i === 0 ? -1 : 1 })) };
-          const drawing = adaptorSignalLayout(adaptor);
-          separated(drawing.wires.segments);
-          expect(drawing.compact.referencePort).toBe(reference);
-          for (const symbol of drawing.symbols) {
-            expect(symbol.operation.ownerId).toBe(adaptor.id);
-            if (symbol.operation.kind === 'gain') expect(symbol.operation.coefficient).toBeCloseTo(-(adaptedPort === null ? 2 : 1) / total, 14);
+          const orientations: (PortSide[] | undefined)[] = [undefined, ['left', 'top', 'right'], ['bottom', 'left', 'right']];
+          for (const portSides of orientations) {
+            const drawing = adaptorSignalLayout(adaptor, portSides);
+            separated(drawing.wires.segments);
+            expect(drawing.compact.referencePort).toBe(reference);
+            for (const symbol of drawing.symbols) {
+              expect(symbol.operation.ownerId).toBe(adaptor.id);
+              if (symbol.operation.kind === 'gain') expect(symbol.operation.coefficient).toBeCloseTo(-(adaptedPort === null ? 2 : 1) / total, 14);
+            }
           }
         }
       }

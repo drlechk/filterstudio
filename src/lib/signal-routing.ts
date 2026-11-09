@@ -32,7 +32,7 @@ class Heap {
   get length() { return this.items.length; }
 }
 
-export function routeSignalWires(width: number, height: number, obstacles: Rect[], requests: WireRequest[], step = 20): RoutedWire[] {
+export function routeSignalWires(width: number, height: number, obstacles: Rect[], requests: WireRequest[], step = 20, topPadding = 40): RoutedWire[] {
   const columns = Math.round(width / step) + 1, rows = Math.round(height / step) + 1, size = columns * rows;
   const cell = (p: Point) => Math.round(p.y / step) * columns + Math.round(p.x / step);
   const point = (id: number) => ({ x: id % columns * step, y: Math.floor(id / columns) * step });
@@ -70,7 +70,7 @@ export function routeSignalWires(width: number, height: number, obstacles: Rect[
       const x = id % columns, y = Math.floor(id / columns);
       for (const move of moves) {
         const nx = x + move.dx, ny = y + move.dy;
-        if (nx <= 0 || nx >= columns - 1 || ny <= 2 || ny >= rows - 1) continue;
+        if (nx <= 0 || nx >= columns - 1 || ny * step <= topPadding || ny >= rows - 1) continue;
         const next = ny * columns + nx;
         if ((blocked[next] && next !== endLead && next !== startLead) || ([...pins.get(next) ?? []].some(net => net !== request.net))) continue;
         const used = usedEdges.get(edgeKey(id, next));

@@ -17,11 +17,21 @@ it('exposes sample rate, every root including resonators, port coefficients, and
   expect(html).toContain('Port resistances and coefficients');
   expect(html).toContain('Numerical scattering matrix');
   expect(html).toContain('Export WDF');
+  expect(html).toContain('aria-label="WDF layout"');
+  expect(html).toContain('aria-pressed="true">Ladder layout');
+  expect(html).toContain('aria-pressed="false">Tree layout');
   expect(html).toContain('Bilinear without prewarping · result tabs: analog circuit');
   expect(html).not.toContain('class="wdf-response"');
   expect(html).not.toContain('WDF magnitude response');
   expect(html).not.toContain('WDF phase response');
   expect(html).not.toContain('katex-error');
+});
+
+it('offers the same default ladder and optional tree in the signal-flow representation', () => {
+  const html = renderToStaticMarkup(<PreferencesProvider><WdfView project={project} representation="signal" onChange={() => {}} /></PreferencesProvider>);
+  expect(html).toContain('aria-label="WDF signal-flow graph"');
+  expect(html).toContain('aria-pressed="true">Ladder layout');
+  expect(html).toContain('aria-pressed="false">Tree layout');
 });
 
 it('renders a persisted resonator root and sample rate', () => {

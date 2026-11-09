@@ -1,19 +1,22 @@
 import type { WdfAdaptor } from './wdf';
+import type { PortSide } from './wdf-layout';
 import { compactAdaptor, type CompactAdaptor, type SignalOperation } from './wdf-signal-flow';
 import { routeSignalWires, signalWireGeometry, type Direction, type Point, type Rect, type WireRequest } from './signal-routing';
 
 export type SignalSymbol = { operation: SignalOperation; position: Point };
-export type SignalPort = { id: string; waveId: string; port: number; direction: 'a' | 'b'; side: 'left' | 'right'; position: Point };
+export type SignalPort = { id: string; waveId: string; port: number; direction: 'a' | 'b'; side: PortSide; position: Point };
 export type AdaptorDrawing = {
   width: number; height: number; compact: CompactAdaptor; symbols: SignalSymbol[]; ports: SignalPort[];
   requests: WireRequest[]; wires: ReturnType<typeof signalWireGeometry>;
 };
 
 const drawingCache = new Map<string, AdaptorDrawing>();
+// Fixed dimensions keep physical ladder placement stable when the root changes.
+export const COMPACT_ADAPTOR_SIZE = { width: 1000, height: 680 };
 
-export function adaptorSignalLayout(adaptor: WdfAdaptor): AdaptorDrawing {
+export function adaptorSignalLayout(adaptor: WdfAdaptor, portSides?: PortSide[]): AdaptorDrawing {
   const compact = compactAdaptor(adaptor);
-  const cacheKey = JSON.stringify([adaptor.kind, adaptor.ports.map(p => p.sign), adaptor.adaptedPort, compact.referencePort]);
+  const cacheKey = JSON.stringify([adaptor.kind, adaptor.ports.map(p => p.sign), adaptor.adaptedPort, compact.referencePort, portSides]);
   const cached = drawingCache.get(cacheKey);
   if (cached) {
     const rename = (id: string) => { const parts = JSON.parse(id); parts[0] = adaptor.id; return JSON.stringify(parts); };
@@ -32,15 +35,21 @@ export function adaptorSignalLayout(adaptor: WdfAdaptor): AdaptorDrawing {
   const operations = compact.nodes.filter(n => n.kind !== 'wave');
   const layers: SignalOperation[][] = [];
   operations.forEach(n => { const d = level(n.id) - 1; (layers[d] ??= []).push(n); });
-  const height = adaptor.ports.length <= 3 ? 680 : Math.max(640, ...layers.map(layer => layer.length * 160 + 160));
-  const width = adaptor.ports.length <= 3 ? 1000 : (layers.length + 1) * 180 + 140;
+  const height = adaptor.ports.length <= 3 ? COMPACT_ADAPTOR_SIZE.height : Math.max(640, ...layers.map(layer => layer.length * 160 + 160));
+  const width = adaptor.ports.length <= 3 ? COMPACT_ADAPTOR_SIZE.width : (layers.length + 1) * 180 + 140;
   const ports: SignalPort[] = [];
   let child = 0;
   adaptor.ports.forEach((_, i) => {
-    const side = i === adaptor.adaptedPort ? 'left' : 'right';
+    const side = portSides?.[i] ?? (i === adaptor.adaptedPort ? 'left' : 'right');
     const aY = side === 'left' ? height / 2 - 40 : 120 + child++ * 160;
-    for (const direction of ['a', 'b'] as const) ports.push({ id: `${direction}-${i}`, waveId: (direction === 'a' ? compact.inputs : compact.outputs)[i],
-      port: i, direction, side, position: { x: side === 'left' ? 0 : width, y: aY + (direction === 'a' ? 0 : 60) } });
+    for (const direction of ['a', 'b'] as const) {
+      const first = direction === (side === 'left' || side === 'top' ? 'a' : 'b');
+      const position = portSides ? side === 'top' || side === 'bottom'
+        ? { x: width / 2 + (first ? -40 : 40), y: side === 'top' ? 0 : height }
+        : { x: side === 'left' ? 0 : width, y: height / 2 + (first ? -40 : 40) }
+        : { x: side === 'left' ? 0 : width, y: aY + (direction === 'a' ? 0 : 60) };
+      ports.push({ id: `${direction}-${i}`, waveId: (direction === 'a' ? compact.inputs : compact.outputs)[i], port: i, direction, side, position });
+    }
   });
   const positions = new Map(ports.filter(p => p.direction === 'a').map(p => [p.waveId, p.position]));
   const symbols: SignalSymbol[] = [];
@@ -80,19 +89,23 @@ export function adaptorSignalLayout(adaptor: WdfAdaptor): AdaptorDrawing {
     { x: p.x - 20, y: p.y - 20, width: 40, height: 40 },
     ...(node.kind === 'gain' ? [{ x: p.x - 70, y: p.y + 35, width: 140, height: 35 }] : []),
   ]);
-  obstacles.push(...ports.map(port => ({ x: port.side === 'left' ? 0 : width - 80, y: port.position.y - 35, width: 80, height: 30 })));
+  obstacles.push(...ports.map(port => port.side === 'top' || port.side === 'bottom'
+    ? { x: port.position.x + (port.position.x < width / 2 ? -100 : 10), y: port.side === 'top' ? 10 : height - 40, width: 90, height: 30 }
+    : { x: port.side === 'left' ? 0 : width - 80, y: port.position.y - 35, width: 80, height: 30 }));
+  if (portSides) obstacles.push({ x: 0, y: 0, width: 360, height: 40 }, { x: width - 320, y: 0, width: 320, height: 40 });
+  const inward: Record<PortSide, Direction> = { left: 'right', right: 'left', top: 'down', bottom: 'up' };
   const requests: WireRequest[] = compact.edges.map((edge, i) => {
     const source = portByWave.get(edge.source), target = portByWave.get(edge.target);
     const sourcePosition = source?.position ?? positions.get(edge.source)!;
     const targetPosition = target?.position ?? positions.get(edge.target)!;
     const inputIndex = incoming.get(edge.target)!.indexOf(edge);
-    const targetDirection: Direction = target ? target.side === 'left' ? 'right' : 'left' : inputIndex === 0 ? 'left' : inputIndex === 1 ? 'up' : 'down';
+    const targetDirection: Direction = target ? inward[target.side] : inputIndex === 0 ? 'left' : inputIndex === 1 ? 'up' : 'down';
     const offset = targetDirection === 'left' ? { x: -20, y: 0 } : targetDirection === 'up' ? { x: 0, y: -20 } : { x: 0, y: 20 };
     return { id: `${adaptor.id}:${i}`, net: edge.source, sign: edge.sign,
-      start: source ? sourcePosition : { x: sourcePosition.x + 20, y: sourcePosition.y }, startDirection: source?.side === 'right' ? 'left' : 'right',
+      start: source ? sourcePosition : { x: sourcePosition.x + 20, y: sourcePosition.y }, startDirection: source ? inward[source.side] : 'right',
       end: target ? targetPosition : { x: targetPosition.x + offset.x, y: targetPosition.y + offset.y }, endDirection: targetDirection };
   });
-  const wires = signalWireGeometry(routeSignalWires(width, height, obstacles, requests));
+  const wires = signalWireGeometry(routeSignalWires(width, height, obstacles, requests, 20, portSides ? 0 : 40));
   const drawing = { width, height, compact, symbols, ports, requests, wires };
   drawingCache.set(cacheKey, drawing);
   return drawing;

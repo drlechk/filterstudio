@@ -10,16 +10,50 @@ import { formatEngineering } from '../lib/network';
 import { downloadFile } from '../lib/project';
 import type { Project } from '../lib/types';
 import { buildWdf, defaultWdfSampleRate, exportWdf, MAX_WDF_SAMPLE_RATE, type WdfAdaptor, type WdfElement, type WdfModel, type WdfSettings } from '../lib/wdf';
+import { wdfLadderLayout, type PortSide, type WdfLayoutMode } from '../lib/wdf-layout';
 import './WdfView.css';
 
-type WdfNode = Node<{ item: WdfAdaptor | WdfElement; root: boolean; selected: boolean }, 'wdf'>;
+type WdfNode = Node<{ item: WdfAdaptor | WdfElement; root: boolean; selected: boolean; portSides?: PortSide[] }, 'wdf'>;
 type WdfEdge = Edge<{ resistance: number }, 'waves'>;
 const childY = (index: number, count: number) => count === 1 ? 64 : 30 + index * 68 / (count - 1);
+const portPosition = { left: Position.Left, top: Position.Top, right: Position.Right, bottom: Position.Bottom };
+
+function LadderSymbol({ data }: { data: WdfNode['data'] }) {
+  const { t, language } = usePreferences();
+  const { item, root, selected, portSides = [] } = data;
+  const adaptor = item.type === 'adaptor';
+  return <div className={`wdf-symbol wdf-ladder-symbol ${adaptor ? 'adaptor' : 'element'} ${root ? 'root' : ''} ${selected ? 'chosen' : ''}`}>
+    <svg width="196" height="176" viewBox="0 0 196 176" aria-hidden="true">
+      <rect className="wdf-block" x="44" y="42" width="108" height="92" rx="2" />
+      <text className="wdf-ladder-label" x="98" y="62" textAnchor="middle">{item.label}</text>
+      <text className={adaptor ? 'wdf-kind' : 'wdf-delay'} x="98" y="91" textAnchor="middle">{adaptor ? item.kind === 'series' ? 'S' : 'P'
+        : item.kind === 'C' ? 'z⁻¹' : item.kind === 'L' ? '−z⁻¹' : item.kind === 'source' ? 'Vₛ[n]' : '0'}</text>
+      <text x="98" y="118" textAnchor="middle">{adaptor ? root ? t('Wurzel', 'Root') : `ρ${item.adaptedPort! + 1} = 0`
+        : formatEngineering(item.value, item.kind === 'C' ? 'F' : item.kind === 'L' ? 'H' : 'Ω', 4, language)}</text>
+      {portSides.map((side, port) => {
+        const adapted = adaptor && port === item.adaptedPort;
+        const vertical = side === 'top' || side === 'bottom';
+        const x = side === 'left' ? 44 : side === 'right' ? 152 : 98;
+        const y = side === 'top' ? 42 : side === 'bottom' ? 134 : 88;
+        const end = side === 'top' ? 0 : side === 'bottom' ? 176 : side === 'left' ? 0 : 196;
+        return <g key={port}>
+          <path d={vertical ? `M95 ${y}V${end}M101 ${y}V${end}` : `M${x} 85H${end}M${x} 91H${end}`} />
+          {adapted && <circle className="wdf-adapted-port" cx={x} cy={y} r="5" />}
+          {adaptor && <text x={vertical ? 111 : side === 'left' ? 8 : 160} y={vertical ? side === 'top' ? 27 : 159 : 75}>
+            {port + 1}{item.ports[port].sign < 0 ? '−' : ''}{adapted ? '*' : ''}</text>}
+        </g>;
+      })}
+    </svg>
+    {portSides.flatMap((side, port) => (['source', 'target'] as const).map(type => <Handle key={`${type}-${port}`} type={type} id={`port-${port}`}
+      position={portPosition[side]} style={side === 'left' || side === 'right' ? { top: 88 } : { left: 98 }} isConnectable={false} />))}
+  </div>;
+}
 
 function WdfSymbol({ data }: NodeProps<WdfNode>) {
   const { t, language } = usePreferences();
   const { item, root, selected } = data;
   const eng = (n: number, unit: string) => formatEngineering(n, unit, 4, language);
+  if (data.portSides) return <LadderSymbol data={data} />;
   const adaptor = item.type === 'adaptor';
   const childPorts = adaptor ? item.ports.map((_, i) => i).filter(i => i !== item.adaptedPort) : [];
   return <div className={`wdf-symbol ${adaptor ? 'adaptor' : 'element'} ${root ? 'root' : ''} ${selected ? 'chosen' : ''}`}>
@@ -56,20 +90,45 @@ function WdfSymbol({ data }: NodeProps<WdfNode>) {
 
 function WaveEdge(props: EdgeProps<WdfEdge>) {
   const { language } = usePreferences();
-  const [up, x, y] = getBezierPath({ ...props, sourceY: props.sourceY - 3, targetY: props.targetY - 3 });
-  const [down] = getBezierPath({ ...props, sourceY: props.sourceY + 3, targetY: props.targetY + 3 });
+  const offset = (amount: number) => ({ ...props,
+    sourceX: props.sourceX + ([Position.Top, Position.Bottom].includes(props.sourcePosition) ? amount : 0),
+    sourceY: props.sourceY + ([Position.Left, Position.Right].includes(props.sourcePosition) ? amount : 0),
+    targetX: props.targetX + ([Position.Top, Position.Bottom].includes(props.targetPosition) ? amount : 0),
+    targetY: props.targetY + ([Position.Left, Position.Right].includes(props.targetPosition) ? amount : 0) });
+  const [up, x, y] = getBezierPath(offset(-3));
+  const [down] = getBezierPath(offset(3));
+  const vertical = props.sourcePosition === Position.Top || props.sourcePosition === Position.Bottom;
   return <g className="wdf-wave-edge">
     <path d={up} markerStart={props.markerStart} /><path d={down} markerEnd={props.markerEnd} />
-    <rect x={x - 49} y={y - 26} width="98" height="19" rx="3" />
-    <text x={x} y={y - 13} textAnchor="middle">{formatEngineering(props.data!.resistance, 'Ω', 4, language)}</text>
+    <rect x={x + (vertical ? 10 : -49)} y={y - 26} width="98" height="19" rx="3" />
+    <text x={x + (vertical ? 59 : 0)} y={y - 13} textAnchor="middle">{formatEngineering(props.data!.resistance, 'Ω', 4, language)}</text>
   </g>;
 }
 const nodeTypes = { wdf: WdfSymbol };
 const edgeTypes = { waves: WaveEdge };
 
-function diagram(model: WdfModel, selected: string): { nodes: WdfNode[]; edges: WdfEdge[] } {
+export function wdfDiagram(model: WdfModel, selected: string, mode: WdfLayoutMode = 'ladder'): { nodes: WdfNode[]; edges: WdfEdge[] } {
   const map = new Map<string, WdfAdaptor | WdfElement>([...model.adaptors, ...model.elements].map(n => [n.id, n]));
   const nodes: WdfNode[] = [], edges: WdfEdge[] = [];
+  if (mode === 'ladder') {
+    const placements = wdfLadderLayout(model, () => ({ width: 196, height: 176 }));
+    for (const [id, { position, portSides }] of placements) {
+      const item = map.get(id)!;
+      nodes.push({ id, type: 'wdf', position, data: { item, root: id === model.rootId, selected: id === selected, portSides },
+        width: 196, height: 176, draggable: false, selectable: item.type === 'adaptor', ariaLabel: `${item.label}, ${item.kind}${id === model.rootId ? ', root' : ''}` });
+    }
+    const connected = new Set<string>();
+    for (const adaptor of model.adaptors) adaptor.ports.forEach((port, i) => {
+      const id = JSON.stringify([adaptor.id, port.neighborId].sort());
+      if (connected.has(id)) return;
+      connected.add(id);
+      const neighbor = map.get(port.neighborId)!;
+      const targetPort = neighbor.type === 'adaptor' ? neighbor.ports.findIndex(p => p.neighborId === adaptor.id) : 0;
+      edges.push({ id, source: adaptor.id, target: neighbor.id, sourceHandle: `port-${i}`, targetHandle: `port-${targetPort}`, type: 'waves',
+        data: { resistance: port.resistance }, markerStart: { type: MarkerType.ArrowClosed, color: 'var(--text-muted)' }, markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--text-muted)' } });
+    });
+    return { nodes, edges };
+  }
   type Layout = { points: { id: string; depth: number; y: number }[]; contour: { min: number; max: number }[] };
   function layout(id: string): Layout {
     const item = map.get(id)!;
@@ -134,13 +193,14 @@ export function WdfView({ project, onChange, representation = 'adaptors' }: {
   const sampleRate = project.wdf?.sampleRate ?? defaultWdfSampleRate(project.settings);
   const [unit, setUnit] = useState<FrequencyUnit>(() => sampleRate >= 1e9 ? 'GHz' : sampleRate >= 1e6 ? 'MHz' : sampleRate >= 1e3 ? 'kHz' : 'Hz');
   const [selectedId, setSelectedId] = useState('');
+  const [layoutMode, setLayoutMode] = useState<WdfLayoutMode>('ladder');
   const result = useMemo(() => {
     try { return { model: buildWdf(project, sampleRate, project.wdf?.rootId), error: null }; }
     catch (e) { return { model: null, error: e instanceof Error ? e.message : String(e) }; }
   }, [project.nodes, project.wires, project.settings, project.z2, sampleRate, project.wdf?.rootId]);
   const model = result.model;
   const selected = model?.adaptors.find(a => a.id === selectedId) ?? model?.adaptors.find(a => a.id === model.rootId);
-  const flow = useMemo(() => model ? diagram(model, selected?.id ?? '') : null, [model, selected?.id]);
+  const flow = useMemo(() => model ? wdfDiagram(model, selected?.id ?? '', layoutMode) : null, [model, selected?.id, layoutMode]);
   const eng = (n: number, unit: string) => formatEngineering(n, unit, 5, language);
   const chooseRoot = (rootId: string) => { setSelectedId(rootId); onChange({ sampleRate, rootId }); };
   return <div className="wdf-view">
@@ -150,16 +210,20 @@ export function WdfView({ project, onChange, representation = 'adaptors' }: {
       <label>{t('Wurzelelement', 'Root element')}<select aria-label={t('WDF-Wurzelelement', 'WDF root element')} value={model?.rootId ?? ''} disabled={!model} onChange={e => chooseRoot(e.target.value)}>
         {!model && <option value="">—</option>}{model?.adaptors.map(a => <option key={a.id} value={a.id}>{a.label} · {a.kind === 'series' ? t('Serie', 'Series') : t('Parallel', 'Parallel')}</option>)}
       </select></label>
+      <div className="circuit-view-switch" role="group" aria-label={t('WDF-Anordnung', 'WDF layout')}>
+        <button aria-pressed={layoutMode === 'ladder'} onClick={() => setLayoutMode('ladder')}>{t('Leiterstruktur', 'Ladder layout')}</button>
+        <button aria-pressed={layoutMode === 'tree'} onClick={() => setLayoutMode('tree')}>{t('Baumdarstellung', 'Tree layout')}</button>
+      </div>
       <div className="wdf-timing"><span>T = {eng(1 / sampleRate, 's')}</span><span>Nyquist = {eng(sampleRate / 2, 'Hz')}</span></div>
       <button className="button" disabled={!model} onClick={() => model && downloadFile(`${project.name}-wdf.json`, exportWdf(model), 'application/json')}><Download size={14} />{t('WDF exportieren', 'Export WDF')}</button>
     </div>
     {result.error ? <div className="wdf-error" role="status"><Network size={22} /><strong>{t('Die analoge Schaltung ist noch nicht bereit.', 'The analog circuit is not ready yet.')}</strong><p>{translate(result.error)}</p></div> : model && selected && flow && <>
       {model.rootChanged && <p className="wdf-notice" role="status">{t('Der gespeicherte Adaptor existiert nicht mehr. Der erste Adaptor dient jetzt als Wurzel.', 'The saved adaptor no longer exists. The first adaptor is now the root.')}</p>}
       <div className="wdf-main">
-        {representation === 'signal' ? <WdfSignalGraph model={model} selectedId={selected.id} onSelect={setSelectedId} onRoot={chooseRoot} /> :
+        {representation === 'signal' ? <WdfSignalGraph model={model} selectedId={selected.id} onSelect={setSelectedId} onRoot={chooseRoot} layoutMode={layoutMode} /> :
         <div className="wdf-diagram" aria-label={t('Wellen-Digitalfilter mit Adaptoren', 'Wave digital filter with adaptors')}>
-          <ReactFlow key={model.rootId + model.adaptors.map(a => a.id).join(',')} colorMode={theme} nodes={flow.nodes} edges={flow.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
-            fitView fitViewOptions={{ padding: .15, maxZoom: 1 }} minZoom={.02} maxZoom={2.5} nodesDraggable={false} nodesConnectable={false} zoomOnDoubleClick={false}
+          <ReactFlow key={layoutMode + (layoutMode === 'tree' ? model.rootId : '') + model.adaptors.map(a => a.id).join(',')} colorMode={theme} nodes={flow.nodes} edges={flow.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
+            fitView fitViewOptions={{ padding: .15, maxZoom: 1 }} minZoom={.001} maxZoom={2.5} nodesDraggable={false} nodesConnectable={false} zoomOnDoubleClick={false}
             onNodeClick={(_, node) => { if (node.data.item.type === 'adaptor') setSelectedId(node.id); }}
             onNodeDoubleClick={(_, node) => { if (node.data.item.type === 'adaptor') chooseRoot(node.id); }}
             deleteKeyCode={null} proOptions={{ hideAttribution: true }}>

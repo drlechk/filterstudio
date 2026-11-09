@@ -5,16 +5,75 @@ import { usePreferences } from '../lib/preferences';
 import { formatEngineering } from '../lib/network';
 import type { WdfAdaptor, WdfElement, WdfModel } from '../lib/wdf';
 import { buildWdfSignalFlow, portSubscript } from '../lib/wdf-signal-flow';
-import { adaptorSignalLayout, type AdaptorDrawing } from '../lib/wdf-signal-layout';
+import { adaptorSignalLayout, COMPACT_ADAPTOR_SIZE, type AdaptorDrawing } from '../lib/wdf-signal-layout';
+import { wdfLadderLayout, type PortSide, type WdfLayoutMode } from '../lib/wdf-layout';
 import { bridgedPath, signalWireGeometry, type Point, type RoutedWire, type WireSegment } from '../lib/signal-routing';
 import './WdfSignalGraph.css';
 
 type GraphNode = Node<{
   adaptor?: WdfAdaptor; element?: WdfElement; drawing?: AdaptorDrawing;
-  root: boolean; chosen: boolean;
+  root: boolean; chosen: boolean; elementSide?: PortSide;
 }, 'signal'>;
 type GraphEdge = Edge<{ segments: WireSegment[]; points: Point[]; active: boolean; caption: string }, 'signal'>;
 const polyline = (points: Point[]) => points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join('');
+const sidePosition = { left: Position.Left, right: Position.Right, top: Position.Top, bottom: Position.Bottom };
+function elementPort(side: PortSide, handle: string): Point {
+  if (handle === 'voltage') return { x: 280, y: 220 };
+  if (side === 'bottom') return { x: handle === 'a' ? 180 : 100, y: 260 };
+  return { x: side === 'right' ? 280 : 0, y: (handle === 'a') === (side === 'left') ? 90 : 170 };
+}
+
+function LadderSignalElement({ element, side, marker }: { element: WdfElement; side: PortSide; marker: string }) {
+  const { t, language } = usePreferences();
+  const reactive = element.kind === 'L' || element.kind === 'C';
+  const bottom = side === 'bottom', right = side === 'right';
+  const p = (x: number, y: number) => right ? { x: 280 - x, y: 260 - y } : { x, y };
+  const label = (x: number, y: number, text: string, className?: string) => <text {...p(x, y)} textAnchor="middle" className={className}>{text}</text>;
+  const a = elementPort(side, 'a'), b = elementPort(side, 'b');
+  return <>
+    <svg width="280" height="260" aria-label={element.label}>
+      {bottom ? <>
+        {reactive ? <>
+          <path className="wdf-signal-wire" d="M180 260V210H220V102H190" markerEnd={`url(#${marker})`} />
+          <rect className="wdf-signal-delay" x="90" y="80" width="100" height="44" />
+          <text className="wdf-signal-delay-label" x="140" y="109" textAnchor="middle">z⁻¹</text>
+          <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M90 102H60V140M60 180V220H100V260' : 'M90 102H60V220H100V260'} markerEnd={`url(#${marker})`} />
+          {element.kind === 'L' && <><circle className="wdf-signal-sum" cx="60" cy="160" r="20" /><text x="60" y="165" textAnchor="middle">−1</text></>}
+          <text x="140" y="60" textAnchor="middle">{formatEngineering(element.value, element.kind === 'C' ? 'F' : 'H', 5, language)}</text>
+        </> : <>
+          <path className="wdf-signal-wire" d="M180 260V150" /><path className="wdf-signal-termination" d="M171 150H189M174 143H186" />
+          <rect className="wdf-signal-delay" x="55" y="80" width="90" height="44" /><text x="100" y="108" textAnchor="middle">0</text>
+          <path className="wdf-signal-wire" d="M100 124V260" markerEnd={`url(#${marker})`} />
+          <text x="180" y="128" textAnchor="middle">{t('angepasst', 'matched')}</text>
+        </>}
+        <text x="194" y="246">a[n]</text><text x="86" y="246" textAnchor="end">b[n]</text>
+      </> : <>
+        <g transform={right ? 'translate(280 260) rotate(180)' : undefined}>
+          {reactive ? <>
+            <path className="wdf-signal-wire" d="M0 90H70" markerEnd={`url(#${marker})`} /><rect className="wdf-signal-delay" x="70" y="68" width="80" height="44" />
+            <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M150 90H180M220 90H250V170H0' : 'M150 90H250V170H0'} markerEnd={`url(#${marker})`} />
+            {element.kind === 'L' && <circle className="wdf-signal-sum" cx="200" cy="90" r="20" />}
+          </> : <>
+            <rect className="wdf-signal-delay" x="100" y="148" width="90" height="44" />
+            <path className="wdf-signal-wire" d="M100 170H0" markerEnd={`url(#${marker})`} /><path className="wdf-signal-wire" d="M0 90H70" />
+            <path className="wdf-signal-termination" d="M70 81V99M77 84V96" />
+            {element.id === 'load' && <><path className="wdf-signal-wire" d="M30 90V50H240V220H280" markerEnd={`url(#${marker})`} /><circle className="wdf-signal-junction" cx="30" cy="90" r="3.5" /></>}
+          </>}
+        </g>
+        {reactive ? <>
+          {label(110, right ? 83 : 97, 'z⁻¹', 'wdf-signal-delay-label')}
+          {element.kind === 'L' && label(200, right ? 85 : 95, '−1')}
+          {label(140, 220, formatEngineering(element.value, element.kind === 'C' ? 'F' : 'H', 5, language))}
+        </> : <>{label(145, right ? 164 : 176, element.kind === 'source' ? 'Vₛ[n]' : '0')}{label(140, 95, t('angepasst', 'matched'))}</>}
+        <text x={right ? 268 : 12} y={a.y - 16} textAnchor={right ? 'end' : 'start'}>a[n]</text>
+        <text x={right ? 268 : 12} y={b.y - 16} textAnchor={right ? 'end' : 'start'}>b[n]</text>
+      </>}
+    </svg>
+    {(['a', 'b'] as const).map(handle => { const point = elementPort(side, handle); return <Handle key={handle} id={handle} type={handle === 'a' ? 'target' : 'source'}
+      position={sidePosition[side]} style={bottom ? { left: point.x } : { top: point.y }} isConnectable={false} />; })}
+    {element.id === 'load' && <Handle type="source" id="voltage" position={Position.Right} style={{ top: 220 }} isConnectable={false} />}
+  </>;
+}
 function arrowTail(end: Point, previous: Point, length = 14) {
   return { x: end.x + Math.sign(previous.x - end.x) * length, y: end.y + Math.sign(previous.y - end.y) * length };
 }
@@ -49,14 +108,21 @@ function SignalNode({ data }: NodeProps<GraphNode>) {
         </g>)}
         {drawing.ports.map(port => <g key={port.id}>
           <circle className="wdf-signal-port" cx={port.position.x} cy={port.position.y} r="4" />
-          <text x={port.position.x + (port.side === 'left' ? 10 : -10)} y={port.position.y - 12} textAnchor={port.side === 'left' ? 'start' : 'end'}>
+          <text x={port.position.x + (port.side === 'left' || ((port.side === 'top' || port.side === 'bottom') && port.position.x > drawing.width / 2) ? 10 : -10)}
+            y={port.side === 'top' ? 28 : port.position.y - 12}
+            textAnchor={port.side === 'left' || ((port.side === 'top' || port.side === 'bottom') && port.position.x > drawing.width / 2) ? 'start' : 'end'}>
             {port.direction}{portSubscript(port.port)}[n]{port.port === adaptor.adaptedPort ? '*' : ''}</text>
         </g>)}
       </svg>
       {drawing.ports.map(port => <Handle key={port.id} type={port.direction === 'a' ? 'target' : 'source'} id={port.id}
-        position={port.side === 'left' ? Position.Left : Position.Right} style={{ top: port.position.y }} isConnectable={false} />)}
+        position={sidePosition[port.side]} style={port.side === 'top' || port.side === 'bottom' ? { left: port.position.x } : { top: port.position.y }} isConnectable={false} />)}
     </div>;
   }
+  if (element && data.elementSide) return <div className="wdf-signal-node wdf-signal-element">
+    <div className="wdf-signal-heading"><strong>{element.label}</strong></div>
+    <svg width="0" height="0">{markerDef}</svg>
+    <LadderSignalElement element={element} side={data.elementSide} marker={marker} />
+  </div>;
   const output = !element, reactive = element?.kind === 'L' || element?.kind === 'C';
   return <div className="wdf-signal-node wdf-signal-element">
     <div className="wdf-signal-heading"><strong>{element?.label ?? 'Vout[n]'}</strong></div>
@@ -99,10 +165,12 @@ function SignalEdge({ data, markerEnd }: EdgeProps<GraphEdge>) {
 }
 const nodeTypes = { signal: SignalNode }, edgeTypes = { signal: SignalEdge };
 
-export function signalGraphLayout(model: WdfModel): { nodes: GraphNode[]; edges: GraphEdge[] } {
+export function signalGraphLayout(model: WdfModel, mode: WdfLayoutMode = 'ladder'): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const graph = buildWdfSignalFlow(model);
   const items = new Map<string, WdfAdaptor | WdfElement>([...model.adaptors, ...model.elements].map(item => [item.id, item]));
-  const drawings = new Map(model.adaptors.map(a => [a.id, adaptorSignalLayout(a)]));
+  const ladder = mode === 'ladder' ? wdfLadderLayout(model, id => items.get(id)?.type === 'adaptor'
+    ? COMPACT_ADAPTOR_SIZE : { width: 280, height: 260 }, 200) : null;
+  const drawings = new Map(model.adaptors.map(a => [a.id, adaptorSignalLayout(a, ladder?.get(a.id)?.portSides)]));
   const size = (id: string) => drawings.get(id) ?? (id === 'voltage-output' ? { width: 240, height: 160 } : { width: 280, height: 260 });
   type Layout = { points: { id: string; depth: number; y: number }[]; contour: { min: number; max: number }[] };
   function layout(id: string): Layout {
@@ -122,31 +190,46 @@ export function signalGraphLayout(model: WdfModel): { nodes: GraphNode[]; edges:
     return { points: [{ id, depth: 0, y: 0 }, ...packed.flatMap(({ branch, offset }) => branch.points.map(point => ({ ...point, depth: point.depth + 1, y: point.y + offset - pivot })))],
       contour: [{ min: -height / 2, max: height / 2 }, ...contour.map(box => ({ min: box.min - pivot, max: box.max - pivot }))] };
   }
-  const points = layout(model.rootId).points;
+  const points = ladder ? [] : layout(model.rootId).points;
   const depthById = new Map(points.map(p => [p.id, p.depth]));
   const widths: number[] = [], gaps: number[] = [], offsets = [0];
   points.forEach(p => { widths[p.depth] = Math.max(widths[p.depth] ?? 0, size(p.id).width); });
-  graph.links.forEach(link => { const d = Math.min(depthById.get(link.source)!, depthById.get(link.target)!); gaps[d] = (gaps[d] ?? 0) + 1; });
+  if (!ladder) graph.links.forEach(link => { const d = Math.min(depthById.get(link.source)!, depthById.get(link.target)!); gaps[d] = (gaps[d] ?? 0) + 1; });
   widths.forEach((w, d) => { offsets[d + 1] = offsets[d] + w + Math.max(200, (gaps[d] ?? 0) * 24 + 100); });
-  const nodes: GraphNode[] = points.map(point => {
+  const nodes: GraphNode[] = ladder ? [...ladder].map(([id, placement]) => {
+    const item = items.get(id)!, { width, height } = size(id);
+    return { id, type: 'signal', position: placement.position, width, height,
+      draggable: false, selectable: item.type === 'adaptor', data: { ...(item.type === 'adaptor' ? { adaptor: item, drawing: drawings.get(id) }
+        : { element: item, elementSide: placement.portSides[0] }), root: id === model.rootId, chosen: false } };
+  }) : points.map(point => {
     const item = items.get(point.id), { width, height } = size(point.id);
     return { id: point.id, type: 'signal', position: { x: offsets[point.depth], y: point.y - height / 2 }, width, height,
       draggable: false, selectable: item?.type === 'adaptor', data: { ...(item?.type === 'adaptor' ? { adaptor: item, drawing: drawings.get(item.id) } : { element: item }), root: item?.id === model.rootId, chosen: false } };
   });
+  if (ladder) {
+    const load = nodes.find(node => node.id === 'load')!;
+    nodes.push({ id: 'voltage-output', type: 'signal', position: { x: load.position.x + load.width! + 200, y: load.position.y + 140 },
+      width: 240, height: 160, draggable: false, selectable: false, data: { root: false, chosen: false } });
+  }
   const positioned = new Map(nodes.map(node => [node.id, node]));
   const portPosition = (id: string, handle: string): Point => {
     const node = positioned.get(id)!, drawing = drawings.get(id), item = items.get(id);
     if (drawing) { const port = drawing.ports.find(p => p.id === handle)!; return { x: node.position.x + port.position.x, y: node.position.y + port.position.y }; }
+    if (node.data.elementSide) { const p = elementPort(node.data.elementSide, handle); return { x: node.position.x + p.x, y: node.position.y + p.y }; }
     const reactive = item?.type === 'element' && (item.kind === 'L' || item.kind === 'C');
     return { x: node.position.x + (handle === 'voltage' ? 280 : 0),
       y: node.position.y + (handle === 'voltage' ? 220 : handle === 'a' ? reactive || !item ? 80 : 160 : reactive ? 160 : 80) };
   };
   const used = new Map<number, number>();
   const routes: RoutedWire[] = graph.links.map(link => {
+    const start = portPosition(link.source, link.sourceHandle), end = portPosition(link.target, link.targetHandle);
+    if (ladder) {
+      // Opposing wave pins align in the physical ladder, including vertical branches.
+      return { id: link.id, net: link.id, points: [start, end] };
+    }
     const depth = Math.min(depthById.get(link.source)!, depthById.get(link.target)!);
     const lane = used.get(depth) ?? 0; used.set(depth, lane + 1);
     const x = offsets[depth] + widths[depth] + 40 + lane * 24;
-    const start = portPosition(link.source, link.sourceHandle), end = portPosition(link.target, link.targetHandle);
     return { id: link.id, net: link.id, points: [start, { x, y: start.y }, { x, y: end.y }, end] };
   });
   const geometry = signalWireGeometry(routes);
@@ -156,18 +239,18 @@ export function signalGraphLayout(model: WdfModel): { nodes: GraphNode[]; edges:
   return { nodes, edges };
 }
 
-export function WdfSignalGraph({ model, selectedId, onSelect, onRoot }: {
-  model: WdfModel; selectedId: string; onSelect: (id: string) => void; onRoot: (id: string) => void;
+export function WdfSignalGraph({ model, selectedId, onSelect, onRoot, layoutMode = 'ladder' }: {
+  model: WdfModel; selectedId: string; onSelect: (id: string) => void; onRoot: (id: string) => void; layoutMode?: WdfLayoutMode;
 }) {
   const { t, theme } = usePreferences();
   const [instance, setInstance] = useState<ReactFlowInstance<GraphNode, GraphEdge> | null>(null);
-  const layout = useMemo(() => signalGraphLayout(model), [model]);
+  const layout = useMemo(() => signalGraphLayout(model, layoutMode), [model, layoutMode]);
   const flow = useMemo(() => ({ nodes: layout.nodes.map(node => ({ ...node, data: { ...node.data, chosen: node.id === selectedId } })),
     edges: layout.edges.map(edge => { const active = edge.source === selectedId || edge.target === selectedId;
       return { ...edge, data: { ...edge.data!, active }, markerEnd: { type: MarkerType.ArrowClosed, color: active ? 'var(--accent)' : 'var(--text-muted)' } }; }) }), [layout, selectedId]);
   return <div className="wdf-diagram wdf-signal-diagram" aria-label={t('WDF-Signalflussgraph', 'WDF signal-flow graph')}>
-    <ReactFlow<GraphNode, GraphEdge> key={model.rootId + model.adaptors.map(a => a.id).join(',')} nodes={flow.nodes} edges={flow.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
-      onInit={setInstance} colorMode={theme} fitView fitViewOptions={{ nodes: [{ id: model.rootId }], padding: .12, maxZoom: 1 }}
+    <ReactFlow<GraphNode, GraphEdge> key={layoutMode + (layoutMode === 'tree' ? model.rootId : '') + model.adaptors.map(a => a.id).join(',')} nodes={flow.nodes} edges={flow.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
+      onInit={setInstance} colorMode={theme} fitView fitViewOptions={{ ...(layoutMode === 'tree' ? { nodes: [{ id: model.rootId }] } : {}), padding: .12, maxZoom: 1 }}
       minZoom={.001} maxZoom={2.5} nodesDraggable={false} nodesConnectable={false} zoomOnDoubleClick={false} deleteKeyCode={null} onlyRenderVisibleElements
       onNodeClick={(_, node) => { if (node.data.adaptor) onSelect(node.id); }}
       onNodeDoubleClick={(_, node) => { if (node.data.adaptor) onRoot(node.id); }} proOptions={{ hideAttribution: true }}>
