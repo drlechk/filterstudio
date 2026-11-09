@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { flushSync } from 'react-dom';
-import { CanvasSession, CanvasWriter, canvasRegistry, detachedCanvasUrl, findCanvasSession, type CanvasActions, type CanvasPublication, type CanvasView } from './detached-canvas';
+import { CanvasSession, CanvasWriter, canvasRegistry, detachedCanvasUrl, findCanvasSession, type CanvasActions, type CanvasPublication, type DetachedView } from './detached-canvas';
 
 export function useCanvasHost(publication: CanvasPublication, actions: CanvasActions, enabled: boolean) {
   const [id] = useState(() => crypto.randomUUID());
@@ -15,6 +15,7 @@ export function useCanvasHost(publication: CanvasPublication, actions: CanvasAct
     const synchronous: CanvasActions = {
       commit: (project, coalesce) => flushSync(() => actions.commit(project, coalesce)),
       undo: () => flushSync(actions.undo), redo: () => flushSync(actions.redo),
+      setTolerance: spec => flushSync(() => actions.setTolerance?.(spec)),
       focus: view => { actions.focus(view); window.focus(); },
     };
     if (!sessionRef.current) sessionRef.current = new CanvasSession(publication, synchronous);
@@ -34,7 +35,7 @@ export function useCanvasHost(publication: CanvasPublication, actions: CanvasAct
       disconnect();
     };
   }, [enabled, id, publish]);
-  const open = useCallback((view: CanvasView, destination: 'window' | 'tab'): boolean => {
+  const open = useCallback((view: DetachedView, destination: 'window' | 'tab'): boolean => {
     const expected = detachedCanvasUrl(window.location.href, id, view);
     for (const existing of children.current) {
       try {

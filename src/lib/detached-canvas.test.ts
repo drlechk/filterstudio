@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CanvasSession, CanvasWriter, canvasRegistry, detachedCanvasRoute, detachedCanvasUrl, findCanvasSession, type CanvasActions } from './detached-canvas';
 import { createCircuit, defaultSettings } from './project';
+import { defaultTolerance } from './tolerance';
 import type { Project } from './types';
 
 const project: Project = { version: 1, name: 'Filter', settings: defaultSettings,
@@ -10,6 +11,28 @@ const publication = { project, canUndo: false, canRedo: false, busy: false };
 const actions = (): CanvasActions => ({ commit: vi.fn(), undo: vi.fn(), redo: vi.fn(), focus: vi.fn() });
 
 describe('shared detached canvas sessions', () => {
+  it('shares pending tolerance designs with plots and protects edits against stale drafts', () => {
+    const commands = { ...actions(), setTolerance: vi.fn() };
+    const design = { settings: defaultSettings, tolerance: defaultTolerance(defaultSettings), mode: 'tolerance' as const };
+    const session = new CanvasSession({ ...publication, design }, commands);
+    const changed = { ...design.tolerance, stopbandLoss: 60 };
+    session.setTolerance(changed, 0);
+    expect(commands.setTolerance).toHaveBeenCalledWith(changed);
+    expect(commands.commit).not.toHaveBeenCalled();
+    session.publish({ ...publication, design: { ...design, tolerance: changed } }, commands);
+    expect(session.getSnapshot().project).toBe(project);
+    expect(session.getSnapshot().design?.tolerance).toEqual(changed);
+    expect(() => session.setTolerance(design.tolerance, 0)).toThrow('inzwischen geändert');
+    expect(() => session.setTolerance({ ...changed, stopbandLoss: -1 }, 1)).toThrow();
+    expect(commands.setTolerance).toHaveBeenCalledTimes(1);
+    for (const view of ['response', 'wdf-response', 'tolerance'] as const) {
+      session.focus(view);
+      expect(commands.focus).toHaveBeenLastCalledWith(view);
+    }
+    session.disconnect();
+    expect(() => session.setTolerance(changed, 1)).toThrow('geschlossen');
+  });
+
   it('allows compound edits from one child while rejecting unseen changes from another', () => {
     const commands = actions();
     const session = new CanvasSession(publication, commands);
@@ -98,6 +121,13 @@ describe('shared detached canvas sessions', () => {
 });
 
 describe('detached canvas addressing', () => {
+  it('addresses circuit, WDF and their plots independently, including the tolerance mask', () => {
+    const views = ['circuit', 'wdf', 'response', 'wdf-response', 'tolerance'] as const;
+    const urls = views.map(view => detachedCanvasUrl('https://example.test/filterstudio/', 'same-project', view));
+    expect(new Set(urls).size).toBe(5);
+    urls.forEach((url, i) => expect(detachedCanvasRoute(new URL(url).hash)).toEqual({ id: 'same-project', view: views[i] }));
+  });
+
   it('keeps deployment path and query, carrying only session identity and view in the hash', () => {
     const url = detachedCanvasUrl('https://example.test/filterstudio/?preview=1#acknowledgements', 'project-123', 'wdf');
     expect(url).toBe('https://example.test/filterstudio/?preview=1#canvas=project-123&view=wdf');

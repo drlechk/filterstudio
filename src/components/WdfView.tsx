@@ -3,11 +3,9 @@ import { Background, Controls, Handle, MarkerType, Position, ReactFlow, getBezie
 import { Download, Network } from 'lucide-react';
 import { FrequencyInput } from './FrequencyInput';
 import { Formula } from './MathView';
-import { WdfResponse } from './WdfResponse';
-import type { PlotScaleProps } from './PlotScaleControls';
 import { usePreferences } from '../lib/preferences';
 import type { FrequencyUnit } from '../lib/frequency-units';
-import { formatEngineering, type NetworkAnalysis } from '../lib/network';
+import { formatEngineering } from '../lib/network';
 import { downloadFile } from '../lib/project';
 import type { Project } from '../lib/types';
 import { buildWdf, defaultWdfSampleRate, exportWdf, MAX_WDF_SAMPLE_RATE, type WdfAdaptor, type WdfElement, type WdfModel, type WdfSettings } from '../lib/wdf';
@@ -127,9 +125,8 @@ function AdaptorDetails({ adaptor, model, onRoot }: { adaptor: WdfAdaptor; model
   </aside>;
 }
 
-export function WdfView({ project, onChange, analysis, ...plotControls }: {
-  project: Project; onChange: (settings: WdfSettings) => void; analysis: NetworkAnalysis | null;
-  plotScales: PlotScaleProps; dbRange: number; onDbRangeChange: (range: number) => void;
+export function WdfView({ project, onChange }: {
+  project: Project; onChange: (settings: WdfSettings) => void;
 }) {
   const { t, translate, language, theme } = usePreferences();
   const sampleRate = project.wdf?.sampleRate ?? defaultWdfSampleRate(project.settings);
@@ -192,6 +189,5 @@ export function WdfView({ project, onChange, analysis, ...plotControls }: {
       <div className="wdf-source-links"><a href="https://www.dsprelated.com/freebooks/pasp/Adaptors_Wave_Digital_Elements.html" target="_blank" rel="noopener noreferrer">J. O. Smith · {t('WDF-Adaptoren', 'WDF adaptors')}</a>
         <a href="https://dafx.de/paper-archive/2015/DAFx-15_submission_53.pdf" target="_blank" rel="noopener noreferrer">Werner, Smith &amp; Abel · DAFx-15</a></div>
     </details>
-    {model && analysis && <WdfResponse project={project} analysis={analysis} sampleRate={model.sampleRate} {...plotControls} />}
   </div>;
 }

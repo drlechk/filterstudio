@@ -42,8 +42,9 @@ import {
 } from "lucide-react";
 import { CircuitEditor } from "./components/CircuitEditor";
 import { WdfView } from "./components/WdfView";
+import { WdfPlotPanel } from "./components/WdfPlotPanel";
 import { DetachCanvasButton } from "./components/DetachCanvasButton";
-import { detachedCanvasRoute, detachedCanvasUrl, type CanvasSession, type CanvasSnapshot, type CanvasView, type CanvasWriter } from "./lib/detached-canvas";
+import { detachedCanvasRoute, detachedCanvasUrl, type CanvasSession, type CanvasSnapshot, type CanvasView, type CanvasWriter, type DetachedView } from "./lib/detached-canvas";
 import { useCanvasHost, useDetachedCanvas } from "./lib/use-detached-canvas";
 import "./components/DetachedCanvas.css";
 import { ProjectTabs } from "./components/ProjectTabs";
@@ -326,7 +327,7 @@ export default function App() {
 const noOperation = () => {};
 type DetachedState = { session: CanvasSession; writer: CanvasWriter; snapshot: CanvasSnapshot; connected: boolean };
 
-function DetachedCanvasApp({ id, view }: { id: string; view: CanvasView }) {
+function DetachedCanvasApp({ id, view }: { id: string; view: DetachedView }) {
   const { t } = usePreferences();
   const connection = useDetachedCanvas(id);
   if (!connection.snapshot || !connection.session || !connection.writer) return <main className="detached-unavailable">
@@ -501,7 +502,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
   onOpenAcknowledgements: () => void;
   onFocusTab: () => void;
   detached?: DetachedState;
-  initialView?: CanvasView;
+  initialView?: DetachedView;
   navigation: ReactNode;
 }) {
   const { language, setLanguage, theme, setTheme, circuitSymbols, setCircuitSymbols, showSourceAndLoad, setShowSourceAndLoad, t, translate, number } =
@@ -521,16 +522,19 @@ const FilterWorkspace = memo(function FilterWorkspace({
     engineering(value, unit, digits, language === "de" ? "de-DE" : "en-US");
   const [localProject, setProject] = useState<Project>(startingProject);
   const project = detached?.snapshot.project ?? localProject;
-  const [settings, setSettings] = useState<FilterSettings>(
+  const [localSettings, setSettings] = useState<FilterSettings>(
     startingProject.settings,
   );
+  const settings = detached?.snapshot.design?.settings ?? localSettings;
   const orderLimits = filterOrderLimits(settings.family);
-  const [designMode, setDesignMode] = useState<"parameters" | "tolerance">(
+  const [localDesignMode, setDesignMode] = useState<"parameters" | "tolerance">(
     startingProject.tolerance ? "tolerance" : "parameters",
   );
-  const [toleranceDraft, setToleranceDraft] = useState<ToleranceSpec>(() =>
+  const designMode = detached?.snapshot.design?.mode ?? localDesignMode;
+  const [localToleranceDraft, setToleranceDraft] = useState<ToleranceSpec>(() =>
     startingProject.tolerance ?? defaultTolerance(startingProject.settings),
   );
+  const toleranceDraft = detached?.snapshot.design?.tolerance ?? localToleranceDraft;
   const [history, setHistory] = useState<Project[]>([]),
     [future, setFuture] = useState<Project[]>([]);
   const canUndo = detached?.snapshot.canUndo ?? (history.length > 0);
@@ -542,7 +546,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const [designExpanded, setDesignExpanded] = useState(true);
   const [resultTab, setResultTab] = useState<
     "response" | "chain" | "polynomials" | "bom" | "tolerance" | "catalog"
-  >(startingProject.tolerance ? "tolerance" : "response");
+  >(initialView === 'tolerance' || initialView === 'response' ? initialView : startingProject.tolerance ? "tolerance" : "response");
   const [frequencyScale, setFrequencyScale] = useState<FrequencyScale>("log");
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit>("MHz");
   const frequencyInputUnit = { unit: frequencyUnit, onUnitChange: setFrequencyUnit };
@@ -554,13 +558,16 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const scatteringReadout = (value?: Complex) => !value ? "—" : magnitudeScale === "db"
     ? `${dbReadout(decibels(value), language)} dB` : number(magnitude(value), 6);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [circuitView, setCircuitView] = useState<CanvasView>(initialView);
+  const [circuitView, setCircuitView] = useState<CanvasView>(initialView === 'wdf' || initialView === 'wdf-response' ? 'wdf' : 'circuit');
+  const detachedPlots = !!detached && (initialView === 'response' || initialView === 'tolerance' || initialView === 'wdf-response');
+  const detachedView: DetachedView = detachedPlots ? initialView === 'wdf-response' ? 'wdf-response' : resultTab === 'tolerance' ? 'tolerance' : 'response' : circuitView;
+  const detachedLabel = detachedPlots ? detachedView === 'wdf-response' ? t('WDF-Plots', 'WDF plots') : t('Analoge Plots', 'Analog plots') : circuitView === 'wdf' ? t('WDF-Schaltung', 'WDF circuit') : t('Schaltung', 'Circuit');
   useEffect(() => {
     if (!detached) return;
-    document.title = `${project.name} · ${circuitView === 'wdf' ? 'WDF' : t('Schaltung', 'Circuit')}`;
+    document.title = `${project.name} · ${detachedLabel}`;
     const route = detachedCanvasRoute(window.location.hash);
-    if (route) window.history.replaceState(window.history.state, '', detachedCanvasUrl(window.location.href, route.id, circuitView));
-  }, [!!detached, project.name, circuitView, language, theme]);
+    if (route) window.history.replaceState(window.history.state, '', detachedCanvasUrl(window.location.href, route.id, detachedView));
+  }, [!!detached, project.name, detachedView, detachedLabel, language, theme]);
   const [fitKey, setFitKey] = useState(0);
   const [toast, setToast] = useState("");
   const [showHelp, setShowHelp] = useState(false);
@@ -641,11 +648,20 @@ const FilterWorkspace = memo(function FilterWorkspace({
       setToast(error && typeof error === 'object' && 'message' in error ? String(error.message) : String(error));
     }
   }
-  const canvasHost = useCanvasHost({ project, canUndo, canRedo, busy: generating }, {
-    commit, undo, redo, focus: view => { setCircuitView(view); onFocusTab(); },
+  const sharedDesign = useMemo(() => ({ settings, tolerance: toleranceDraft, mode: designMode }), [settings, toleranceDraft, designMode]);
+  const canvasHost = useCanvasHost({ project, canUndo, canRedo, busy: generating, design: sharedDesign }, {
+    commit, undo, redo,
+    setTolerance: spec => { setToleranceDraft(spec); setDesignMode('tolerance'); },
+    focus: view => {
+      setCircuitView(view === 'wdf' || view === 'wdf-response' ? 'wdf' : 'circuit');
+      if (view === 'response' || view === 'tolerance') setResultTab(view);
+      if (view === 'tolerance') setDesignMode('tolerance');
+      onFocusTab();
+      requestAnimationFrame(() => document.getElementById(`${tabId}-${view === 'wdf-response' ? 'wdf-plots' : view === 'response' || view === 'tolerance' ? 'plots' : 'canvas'}`)?.scrollIntoView({ block: 'start' }));
+    },
   }, !detached);
-  function detachCanvas(destination: 'window' | 'tab') {
-    if (!canvasHost.open(circuitView, destination)) setToast(t(
+  function detachCanvas(destination: 'window' | 'tab', view: DetachedView = circuitView) {
+    if (!canvasHost.open(view, destination)) setToast(t(
       'Der Browser hat das neue Fenster blockiert. Erlaube Pop-ups für Filterstudio und versuche es erneut.',
       'The browser blocked the new window. Allow pop-ups for Filterstudio and try again.',
     ));
@@ -733,7 +749,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
     [toleranceDraft, settings.family, settings.impedance],
   );
   const tolerancePreview = useMemo(() => {
-    if (!toleranceDesign.settings || designMode !== "tolerance")
+    if (!toleranceDesign.settings || (designMode !== "tolerance" && resultTab !== "tolerance"))
       return { analysis: null, error: null };
     try {
       const proposed = toleranceDesign.settings;
@@ -753,7 +769,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
           error instanceof Error ? error.message : "Synthese nicht möglich.",
       };
     }
-  }, [toleranceDesign, designMode]);
+  }, [toleranceDesign, designMode, resultTab]);
   const generatorDirty =
     JSON.stringify(settings) !== JSON.stringify(project.settings) ||
     (designMode === "tolerance" &&
@@ -1106,6 +1122,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const canvasPanel = (
     <section
             className="circuit-panel"
+            id={`${tabId}-canvas`}
             aria-label={t("Schaltung", "Circuit")}
           >
             <div className="panel-toolbar">
@@ -1223,8 +1240,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                 <button className="icon-button" onClick={redo} disabled={!canRedo || generating} aria-label={t("Wiederholen", "Redo")} title={t("Wiederholen", "Redo")}><Redo2 size={16} /></button>
               </div>}
             </div>
-            {circuitView === "wdf" ? <WdfView project={project} onChange={wdf => commit({ ...project, wdf })}
-              analysis={analysis} plotScales={plotScales} dbRange={sParameterDbRange} onDbRangeChange={setSParameterDbRange} /> : <>
+            {circuitView === "wdf" ? <WdfView project={project} onChange={wdf => commit({ ...project, wdf })} /> : <>
             <ComponentRoundingControls
               id={`component-rounding-${tabId}`}
               open={showRounding}
@@ -1437,17 +1453,606 @@ const FilterWorkspace = memo(function FilterWorkspace({
           </section>
   );
 
-  if (detached) return <div className="detached-canvas-shell">
+  const resultsPanel = (
+    <section
+            className="results-panel"
+            id={`${tabId}-plots`}
+            aria-label={t("Analyseergebnisse", "Analysis results")}
+          >
+            <div className="results-toolbar">
+              <div
+                className="result-tabs"
+                role="tablist"
+                aria-label={t("Analyseansicht", "Analysis view")}
+              >
+                {(
+                  [
+                    {
+                      id: "response",
+                      label: t("S-Parameter", "S-parameters"),
+                      icon: Activity,
+                    },
+                    {
+                      id: "tolerance",
+                      label: t("Toleranzmaske und Dämpfungsverlauf", "Tolerance mask and attenuation response"),
+                      icon: SlidersHorizontal,
+                    },
+                    {
+                      id: "catalog",
+                      label: t("Katalogentwurf", "Catalog design"),
+                      icon: BookOpen,
+                    },
+                    {
+                      id: "chain",
+                      label: t("Kettenmatrizen", "ABCD matrices"),
+                      icon: Code2,
+                    },
+                    {
+                      id: "polynomials",
+                      label: t("Polynome", "Polynomials"),
+                      icon: Waves,
+                    },
+                    {
+                      id: "bom",
+                      label: t("Bauteilliste", "Component list"),
+                      icon: SlidersHorizontal,
+                    },
+                  ] as const
+                ).filter(tab => !detached || tab.id === 'response' || tab.id === 'tolerance').map((t) => (
+                  <button
+                    role="tab"
+                    aria-selected={resultTab === t.id}
+                    className={resultTab === t.id ? "active" : ""}
+                    key={t.id}
+                    onClick={() => {
+                      setResultTab(t.id);
+                      if (t.id === "tolerance" || t.id === "catalog") {
+                        setDesignMode("tolerance");
+                        setPaletteTab("generator");
+                        setDesignExpanded(true);
+                      }
+                    }}
+                  >
+                    <t.icon size={14} />
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              {!detached && (resultTab === 'response' || resultTab === 'tolerance') &&
+                <DetachCanvasButton plots onOpen={destination => detachCanvas(destination, resultTab)} />}
+              <span className="auto-label">
+                <span />{" "}
+                {t("Automatisch aktualisiert", "Automatically updated")}
+              </span>
+            </div>
+            {resultTab === "catalog" ? (
+              <FilterCatalog
+                spec={toleranceDraft}
+                settings={settings}
+                onSelect={family => updateSettings({ family })}
+                onSpecChange={setToleranceDraft}
+                onSettingsChange={updateSettings}
+                frequencyUnit={frequencyUnit}
+                onFrequencyUnitChange={setFrequencyUnit}
+                onGenerate={() => void generate()}
+                onShowMask={() => setResultTab("tolerance")}
+                generating={generating}
+                previewError={tolerancePreview.error}
+              />
+            ) : resultTab === "tolerance" ? (
+              <TolerancePlot
+                {...plotScales}
+                spec={toleranceDraft}
+                design={toleranceDesign}
+                preview={tolerancePreview.analysis}
+                previewError={tolerancePreview.error}
+                actual={analysis}
+                onChange={spec => detached
+                  ? detachedAction(revision => detached.session.setTolerance(spec, revision))
+                  : setToleranceDraft(spec)}
+                normalized={toleranceNormalized}
+                onNormalizedChange={setToleranceNormalized}
+                showActual={toleranceShowActual}
+                onShowActualChange={setToleranceShowActual}
+              />
+            ) : !analysis ? (
+              <div className="empty-analysis">
+                <Activity size={31} />
+                <h3>
+                  {circuitIsEmpty
+                    ? t(
+                        "Dein Arbeitsbereich ist leer.",
+                        "Your workspace is empty.",
+                      )
+                    : t("Verbinde deine Schaltung.", "Connect your circuit.")}
+                </h3>
+                <p>
+                  {circuitIsEmpty
+                    ? t(
+                        "Füge Bauelemente aus der Bibliothek hinzu oder generiere einen neuen Filter. Mit Rückgängig stellst du die vorherige Schaltung wieder her.",
+                        "Add components from the library or generate a new filter. Use Undo to restore the previous circuit.",
+                      )
+                    : translate(evaluation.error ?? "")}
+                </p>
+                {!detached && <button
+                  className="small-button"
+                  onClick={() =>
+                    circuitIsEmpty
+                      ? setPaletteTab("elements")
+                      : setShowHelp(true)
+                  }
+                >
+                  {circuitIsEmpty
+                    ? t("Bauelemente hinzufügen", "Add components")
+                    : t(
+                        "Verbindungen erklärt",
+                        "How to connect components",
+                      )}{" "}
+                  <ArrowRight size={13} />
+                </button>}
+              </div>
+            ) : resultTab === "response" ? (
+              <div className="response-content">
+                <div className="response-heading">
+                  <div>
+                    <h2>{t("Betragsgang der S-Parameter", "S-parameter magnitude response")}</h2>
+                    <p>
+                      {t(
+                        "Transmission und Reflexion deiner Schaltung.",
+                        "Transmission and reflection of your circuit.",
+                      )}
+                    </p>
+                  </div>
+                </div>
+                <ResponsePlot
+                  {...plotScales}
+                  analysis={analysis}
+                  {...project.sweep}
+                  cutoff={project.settings.cutoff}
+                  band={projectBand}
+                  mode="magnitude"
+                  dbRange={sParameterDbRange}
+                  onDbRangeChange={setSParameterDbRange}
+                  onExport={(text) =>
+                    downloadFile(
+                      "filterstudio-s-parameter.csv",
+                      text,
+                      "text/csv",
+                    )
+                  }
+                />
+                <div className="response-footer">
+                  <div className="sweep-settings">
+                    <span>{t("Frequenzbereich", "Frequency range")}</span>
+                    <FrequencyInput
+                      {...frequencyInputUnit}
+                      label={t("Startfrequenz", "Start frequency")}
+                      value={project.sweep.min}
+                      min={1e-3}
+                      max={project.sweep.max * 0.999}
+                      onChange={(n) =>
+                        commit({
+                          ...project,
+                          sweep: { ...project.sweep, min: n },
+                        })
+                      }
+                    />
+                    <span>–</span>
+                    <FrequencyInput
+                      {...frequencyInputUnit}
+                      label={t("Endfrequenz", "End frequency")}
+                      value={project.sweep.max}
+                      min={project.sweep.min * 1.001}
+                      max={1e15}
+                      onChange={(n) =>
+                        commit({
+                          ...project,
+                          sweep: { ...project.sweep, max: n },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="band-readouts">
+                    {atBandEdges && (
+                      <>
+                        {atBandEdges.map((point, i) => (
+                          <span className="cutoff-readout" key={i}>
+                            {t("S₂₁ bei", "S₂₁ at")} {i === 0 ? "f₁" : "f₂"}{" "}
+                            <b>{scatteringReadout(point.s21)}</b>
+                          </span>
+                        ))}
+                      </>
+                    )}
+                    <span className="cutoff-readout">
+                      {t("S₂₁ bei f₀", "S₂₁ at f₀")}{" "}
+                      <b>
+                        {scatteringReadout(atCutoff?.s21)}
+                      </b>
+                    </span>
+                  </div>
+                </div>
+                <section
+                  className="frequency-response-section"
+                  aria-label={t("Phasengang der S-Parameter", "S-parameter phase response")}
+                >
+                  <div className="response-heading">
+                    <div>
+                      <h2>{t("Phasengang der S-Parameter", "S-parameter phase response")}</h2>
+                      <p>
+                        {t(
+                          "Phase von S₁₁, S₂₁, S₁₂ und S₂₂ in Grad. Der Frequenzbereich gilt für beide Diagramme.",
+                          "Phase of S₁₁, S₂₁, S₁₂ and S₂₂ in degrees. Both plots share the frequency range.",
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  <ResponsePlot
+                    {...plotScales}
+                    analysis={analysis}
+                    {...project.sweep}
+                    cutoff={project.settings.cutoff}
+                    band={projectBand}
+                    mode="phase"
+                    dbRange={sParameterDbRange}
+                    onDbRangeChange={setSParameterDbRange}
+                    onExport={text => downloadFile("filterstudio-s-parameter.csv", text, "text/csv")}
+                  />
+                </section>
+              </div>
+            ) : resultTab === "chain" ? (
+              <div className="math-content">
+                <div className="math-intro">
+                  <h2>
+                    {t(
+                      "Von Bauelementen zur Kettenmatrix",
+                      "From components to the ABCD matrix",
+                    )}
+                  </h2>
+                  <p>
+                    {t(
+                      "Die Reihenfolge entspricht dem Signalweg von Tor 1 zu Tor 2.",
+                      "The order follows the signal path from port 1 to port 2.",
+                    )}
+                  </p>
+                  <Formula
+                    latex={
+                      "\\begin{pmatrix}V_1\\\\I_1\\end{pmatrix}=\\mathbf{M}\\begin{pmatrix}V_2\\\\-I_2\\end{pmatrix},\\qquad \\mathbf{M}=\\mathbf{M}_1\\mathbf{M}_2\\cdots\\mathbf{M}_N"
+                    }
+                  />
+                  <span className="normalization">
+                    p = s / (2π · {formatEngineering(analysis.fRef, "Hz")}
+                    {t(
+                      ") · Ströme an beiden Toren ins Zweitor",
+                      ") · currents enter the network at both ports",
+                    )}
+                  </span>
+                  <p>
+                    {t(
+                      "Die Teilmatrizen zeigen die gespeicherten Bauteilwerte und deren Einsetzung in SI-Einheiten. ≈ kennzeichnet zur Anzeige auf sieben signifikante Stellen gerundete Koeffizienten; gerechnet wird mit voller Zahlenpräzision. Die Indizes Rᵢ, Lᵢ und Cᵢ beziehen sich auf die jeweilige Teilmatrix.",
+                      "Section matrices show the stored component values and their substitution in SI units. ≈ marks coefficients rounded to seven significant digits for display; calculations use full numeric precision. The indices Rᵢ, Lᵢ and Cᵢ refer to the corresponding section matrix.",
+                    )}
+                  </p>
+                </div>
+                <MathView
+                  title={t(
+                    "Gesamte Kettenmatrix M(p)",
+                    "Overall ABCD matrix M(p)",
+                  )}
+                  latex={analysis.latex.abcd}
+                  description={t(
+                    "Die verkettete Gesamtmatrix ist in einen gemeinsamen Nenner Q(p) und vier Zählerpolynome aufgeteilt. Die Einträge A, B, C und D stehen unten einzeln.",
+                    "The overall cascaded matrix is split into a common denominator Q(p) and four numerator polynomials. The entries A, B, C and D are listed separately below.",
+                  )}
+                />
+                <MathView
+                  title={t("Gemeinsames Nennerpolynom Q(p)", "Common denominator polynomial Q(p)")}
+                  latex={analysis.latex.abcdDenominator}
+                />
+                {([
+                  ["A", "M₁₁", t("Dimensionslos", "Dimensionless")],
+                  ["B", "M₁₂", t("Impedanz in Ω", "Impedance in Ω")],
+                  ["C", "M₂₁", t("Admittanz in S", "Admittance in S")],
+                  ["D", "M₂₂", t("Dimensionslos", "Dimensionless")],
+                ] as const).map(([key, position, unit]) => (
+                  <MathView
+                    key={key}
+                    title={`${t("Matrixeintrag", "Matrix entry")} ${key}(p) = ${position}(p)`}
+                    description={unit}
+                    latex={analysis.latex.abcdEntries[key]}
+                  />
+                ))}
+                {analysis.sectionDerivations.map((derivation, i) => (
+                  <SectionMatrixView
+                    key={evaluation.sections[i].id}
+                    section={evaluation.sections[i]}
+                    index={i + 1}
+                    derivation={derivation}
+                  />
+                ))}
+              </div>
+            ) : resultTab === "polynomials" ? (
+              <div className="math-content">
+                <div className="math-intro">
+                  <h2>
+                    {t(
+                      "Charakteristische Funktion und S-Polynome",
+                      "Characteristic function and S-polynomials",
+                    )}
+                  </h2>
+                  <p>
+                    {t(
+                      "Approximationsfunktion Fₙ(Ω) des Prototyps sowie charakteristische Funktion Ψ(p) und S-Polynome der aktuellen Schaltung.",
+                      "Prototype approximation function Fₙ(Ω), plus the characteristic function Ψ(p) and S-polynomials of the current circuit.",
+                    )}
+                  </p>
+                  <span className="normalization">
+                    p = s / (2π · {formatEngineering(analysis.fRef, "Hz")}
+                    {t(
+                      ") · p = j f / f₀ auf der Frequenzachse",
+                      ") · p = j f / f₀ along the frequency axis",
+                    )}
+                  </span>
+                </div>
+                <ApproximationView
+                  approximation={approximation}
+                  settings={project.settings}
+                  matchesPrototype={matchesPrototype}
+                />
+                <h3 className="circuit-polynomials-heading">
+                  {t(
+                    "Polynome der aktuellen Schaltung",
+                    "Polynomials of the current circuit",
+                  )}
+                </h3>
+                {evaluation.sections.length > 20 && <p className="approximation-explanation">{t(
+                  "Bei hohen Ordnungen sind ausmultiplizierte Polynomkoeffizienten empfindlich gegenüber Rundung und Auslöschung. Die Frequenzgänge werden deshalb direkt aus den einzelnen Zweitoren berechnet.",
+                  "At high orders, expanded polynomial coefficients are sensitive to rounding and cancellation. Frequency responses are therefore evaluated directly from the individual two-port sections.",
+                )}</p>}
+                <MathView
+                  title={t(
+                    "Charakteristische Funktion Ψ(p)",
+                    "Characteristic function Ψ(p)",
+                  )}
+                  latex={analysis.latex.characteristic}
+                  description={t(
+                    "Quotient aus Eingangsreflexion und Transmission der aktuellen Schaltung. Der gemeinsame Nenner D(p) kürzt sich; Bauteilwerte und beide Torimpedanzen gehen ein.",
+                    "Ratio of input reflection to transmission for the current circuit. The common denominator D(p) cancels; component values and both port impedances are included.",
+                  )}
+                />
+                {analysis.latex.characteristicResponse ? (
+                  <MathView
+                    title={t(
+                      "Zusammenhang mit dem Frequenzgang",
+                      "Relationship to the frequency response",
+                    )}
+                    latex={analysis.latex.characteristicResponse}
+                    description={t(
+                      "Für diese verlustlose LC-Schaltung gilt |S₁₁|² + |S₂₁|² = 1. An Nullstellen von S₂₁ besitzt Ψ gegebenenfalls einen Pol; gemeinsame Faktoren sind als Grenzwert zu behandeln.",
+                      "For this lossless LC circuit, |S₁₁|² + |S₂₁|² = 1. Ψ may have poles at transmission zeros; common factors must be evaluated by their limit.",
+                    )}
+                  />
+                ) : (
+                  <p className="approximation-status is-reference">
+                    {t(
+                      "Die Schaltung enthält Widerstände. Ψ(p) bleibt der Quotient S₁₁/S₂₁; die verlustlose Beziehung |S₂₁|² = 1/(1 + |Ψ|²) gilt hier nicht. Den Dämpfungsverlauf bestimmt die vollständige S-Matrix.",
+                      "The circuit contains resistors. Ψ(p) remains the ratio S₁₁/S₂₁; the lossless relation |S₂₁|² = 1/(1 + |Ψ|²) does not apply here. The attenuation response is determined by the full S-matrix.",
+                    )}
+                  </p>
+                )}
+                <MathView
+                  title={t("Streumatrix S(p)", "Scattering matrix S(p)")}
+                  latex={analysis.latex.s}
+                  description={`${t("Jeder Eintrag ist Sᵢⱼ(p) = Nᵢⱼ(p)/D(p). Die Zählerpolynome und der gemeinsame Nenner sind unten einzeln angegeben. Für diese reziproke Schaltung gilt N₁₂(p) = N₂₁(p).", "Each entry is Sᵢⱼ(p) = Nᵢⱼ(p)/D(p). The numerator polynomials and common denominator are listed separately below. For this reciprocal circuit, N₁₂(p) = N₂₁(p).")} ${t("Leistungswellen", "Power waves")} · Z₁ = ${formatEngineering(analysis.z1, "Ω")} · Z₂ = ${formatEngineering(analysis.z2, "Ω")}`}
+                />
+                {([
+                  ["s11", "N₁₁(p)"],
+                  ["s12", "N₁₂(p)"],
+                  ["s21", "N₂₁(p)"],
+                  ["s22", "N₂₂(p)"],
+                ] as const).map(([key, label]) => (
+                  <MathView
+                    key={key}
+                    title={`${t("Zählerpolynom", "Numerator polynomial")} ${label}`}
+                    latex={analysis.latex.numerators[key]}
+                  />
+                ))}
+                <MathView
+                  title={t(
+                    "Gemeinsames Nennerpolynom D(p)",
+                    "Common denominator polynomial D(p)",
+                  )}
+                  latex={analysis.latex.denominator}
+                />
+                <div className="polynomial-table">
+                  <h3>
+                    {t("Polynomkoeffizienten", "Polynomial coefficients")}
+                  </h3>
+                  <div className="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>{t("Potenz", "Power")}</th>
+                          <th>D(p)</th>
+                          <th>N₁₁(p)</th>
+                          <th>N₁₂(p)</th>
+                          <th>N₂₁(p)</th>
+                          <th>N₂₂(p)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Array.from(
+                          {
+                            length: Math.max(
+                              analysis.denominator.length,
+                              ...Object.values(analysis.numerators).map(
+                                (p) => p.length,
+                              ),
+                            ),
+                          },
+                          (_, i) => (
+                            <tr key={i}>
+                              <td>
+                                p<sup>{i}</sup>
+                              </td>
+                              {[
+                                analysis.denominator,
+                                analysis.numerators.s11,
+                                analysis.numerators.s12,
+                                analysis.numerators.s21,
+                                analysis.numerators.s22,
+                              ].map((p, j) => (
+                                <td key={j}>
+                                  {Number(
+                                    (p[i] ?? 0).toPrecision(8),
+                                  ).toString()}
+                                </td>
+                              ))}
+                            </tr>
+                          ),
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="table-note">
+                    {t(
+                      "Koeffizienten numerisch in doppelter Genauigkeit. Gemeinsame Faktoren können erhalten bleiben; die Darstellung ist nicht zwingend minimal.",
+                      "Coefficients use double-precision arithmetic. Common factors may remain; the representation is not necessarily minimal.",
+                    )}{" "}
+                    {projectBand &&
+                      t(
+                        "Bei schmalen Bandfiltern können ausmultiplizierte Polynome numerisch empfindlich sein. Der Frequenzgang wird direkt aus den einzelnen Zweitoren berechnet.",
+                        "Expanded polynomials can be numerically sensitive for narrow-band filters. The frequency response is calculated directly from the individual two-port sections.",
+                      )}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="bom-content">
+                <div className="response-heading">
+                  <div>
+                    <h2>
+                      {t(
+                        "Bauelemente im Signalweg",
+                        "Components along the signal path",
+                      )}
+                    </h2>
+                    <p>
+                      {t(
+                        "Werte der aktuellen Schaltung, in physikalischen Einheiten.",
+                        "Values in the current circuit, in physical units.",
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    className="small-button"
+                    onClick={() =>
+                      downloadFile(
+                        t(
+                          "filterstudio-bauelemente.csv",
+                          "filterstudio-components.csv",
+                        ),
+                        [
+                          t(
+                            "Bezeichnung,Typ,Anordnung,Wert_SI,Kapazitaet_F",
+                            "Label,Type,Configuration,Value_SI,Capacitance_F",
+                          ),
+                          ...evaluation.sections.map((s) =>
+                            [
+                              s.label ?? s.id,
+                              s.kind,
+                              s.connection,
+                              s.value,
+                              s.value2 ?? "",
+                            ].join(","),
+                          ),
+                        ].join("\n"),
+                        "text/csv",
+                      )
+                    }
+                  >
+                    <Download size={14} /> CSV
+                  </button>
+                </div>
+                <div className="table-scroll">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t("Bauelement", "Component")}</th>
+                        <th>{t("Typ", "Type")}</th>
+                        <th>{t("Anordnung", "Configuration")}</th>
+                        <th>{t("Wert", "Value")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {evaluation.sections.map((s, i) => (
+                        <tr
+                          key={s.id}
+                          onClick={() => setSelectedId(s.id)}
+                          className="clickable-row"
+                        >
+                          <td>
+                            <b>{s.label ?? `Z${i + 1}`}</b>
+                          </td>
+                          <td>
+                            {s.kind === "LC"
+                              ? s.resonator === "series"
+                                ? t("LC-Serienkreis", "Series LC resonator")
+                                : t("LC-Parallelkreis", "Parallel LC resonator")
+                              : s.kind === "L"
+                                ? t("Induktivität", "Inductor")
+                                : s.kind === "C"
+                                  ? t("Kapazität", "Capacitor")
+                                  : t("Widerstand", "Resistor")}
+                          </td>
+                          <td>
+                            {s.connection === "series"
+                              ? t("Serienzweig", "Series branch")
+                              : t("Querzweig", "Shunt branch")}
+                          </td>
+                          <td>
+                            {formatComponentLabel(
+                              s.value,
+                              s.kind === "LC" ? "L" : s.kind,
+                              language,
+                              componentPrecision,
+                            )}
+                            {s.kind === "LC" &&
+                              ` / ${formatComponentLabel(s.value2!, "C", language, componentPrecision)}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="bom-note">
+                  <Info size={16} />
+                  <p>
+                    {t(
+                      "Ideales konzentriertes RLC-Modell. Bauteiltoleranzen, parasitäre Effekte und Verluste realer Spulen und Kondensatoren sind nicht enthalten.",
+                      "Ideal lumped-element RLC model. Component tolerances, parasitics, and losses in real inductors and capacitors are not included.",
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
+  );
+  const wdfPlots = <WdfPlotPanel id={`${tabId}-wdf-plots`} project={project} analysis={analysis}
+    plotScales={plotScales} dbRange={sParameterDbRange} onDbRangeChange={setSParameterDbRange}
+    onDetach={detached ? undefined : destination => detachCanvas(destination, 'wdf-response')} />;
+
+  if (detached) return <div className={`detached-canvas-shell ${detachedPlots ? 'detached-plots' : ''}`}>
+
     <header className="detached-canvas-header">
       <div className="detached-canvas-title"><Activity size={22} aria-hidden="true" /><div>
-        <strong>{project.name}</strong><span>Filterstudio · {t('Ausgelagerte Ansicht', 'Detached view')}</span>
+        <strong>{project.name}</strong><span>Filterstudio · {detachedLabel}</span>
       </div></div>
       <div className="detached-canvas-actions">
         <span className={`live-badge ${detached.connected ? '' : 'warning'}`}><i />{detached.connected ? t('Mit Studio verbunden', 'Connected to studio') : t('Verbindung geschlossen', 'Disconnected')}</span>
         <button className="button" onClick={() => downloadFile(`${project.name || 'filter'}-copy.json`, JSON.stringify(project, null, 2), 'application/json')}>
           <Download size={15} />{t('Projektkopie speichern', 'Save project copy')}
         </button>
-        <button className="button" disabled={!detached.connected} onClick={() => { detached.session.focus(circuitView); window.close(); }}>
+        <button className="button" disabled={!detached.connected} onClick={() => { detached.session.focus(detachedView); window.close(); }}>
           <ArrowRight size={15} />{t('Wieder andocken', 'Dock back')}
         </button>
       </div>
@@ -1456,7 +2061,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
       'Das ursprüngliche Projekt wurde geschlossen. Die letzte Ansicht bleibt lesbar; du kannst eine Projektkopie speichern.',
       'The original project has closed. The last view remains visible; you can save a project copy.',
     )}</p>}
-    <main inert={!detached.connected}>{canvasPanel}</main>
+    <main inert={!detached.connected}>{detachedPlots ? detachedView === 'wdf-response' ? wdfPlots : resultsPanel : canvasPanel}</main>
     {toast && <div className="toast" role="status"><Info size={17} /><span>{translate(toast)}</span>
       <button aria-label={t('Hinweis schließen', 'Dismiss notification')} onClick={() => setToast('')}><X size={15} /></button>
     </div>}
@@ -2132,583 +2737,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
         </aside>
         <div className="workspace">
           {canvasPanel}
-          <section
-            className="results-panel"
-            aria-label={t("Analyseergebnisse", "Analysis results")}
-          >
-            <div className="results-toolbar">
-              <div
-                className="result-tabs"
-                role="tablist"
-                aria-label={t("Analyseansicht", "Analysis view")}
-              >
-                {(
-                  [
-                    {
-                      id: "response",
-                      label: t("S-Parameter", "S-parameters"),
-                      icon: Activity,
-                    },
-                    {
-                      id: "tolerance",
-                      label: t("Toleranzmaske und Dämpfungsverlauf", "Tolerance mask and attenuation response"),
-                      icon: SlidersHorizontal,
-                    },
-                    {
-                      id: "catalog",
-                      label: t("Katalogentwurf", "Catalog design"),
-                      icon: BookOpen,
-                    },
-                    {
-                      id: "chain",
-                      label: t("Kettenmatrizen", "ABCD matrices"),
-                      icon: Code2,
-                    },
-                    {
-                      id: "polynomials",
-                      label: t("Polynome", "Polynomials"),
-                      icon: Waves,
-                    },
-                    {
-                      id: "bom",
-                      label: t("Bauteilliste", "Component list"),
-                      icon: SlidersHorizontal,
-                    },
-                  ] as const
-                ).map((t) => (
-                  <button
-                    role="tab"
-                    aria-selected={resultTab === t.id}
-                    className={resultTab === t.id ? "active" : ""}
-                    key={t.id}
-                    onClick={() => {
-                      setResultTab(t.id);
-                      if (t.id === "tolerance" || t.id === "catalog") {
-                        setDesignMode("tolerance");
-                        setPaletteTab("generator");
-                        setDesignExpanded(true);
-                      }
-                    }}
-                  >
-                    <t.icon size={14} />
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-              <span className="auto-label">
-                <span />{" "}
-                {t("Automatisch aktualisiert", "Automatically updated")}
-              </span>
-            </div>
-            {resultTab === "catalog" ? (
-              <FilterCatalog
-                spec={toleranceDraft}
-                settings={settings}
-                onSelect={family => updateSettings({ family })}
-                onSpecChange={setToleranceDraft}
-                onSettingsChange={updateSettings}
-                frequencyUnit={frequencyUnit}
-                onFrequencyUnitChange={setFrequencyUnit}
-                onGenerate={() => void generate()}
-                onShowMask={() => setResultTab("tolerance")}
-                generating={generating}
-                previewError={tolerancePreview.error}
-              />
-            ) : resultTab === "tolerance" ? (
-              <TolerancePlot
-                {...plotScales}
-                spec={toleranceDraft}
-                design={toleranceDesign}
-                preview={tolerancePreview.analysis}
-                previewError={tolerancePreview.error}
-                actual={analysis}
-                onChange={setToleranceDraft}
-                normalized={toleranceNormalized}
-                onNormalizedChange={setToleranceNormalized}
-                showActual={toleranceShowActual}
-                onShowActualChange={setToleranceShowActual}
-              />
-            ) : !analysis ? (
-              <div className="empty-analysis">
-                <Activity size={31} />
-                <h3>
-                  {circuitIsEmpty
-                    ? t(
-                        "Dein Arbeitsbereich ist leer.",
-                        "Your workspace is empty.",
-                      )
-                    : t("Verbinde deine Schaltung.", "Connect your circuit.")}
-                </h3>
-                <p>
-                  {circuitIsEmpty
-                    ? t(
-                        "Füge Bauelemente aus der Bibliothek hinzu oder generiere einen neuen Filter. Mit Rückgängig stellst du die vorherige Schaltung wieder her.",
-                        "Add components from the library or generate a new filter. Use Undo to restore the previous circuit.",
-                      )
-                    : translate(evaluation.error ?? "")}
-                </p>
-                <button
-                  className="small-button"
-                  onClick={() =>
-                    circuitIsEmpty
-                      ? setPaletteTab("elements")
-                      : setShowHelp(true)
-                  }
-                >
-                  {circuitIsEmpty
-                    ? t("Bauelemente hinzufügen", "Add components")
-                    : t(
-                        "Verbindungen erklärt",
-                        "How to connect components",
-                      )}{" "}
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-            ) : resultTab === "response" ? (
-              <div className="response-content">
-                <div className="response-heading">
-                  <div>
-                    <h2>{t("Betragsgang der S-Parameter", "S-parameter magnitude response")}</h2>
-                    <p>
-                      {t(
-                        "Transmission und Reflexion deiner Schaltung.",
-                        "Transmission and reflection of your circuit.",
-                      )}
-                    </p>
-                  </div>
-                </div>
-                <ResponsePlot
-                  {...plotScales}
-                  analysis={analysis}
-                  {...project.sweep}
-                  cutoff={project.settings.cutoff}
-                  band={projectBand}
-                  mode="magnitude"
-                  dbRange={sParameterDbRange}
-                  onDbRangeChange={setSParameterDbRange}
-                  onExport={(text) =>
-                    downloadFile(
-                      "filterstudio-s-parameter.csv",
-                      text,
-                      "text/csv",
-                    )
-                  }
-                />
-                <div className="response-footer">
-                  <div className="sweep-settings">
-                    <span>{t("Frequenzbereich", "Frequency range")}</span>
-                    <FrequencyInput
-                      {...frequencyInputUnit}
-                      label={t("Startfrequenz", "Start frequency")}
-                      value={project.sweep.min}
-                      min={1e-3}
-                      max={project.sweep.max * 0.999}
-                      onChange={(n) =>
-                        commit({
-                          ...project,
-                          sweep: { ...project.sweep, min: n },
-                        })
-                      }
-                    />
-                    <span>–</span>
-                    <FrequencyInput
-                      {...frequencyInputUnit}
-                      label={t("Endfrequenz", "End frequency")}
-                      value={project.sweep.max}
-                      min={project.sweep.min * 1.001}
-                      max={1e15}
-                      onChange={(n) =>
-                        commit({
-                          ...project,
-                          sweep: { ...project.sweep, max: n },
-                        })
-                      }
-                    />
-                  </div>
-                  <div className="band-readouts">
-                    {atBandEdges && (
-                      <>
-                        {atBandEdges.map((point, i) => (
-                          <span className="cutoff-readout" key={i}>
-                            {t("S₂₁ bei", "S₂₁ at")} {i === 0 ? "f₁" : "f₂"}{" "}
-                            <b>{scatteringReadout(point.s21)}</b>
-                          </span>
-                        ))}
-                      </>
-                    )}
-                    <span className="cutoff-readout">
-                      {t("S₂₁ bei f₀", "S₂₁ at f₀")}{" "}
-                      <b>
-                        {scatteringReadout(atCutoff?.s21)}
-                      </b>
-                    </span>
-                  </div>
-                </div>
-                <section
-                  className="frequency-response-section"
-                  aria-label={t("Phasengang der S-Parameter", "S-parameter phase response")}
-                >
-                  <div className="response-heading">
-                    <div>
-                      <h2>{t("Phasengang der S-Parameter", "S-parameter phase response")}</h2>
-                      <p>
-                        {t(
-                          "Phase von S₁₁, S₂₁, S₁₂ und S₂₂ in Grad. Der Frequenzbereich gilt für beide Diagramme.",
-                          "Phase of S₁₁, S₂₁, S₁₂ and S₂₂ in degrees. Both plots share the frequency range.",
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <ResponsePlot
-                    {...plotScales}
-                    analysis={analysis}
-                    {...project.sweep}
-                    cutoff={project.settings.cutoff}
-                    band={projectBand}
-                    mode="phase"
-                    dbRange={sParameterDbRange}
-                    onDbRangeChange={setSParameterDbRange}
-                    onExport={text => downloadFile("filterstudio-s-parameter.csv", text, "text/csv")}
-                  />
-                </section>
-              </div>
-            ) : resultTab === "chain" ? (
-              <div className="math-content">
-                <div className="math-intro">
-                  <h2>
-                    {t(
-                      "Von Bauelementen zur Kettenmatrix",
-                      "From components to the ABCD matrix",
-                    )}
-                  </h2>
-                  <p>
-                    {t(
-                      "Die Reihenfolge entspricht dem Signalweg von Tor 1 zu Tor 2.",
-                      "The order follows the signal path from port 1 to port 2.",
-                    )}
-                  </p>
-                  <Formula
-                    latex={
-                      "\\begin{pmatrix}V_1\\\\I_1\\end{pmatrix}=\\mathbf{M}\\begin{pmatrix}V_2\\\\-I_2\\end{pmatrix},\\qquad \\mathbf{M}=\\mathbf{M}_1\\mathbf{M}_2\\cdots\\mathbf{M}_N"
-                    }
-                  />
-                  <span className="normalization">
-                    p = s / (2π · {formatEngineering(analysis.fRef, "Hz")}
-                    {t(
-                      ") · Ströme an beiden Toren ins Zweitor",
-                      ") · currents enter the network at both ports",
-                    )}
-                  </span>
-                  <p>
-                    {t(
-                      "Die Teilmatrizen zeigen die gespeicherten Bauteilwerte und deren Einsetzung in SI-Einheiten. ≈ kennzeichnet zur Anzeige auf sieben signifikante Stellen gerundete Koeffizienten; gerechnet wird mit voller Zahlenpräzision. Die Indizes Rᵢ, Lᵢ und Cᵢ beziehen sich auf die jeweilige Teilmatrix.",
-                      "Section matrices show the stored component values and their substitution in SI units. ≈ marks coefficients rounded to seven significant digits for display; calculations use full numeric precision. The indices Rᵢ, Lᵢ and Cᵢ refer to the corresponding section matrix.",
-                    )}
-                  </p>
-                </div>
-                <MathView
-                  title={t(
-                    "Gesamte Kettenmatrix M(p)",
-                    "Overall ABCD matrix M(p)",
-                  )}
-                  latex={analysis.latex.abcd}
-                  description={t(
-                    "Die verkettete Gesamtmatrix ist in einen gemeinsamen Nenner Q(p) und vier Zählerpolynome aufgeteilt. Die Einträge A, B, C und D stehen unten einzeln.",
-                    "The overall cascaded matrix is split into a common denominator Q(p) and four numerator polynomials. The entries A, B, C and D are listed separately below.",
-                  )}
-                />
-                <MathView
-                  title={t("Gemeinsames Nennerpolynom Q(p)", "Common denominator polynomial Q(p)")}
-                  latex={analysis.latex.abcdDenominator}
-                />
-                {([
-                  ["A", "M₁₁", t("Dimensionslos", "Dimensionless")],
-                  ["B", "M₁₂", t("Impedanz in Ω", "Impedance in Ω")],
-                  ["C", "M₂₁", t("Admittanz in S", "Admittance in S")],
-                  ["D", "M₂₂", t("Dimensionslos", "Dimensionless")],
-                ] as const).map(([key, position, unit]) => (
-                  <MathView
-                    key={key}
-                    title={`${t("Matrixeintrag", "Matrix entry")} ${key}(p) = ${position}(p)`}
-                    description={unit}
-                    latex={analysis.latex.abcdEntries[key]}
-                  />
-                ))}
-                {analysis.sectionDerivations.map((derivation, i) => (
-                  <SectionMatrixView
-                    key={evaluation.sections[i].id}
-                    section={evaluation.sections[i]}
-                    index={i + 1}
-                    derivation={derivation}
-                  />
-                ))}
-              </div>
-            ) : resultTab === "polynomials" ? (
-              <div className="math-content">
-                <div className="math-intro">
-                  <h2>
-                    {t(
-                      "Charakteristische Funktion und S-Polynome",
-                      "Characteristic function and S-polynomials",
-                    )}
-                  </h2>
-                  <p>
-                    {t(
-                      "Approximationsfunktion Fₙ(Ω) des Prototyps sowie charakteristische Funktion Ψ(p) und S-Polynome der aktuellen Schaltung.",
-                      "Prototype approximation function Fₙ(Ω), plus the characteristic function Ψ(p) and S-polynomials of the current circuit.",
-                    )}
-                  </p>
-                  <span className="normalization">
-                    p = s / (2π · {formatEngineering(analysis.fRef, "Hz")}
-                    {t(
-                      ") · p = j f / f₀ auf der Frequenzachse",
-                      ") · p = j f / f₀ along the frequency axis",
-                    )}
-                  </span>
-                </div>
-                <ApproximationView
-                  approximation={approximation}
-                  settings={project.settings}
-                  matchesPrototype={matchesPrototype}
-                />
-                <h3 className="circuit-polynomials-heading">
-                  {t(
-                    "Polynome der aktuellen Schaltung",
-                    "Polynomials of the current circuit",
-                  )}
-                </h3>
-                {evaluation.sections.length > 20 && <p className="approximation-explanation">{t(
-                  "Bei hohen Ordnungen sind ausmultiplizierte Polynomkoeffizienten empfindlich gegenüber Rundung und Auslöschung. Die Frequenzgänge werden deshalb direkt aus den einzelnen Zweitoren berechnet.",
-                  "At high orders, expanded polynomial coefficients are sensitive to rounding and cancellation. Frequency responses are therefore evaluated directly from the individual two-port sections.",
-                )}</p>}
-                <MathView
-                  title={t(
-                    "Charakteristische Funktion Ψ(p)",
-                    "Characteristic function Ψ(p)",
-                  )}
-                  latex={analysis.latex.characteristic}
-                  description={t(
-                    "Quotient aus Eingangsreflexion und Transmission der aktuellen Schaltung. Der gemeinsame Nenner D(p) kürzt sich; Bauteilwerte und beide Torimpedanzen gehen ein.",
-                    "Ratio of input reflection to transmission for the current circuit. The common denominator D(p) cancels; component values and both port impedances are included.",
-                  )}
-                />
-                {analysis.latex.characteristicResponse ? (
-                  <MathView
-                    title={t(
-                      "Zusammenhang mit dem Frequenzgang",
-                      "Relationship to the frequency response",
-                    )}
-                    latex={analysis.latex.characteristicResponse}
-                    description={t(
-                      "Für diese verlustlose LC-Schaltung gilt |S₁₁|² + |S₂₁|² = 1. An Nullstellen von S₂₁ besitzt Ψ gegebenenfalls einen Pol; gemeinsame Faktoren sind als Grenzwert zu behandeln.",
-                      "For this lossless LC circuit, |S₁₁|² + |S₂₁|² = 1. Ψ may have poles at transmission zeros; common factors must be evaluated by their limit.",
-                    )}
-                  />
-                ) : (
-                  <p className="approximation-status is-reference">
-                    {t(
-                      "Die Schaltung enthält Widerstände. Ψ(p) bleibt der Quotient S₁₁/S₂₁; die verlustlose Beziehung |S₂₁|² = 1/(1 + |Ψ|²) gilt hier nicht. Den Dämpfungsverlauf bestimmt die vollständige S-Matrix.",
-                      "The circuit contains resistors. Ψ(p) remains the ratio S₁₁/S₂₁; the lossless relation |S₂₁|² = 1/(1 + |Ψ|²) does not apply here. The attenuation response is determined by the full S-matrix.",
-                    )}
-                  </p>
-                )}
-                <MathView
-                  title={t("Streumatrix S(p)", "Scattering matrix S(p)")}
-                  latex={analysis.latex.s}
-                  description={`${t("Jeder Eintrag ist Sᵢⱼ(p) = Nᵢⱼ(p)/D(p). Die Zählerpolynome und der gemeinsame Nenner sind unten einzeln angegeben. Für diese reziproke Schaltung gilt N₁₂(p) = N₂₁(p).", "Each entry is Sᵢⱼ(p) = Nᵢⱼ(p)/D(p). The numerator polynomials and common denominator are listed separately below. For this reciprocal circuit, N₁₂(p) = N₂₁(p).")} ${t("Leistungswellen", "Power waves")} · Z₁ = ${formatEngineering(analysis.z1, "Ω")} · Z₂ = ${formatEngineering(analysis.z2, "Ω")}`}
-                />
-                {([
-                  ["s11", "N₁₁(p)"],
-                  ["s12", "N₁₂(p)"],
-                  ["s21", "N₂₁(p)"],
-                  ["s22", "N₂₂(p)"],
-                ] as const).map(([key, label]) => (
-                  <MathView
-                    key={key}
-                    title={`${t("Zählerpolynom", "Numerator polynomial")} ${label}`}
-                    latex={analysis.latex.numerators[key]}
-                  />
-                ))}
-                <MathView
-                  title={t(
-                    "Gemeinsames Nennerpolynom D(p)",
-                    "Common denominator polynomial D(p)",
-                  )}
-                  latex={analysis.latex.denominator}
-                />
-                <div className="polynomial-table">
-                  <h3>
-                    {t("Polynomkoeffizienten", "Polynomial coefficients")}
-                  </h3>
-                  <div className="table-scroll">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>{t("Potenz", "Power")}</th>
-                          <th>D(p)</th>
-                          <th>N₁₁(p)</th>
-                          <th>N₁₂(p)</th>
-                          <th>N₂₁(p)</th>
-                          <th>N₂₂(p)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {Array.from(
-                          {
-                            length: Math.max(
-                              analysis.denominator.length,
-                              ...Object.values(analysis.numerators).map(
-                                (p) => p.length,
-                              ),
-                            ),
-                          },
-                          (_, i) => (
-                            <tr key={i}>
-                              <td>
-                                p<sup>{i}</sup>
-                              </td>
-                              {[
-                                analysis.denominator,
-                                analysis.numerators.s11,
-                                analysis.numerators.s12,
-                                analysis.numerators.s21,
-                                analysis.numerators.s22,
-                              ].map((p, j) => (
-                                <td key={j}>
-                                  {Number(
-                                    (p[i] ?? 0).toPrecision(8),
-                                  ).toString()}
-                                </td>
-                              ))}
-                            </tr>
-                          ),
-                        )}
-                      </tbody>
-                    </table>
-                  </div>
-                  <p className="table-note">
-                    {t(
-                      "Koeffizienten numerisch in doppelter Genauigkeit. Gemeinsame Faktoren können erhalten bleiben; die Darstellung ist nicht zwingend minimal.",
-                      "Coefficients use double-precision arithmetic. Common factors may remain; the representation is not necessarily minimal.",
-                    )}{" "}
-                    {projectBand &&
-                      t(
-                        "Bei schmalen Bandfiltern können ausmultiplizierte Polynome numerisch empfindlich sein. Der Frequenzgang wird direkt aus den einzelnen Zweitoren berechnet.",
-                        "Expanded polynomials can be numerically sensitive for narrow-band filters. The frequency response is calculated directly from the individual two-port sections.",
-                      )}
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div className="bom-content">
-                <div className="response-heading">
-                  <div>
-                    <h2>
-                      {t(
-                        "Bauelemente im Signalweg",
-                        "Components along the signal path",
-                      )}
-                    </h2>
-                    <p>
-                      {t(
-                        "Werte der aktuellen Schaltung, in physikalischen Einheiten.",
-                        "Values in the current circuit, in physical units.",
-                      )}
-                    </p>
-                  </div>
-                  <button
-                    className="small-button"
-                    onClick={() =>
-                      downloadFile(
-                        t(
-                          "filterstudio-bauelemente.csv",
-                          "filterstudio-components.csv",
-                        ),
-                        [
-                          t(
-                            "Bezeichnung,Typ,Anordnung,Wert_SI,Kapazitaet_F",
-                            "Label,Type,Configuration,Value_SI,Capacitance_F",
-                          ),
-                          ...evaluation.sections.map((s) =>
-                            [
-                              s.label ?? s.id,
-                              s.kind,
-                              s.connection,
-                              s.value,
-                              s.value2 ?? "",
-                            ].join(","),
-                          ),
-                        ].join("\n"),
-                        "text/csv",
-                      )
-                    }
-                  >
-                    <Download size={14} /> CSV
-                  </button>
-                </div>
-                <div className="table-scroll">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{t("Bauelement", "Component")}</th>
-                        <th>{t("Typ", "Type")}</th>
-                        <th>{t("Anordnung", "Configuration")}</th>
-                        <th>{t("Wert", "Value")}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {evaluation.sections.map((s, i) => (
-                        <tr
-                          key={s.id}
-                          onClick={() => setSelectedId(s.id)}
-                          className="clickable-row"
-                        >
-                          <td>
-                            <b>{s.label ?? `Z${i + 1}`}</b>
-                          </td>
-                          <td>
-                            {s.kind === "LC"
-                              ? s.resonator === "series"
-                                ? t("LC-Serienkreis", "Series LC resonator")
-                                : t("LC-Parallelkreis", "Parallel LC resonator")
-                              : s.kind === "L"
-                                ? t("Induktivität", "Inductor")
-                                : s.kind === "C"
-                                  ? t("Kapazität", "Capacitor")
-                                  : t("Widerstand", "Resistor")}
-                          </td>
-                          <td>
-                            {s.connection === "series"
-                              ? t("Serienzweig", "Series branch")
-                              : t("Querzweig", "Shunt branch")}
-                          </td>
-                          <td>
-                            {formatComponentLabel(
-                              s.value,
-                              s.kind === "LC" ? "L" : s.kind,
-                              language,
-                              componentPrecision,
-                            )}
-                            {s.kind === "LC" &&
-                              ` / ${formatComponentLabel(s.value2!, "C", language, componentPrecision)}`}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <div className="bom-note">
-                  <Info size={16} />
-                  <p>
-                    {t(
-                      "Ideales konzentriertes RLC-Modell. Bauteiltoleranzen, parasitäre Effekte und Verluste realer Spulen und Kondensatoren sind nicht enthalten.",
-                      "Ideal lumped-element RLC model. Component tolerances, parasitics, and losses in real inductors and capacitors are not included.",
-                    )}
-                  </p>
-                </div>
-              </div>
-            )}
-          </section>
+          {circuitView === 'wdf' && wdfPlots}
+          {resultsPanel}
           <footer className="workspace-footer">
             <span>
               <span className="tiny-brand">ƒ</span>{" "}

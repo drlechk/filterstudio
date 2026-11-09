@@ -2,15 +2,12 @@ import { expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { WdfView } from './WdfView';
 import { PreferencesProvider } from '../lib/preferences';
-import { createCircuit, defaultSettings, orderedSections } from '../lib/project';
-import { analyzeNetwork } from '../lib/network';
+import { createCircuit, defaultSettings } from '../lib/project';
 import type { Project } from '../lib/types';
 
 const project: Project = { version: 1, name: 'WDF test', settings: defaultSettings, z2: 50, sweep: { min: 1e5, max: 1e7, points: 501 },
   ...createCircuit([{ id: 'res', kind: 'LC', connection: 'shunt', resonator: 'series', value: 1e-5, value2: 1e-9 }]) };
-const analysis = analyzeNetwork(orderedSections(project.nodes, project.wires), { fRef: project.settings.cutoff, z1: project.settings.impedance, z2: project.z2 });
-const render = (p: Project) => renderToStaticMarkup(<PreferencesProvider><WdfView project={p} onChange={() => {}} analysis={analysis}
-  plotScales={{ frequencyScale: 'log', magnitudeScale: 'db', onFrequencyScaleChange() {}, onMagnitudeScaleChange() {} }} dbRange={100} onDbRangeChange={() => {}} /></PreferencesProvider>);
+const render = (p: Project) => renderToStaticMarkup(<PreferencesProvider><WdfView project={p} onChange={() => {}} /></PreferencesProvider>);
 
 it('exposes sample rate, every root including resonators, port coefficients, and the discretization convention', () => {
   const html = render(project);
@@ -21,9 +18,9 @@ it('exposes sample rate, every root including resonators, port coefficients, and
   expect(html).toContain('Numerical scattering matrix');
   expect(html).toContain('Export WDF');
   expect(html).toContain('Bilinear without prewarping · result tabs: analog circuit');
-  expect(html).toContain('WDF transfer function and analog reference');
-  expect(html).toContain('WDF magnitude response');
-  expect(html).toContain('WDF phase response');
+  expect(html).not.toContain('class="wdf-response"');
+  expect(html).not.toContain('WDF magnitude response');
+  expect(html).not.toContain('WDF phase response');
   expect(html).not.toContain('katex-error');
 });
 

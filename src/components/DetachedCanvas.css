@@ -14,6 +14,8 @@
 .detached-canvas-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .detached-canvas-actions .button { font-size: 12px; padding: 8px 10px; }
 .detached-canvas-shell > main { padding: 16px; }
+.detached-plots .results-panel { margin-top: 0; }
+.results-toolbar > .detach-canvas-control { flex-shrink: 0; margin-left: auto; }
 .detached-canvas-shell .canvas-area { height: calc(100dvh - 200px); min-height: 360px; }
 .detached-canvas-shell .wdf-diagram { height: clamp(380px, 65dvh, 850px); }
 .detached-disconnected { padding: 12px 20px; margin: 0; background: var(--warning-soft); color: var(--warning-text); font-size: 13px; }

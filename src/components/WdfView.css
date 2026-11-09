@@ -58,7 +58,8 @@
 .wdf-error { min-height: 250px; padding: 45px 20px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; text-align: center; color: var(--text-muted); }
 .wdf-error p { max-width: 600px; line-height: 1.6; }
 .wdf-notice { padding: 10px 18px; margin: 0; background: var(--warning-soft); color: var(--warning-text); }
-.wdf-response { border-top: 1px solid var(--border); padding: 20px; }
+.wdf-plot-panel { font-size: 12px; color: var(--text); }
+.wdf-response { padding: 20px; }
 .wdf-response .response-heading { margin-bottom: 12px; }
 .wdf-response .response-heading h3 { font-size: 13px; font-weight: 600; }
 .wdf-response-range { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 20px; padding: 14px; margin-bottom: 22px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-subtle); }

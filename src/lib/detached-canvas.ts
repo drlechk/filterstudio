@@ -1,14 +1,19 @@
 import { parseProject } from './project';
-import type { Project } from './types';
+import { parseTolerance } from './tolerance';
+import type { FilterSettings, Project, ToleranceSpec } from './types';
 
 export type CanvasView = 'circuit' | 'wdf';
+export type DetachedView = CanvasView | 'response' | 'wdf-response' | 'tolerance';
+export type CanvasDesign = { settings: FilterSettings; tolerance: ToleranceSpec; mode: 'parameters' | 'tolerance' };
 export type CanvasSnapshot = {
   project: Project; revision: number; available: boolean;
   canUndo: boolean; canRedo: boolean; busy: boolean;
+  design?: CanvasDesign;
 };
 export type CanvasActions = {
   commit: (project: Project, coalesce: boolean) => void;
-  undo: () => void; redo: () => void; focus: (view: CanvasView) => void;
+  undo: () => void; redo: () => void; focus: (view: DetachedView) => void;
+  setTolerance?: (spec: ToleranceSpec) => void;
 };
 export type CanvasPublication = Omit<CanvasSnapshot, 'revision' | 'available'>;
 
@@ -31,8 +36,9 @@ export class CanvasSession {
   publish(publication: CanvasPublication, actions: CanvasActions) {
     this.actions = actions;
     const previous = this.snapshot;
-    if (previous.available && previous.project === publication.project && previous.canUndo === publication.canUndo && previous.canRedo === publication.canRedo && previous.busy === publication.busy) return;
-    this.snapshot = { ...publication, available: true, revision: previous.revision + (previous.project !== publication.project ? 1 : 0) };
+    const changed = previous.project !== publication.project || previous.design !== publication.design;
+    if (previous.available && !changed && previous.canUndo === publication.canUndo && previous.canRedo === publication.canRedo && previous.busy === publication.busy) return;
+    this.snapshot = { ...publication, available: true, revision: previous.revision + (changed ? 1 : 0) };
     this.emit();
   }
   disconnect() {
@@ -55,7 +61,11 @@ export class CanvasSession {
   }
   undo(revision: number) { this.check(revision); if (this.snapshot.canUndo) this.actions.undo(); }
   redo(revision: number) { this.check(revision); if (this.snapshot.canRedo) this.actions.redo(); }
-  focus(view: CanvasView) { if (this.snapshot.available) this.actions.focus(view); }
+  setTolerance(spec: ToleranceSpec, revision: number) {
+    this.check(revision);
+    this.actions.setTolerance?.(parseTolerance(spec));
+  }
+  focus(view: DetachedView) { if (this.snapshot.available) this.actions.focus(view); }
 }
 
 /** Accept our own immediately acknowledged writes before React renders again.
@@ -84,13 +94,14 @@ export function findCanvasSession(child: Window, id: string): CanvasSession | nu
     return owner.filterstudioCanvasSessions?.get(id) ?? null;
   } catch { return null; }
 }
-export function detachedCanvasRoute(hash: string): { id: string; view: CanvasView } | null {
+export function detachedCanvasRoute(hash: string): { id: string; view: DetachedView } | null {
   const params = new URLSearchParams(hash.replace(/^#/, ''));
   const id = params.get('canvas');
   if (!id || !/^[\w-]{1,128}$/.test(id)) return null;
-  return { id, view: params.get('view') === 'wdf' ? 'wdf' : 'circuit' };
+  const view = params.get('view');
+  return { id, view: view === 'wdf' || view === 'response' || view === 'wdf-response' || view === 'tolerance' ? view : 'circuit' };
 }
-export function detachedCanvasUrl(currentUrl: string, id: string, view: CanvasView): string {
+export function detachedCanvasUrl(currentUrl: string, id: string, view: DetachedView): string {
   const url = new URL(currentUrl);
   url.hash = new URLSearchParams({ canvas: id, view }).toString();
   return url.href;
