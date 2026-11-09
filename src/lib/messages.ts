@@ -2,6 +2,8 @@ import type { Language } from "./preference-storage";
 
 /** Engine messages stay canonical German so open diagnostics can change language. */
 const english: Record<string, string> = {
+  "WDF: Ungültige Verbindung im Signalflussgraphen.": "WDF: invalid connection in the signal-flow graph.",
+  "WDF: Der Signalflussgraph enthält eine verzögerungsfreie Schleife.": "WDF: the signal-flow graph contains a delay-free loop.",
   "Die Verbindung zum ursprünglichen Projekt wurde geschlossen.": "The connection to the original project has closed.",
   "Das Filter wird gerade generiert. Bitte danach erneut versuchen.": "The filter is being generated. Please try again afterwards.",
   "Das Projekt wurde inzwischen geändert. Die aktuelle Ansicht wurde übernommen; bitte die Änderung erneut ausführen.": "The project has changed. The latest view has been loaded; please repeat your change.",

@@ -3,6 +3,7 @@ import { Background, Controls, Handle, MarkerType, Position, ReactFlow, getBezie
 import { Download, Network } from 'lucide-react';
 import { FrequencyInput } from './FrequencyInput';
 import { Formula } from './MathView';
+import { WdfSignalGraph } from './WdfSignalGraph';
 import { usePreferences } from '../lib/preferences';
 import type { FrequencyUnit } from '../lib/frequency-units';
 import { formatEngineering } from '../lib/network';
@@ -125,8 +126,9 @@ function AdaptorDetails({ adaptor, model, onRoot }: { adaptor: WdfAdaptor; model
   </aside>;
 }
 
-export function WdfView({ project, onChange }: {
-  project: Project; onChange: (settings: WdfSettings) => void;
+export type WdfRepresentation = 'adaptors' | 'signal';
+export function WdfView({ project, onChange, representation = 'adaptors' }: {
+  project: Project; onChange: (settings: WdfSettings) => void; representation?: WdfRepresentation;
 }) {
   const { t, translate, language, theme } = usePreferences();
   const sampleRate = project.wdf?.sampleRate ?? defaultWdfSampleRate(project.settings);
@@ -154,6 +156,7 @@ export function WdfView({ project, onChange }: {
     {result.error ? <div className="wdf-error" role="status"><Network size={22} /><strong>{t('Die analoge Schaltung ist noch nicht bereit.', 'The analog circuit is not ready yet.')}</strong><p>{translate(result.error)}</p></div> : model && selected && flow && <>
       {model.rootChanged && <p className="wdf-notice" role="status">{t('Der gespeicherte Adaptor existiert nicht mehr. Der erste Adaptor dient jetzt als Wurzel.', 'The saved adaptor no longer exists. The first adaptor is now the root.')}</p>}
       <div className="wdf-main">
+        {representation === 'signal' ? <WdfSignalGraph model={model} selectedId={selected.id} onSelect={setSelectedId} onRoot={chooseRoot} /> :
         <div className="wdf-diagram" aria-label={t('Wellen-Digitalfilter mit Adaptoren', 'Wave digital filter with adaptors')}>
           <ReactFlow key={model.rootId + model.adaptors.map(a => a.id).join(',')} colorMode={theme} nodes={flow.nodes} edges={flow.edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
             fitView fitViewOptions={{ padding: .15, maxZoom: 1 }} minZoom={.02} maxZoom={2.5} nodesDraggable={false} nodesConnectable={false} zoomOnDoubleClick={false}
@@ -163,13 +166,15 @@ export function WdfView({ project, onChange }: {
             <Background gap={20} size={1} /><Controls showInteractive={false} />
           </ReactFlow>
           <div className="wdf-diagram-hint">{t('Adaptor anklicken · Doppelklick setzt die Wurzel', 'Select an adaptor · double-click to set the root')}</div>
-        </div>
+        </div>}
         <AdaptorDetails adaptor={selected} model={model} onRoot={chooseRoot} />
       </div>
       <div className="wdf-legend"><span><b>S —</b> {t('Serie', 'Series')}</span><span><b>P ∥</b> Parallel</span><span><b>*</b> ρ = 0</span><span><b>z⁻¹</b> C</span><span><b>−z⁻¹</b> L</span><span>{model.adaptors.length} {t('Adaptoren', 'adaptors')} · {model.elements.filter(e => e.kind === 'L' || e.kind === 'C').length} {t('Speicher', 'delays')}</span>
         <span>{t('Bilinear ohne Vorverzerrung · Ergebnis-Tabs: analoge Schaltung', 'Bilinear without prewarping · result tabs: analog circuit')}</span></div>
     </>}
     <details className="wdf-method"><summary>{t('Wellenvariablen, Anpassung und Frequenzabbildung', 'Wave variables, adaptation and frequency mapping')}</summary>
+      <p>{t('Der Signalflussgraph entfaltet b = S a in einzelne Multiplikationen und Summen. Jeder Zweig zeigt den Gamma-Ausdruck und seinen Zahlenwert; exakt verschwindende Zweige entfallen. C wird zu z⁻¹, L zu z⁻¹ mit anschließendem Faktor −1. Angepasste Widerstände reflektieren 0. Am Lastwiderstand gilt Vout = aR₂ / 2. Kreuzende Linien sind nur an markierten Punkten verbunden.',
+        'The signal-flow graph expands b = S a into individual multiplications and sums. Each branch shows its gamma expression and numerical value; exactly zero branches are omitted. C becomes z⁻¹; L becomes z⁻¹ followed by −1. Matched resistors reflect 0. At the load, Vout = aR₂ / 2. Crossing lines connect only at marked dots.')}</p>
       <p>{t('Spannungswellen: a = v + Ri, b = v − Ri. Die Doppellinien führen die beiden Wellenrichtungen. An jedem verbundenen Tor gilt a₁ = b₂ und a₂ = b₁. Die Quelle enthält R₁; die Ausgangsspannung wird an R₂ abgegriffen.',
         'Voltage waves: a = v + Ri, b = v − Ri. The double lines carry the two wave directions. At connected ports a₁ = b₂ and a₂ = b₁. The source includes R₁; output voltage is measured across R₂.')}</p>
       <Formula latex={String.raw`R_C=\frac{1}{2f_sC},\quad R_L=2f_sL,\quad R_R=R`} />

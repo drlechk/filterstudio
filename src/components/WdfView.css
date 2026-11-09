@@ -3,13 +3,15 @@
 .circuit-view-switch button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-border); }
 .circuit-view-switch button:focus-visible, .wdf-view button:focus-visible, .wdf-view select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .wdf-view { color: var(--text); font-size: 12px; }
-.wdf-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 14px 20px; padding: 15px 18px; border-bottom: 1px solid var(--border); background: var(--surface-subtle); }
-.wdf-controls label, .wdf-sample-rate { display: flex; flex-direction: column; gap: 6px; font-weight: 600; }
-.wdf-sample-rate { width: 180px; }
+.wdf-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 8px 18px; border-bottom: 1px solid var(--border); background: var(--surface-subtle); }
+.wdf-controls > label, .wdf-sample-rate { display: flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+.wdf-sample-rate .frequency-value-control { width: 150px; white-space: normal; }
 .wdf-controls select { background: var(--input-bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: 5px; padding: 7px 9px; font: inherit; }
+.wdf-controls > label > select, .wdf-controls .number-field, .wdf-controls > button { height: 35px; }
 .wdf-controls .frequency-unit-select { border: 0; }
-.wdf-timing { display: flex; flex-direction: column; gap: 5px; color: var(--text-muted); margin: 0 auto 3px 0; }
-.wdf-main { display: grid; grid-template-columns: minmax(0, 1fr) 360px; }
+.wdf-controls > button { padding: 7px 10px; }
+.wdf-timing { display: flex; align-items: center; gap: 16px; color: var(--text-muted); margin-right: auto; white-space: nowrap; }
+.wdf-main { display: grid; grid-template-columns: minmax(0, 1fr); }
 .wdf-diagram { height: 450px; min-width: 0; position: relative; background: var(--surface-subtle); }
 .wdf-diagram-hint { position: absolute; top: 10px; left: 12px; right: 12px; pointer-events: none; color: var(--text-muted); font-size: 11px; }
 .wdf-diagram .react-flow__controls-button { background: var(--surface); color: var(--text); border-color: var(--border); }
@@ -33,9 +35,10 @@
 .wdf-wave-edge path { stroke: var(--text-muted); stroke-width: 1; fill: none; }
 .wdf-wave-edge rect { fill: var(--surface-subtle); }
 .wdf-wave-edge text { fill: var(--text-muted); font-size: 11px; }
-.wdf-inspector { padding: 16px; border-left: 1px solid var(--border); max-height: 450px; overflow: auto; }
-.wdf-inspector-title { display: flex; align-items: start; flex-direction: column; gap: 10px; }
+.wdf-inspector { padding: 16px; border-top: 1px solid var(--border); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; }
+.wdf-inspector-title { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .wdf-inspector p { font-size: 11px; line-height: 1.6; color: var(--text-muted); margin: 10px 0; }
+.wdf-inspector > p { grid-column: 1 / -1; }
 .wdf-table-scroll { overflow: auto; }
 .wdf-view table { border-collapse: collapse; width: 100%; font-size: 11px; white-space: nowrap; }
 .wdf-view caption { text-align: left; color: var(--text-muted); padding: 8px 0; }
@@ -43,8 +46,9 @@
 .wdf-view th:first-child { text-align: left; }
 .wdf-view thead th { color: var(--text-muted); font-weight: 500; }
 .wdf-view .adapted { background: var(--success-soft); }
-.wdf-matrix-title { display: block; margin: 16px 0 10px; font-size: 11px; }
-.wdf-matrix { border-left: 2px solid var(--border-strong); border-right: 2px solid var(--border-strong); border-radius: 3px; padding: 4px; overflow: auto; font-size: 11px; font-variant-numeric: tabular-nums; }
+.wdf-matrix-section { min-width: 0; }
+.wdf-matrix-title { display: block; margin: 8px 0 10px; font-size: 11px; }
+.wdf-matrix { max-width: 400px; border-left: 2px solid var(--border-strong); border-right: 2px solid var(--border-strong); border-radius: 3px; padding: 4px; overflow: auto; font-size: 11px; font-variant-numeric: tabular-nums; }
 .wdf-matrix > div { display: flex; }
 .wdf-matrix span { flex: 1; min-width: 82px; text-align: center; padding: 5px 2px; }
 .wdf-legend { display: flex; flex-wrap: wrap; gap: 10px 20px; padding: 12px 18px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 11px; }
@@ -71,13 +75,5 @@
 .wdf-response .csv-button { display: block; }
 .wdf-response .response-plot svg { min-height: 0; }
 @media (max-width: 600px) { .wdf-response { padding: 14px; } .wdf-response-range > label { width: 100%; } }
-@media (max-width: 1600px) {
-  .wdf-main { grid-template-columns: minmax(0, 1fr); }
-  .wdf-inspector { border-left: 0; border-top: 1px solid var(--border); max-height: none; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 24px; }
-  .wdf-inspector-title { grid-column: 1 / -1; flex-direction: row; align-items: center; justify-content: space-between; }
-  .wdf-inspector > p { grid-column: 1 / -1; }
-  .wdf-matrix-title { margin-top: 8px; }
-  .wdf-matrix { max-width: 400px; }
-}
-@media (max-width: 600px) { .wdf-diagram { height: 340px; } .wdf-controls { gap: 12px; } .wdf-controls > button { width: 100%; justify-content: center; } }
+@media (max-width: 600px) { .wdf-diagram { height: 340px; } .wdf-controls { gap: 8px 12px; } }
 @media (max-width: 800px) { .wdf-inspector { display: block; } .wdf-inspector-title { align-items: start; flex-direction: column; } .wdf-matrix-title { margin-top: 16px; } }

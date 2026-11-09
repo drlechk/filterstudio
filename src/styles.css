@@ -1360,12 +1360,9 @@ h1 {
   color: var(--text-muted);
 }
 .component-inspector {
-  width: 210px;
   background: var(--surface);
-  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
   padding: 12px 14px;
-  overflow: auto;
-  z-index: 3;
 }
 .inspector-title {
   display: flex;
@@ -1381,17 +1378,29 @@ h1 {
   display: block;
   color: var(--text-faint);
   font-size: 11px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+}
+.inspector-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 20px;
+}
+.inspector-field {
+  flex: 0 1 210px;
+  min-width: 0;
+  max-width: 100%;
 }
 .component-inspector .field-label {
   font-size: 11px;
-  margin-top: 12px;
+  margin-top: 0;
 }
 .component-inspector .number-field {
   height: 31px;
 }
 .component-inspector select {
   width: 100%;
+  height: 31px;
   font-size: 12px;
   border: 1px solid var(--border);
   border-radius: 4px;
@@ -1423,14 +1432,16 @@ h1 {
   align-items: center;
   color: var(--danger);
   font-size: 11px;
-  margin-top: 18px;
+  margin-top: 19px;
+  min-height: 31px;
   padding: 0;
 }
 .inspector-note {
   font-size: 11px;
   line-height: 1.7;
   color: var(--text-muted);
-  margin-top: 14px;
+  flex: 1 1 250px;
+  margin-top: 19px;
 }
 .results-panel {
   margin-top: 18px;
@@ -2469,9 +2480,6 @@ td:last-child {
   .workspace-footer > span:last-child {
     display: none;
   }
-  .component-inspector {
-    width: 185px;
-  }
   .csv-button {
     display: none;
   }
@@ -2546,14 +2554,6 @@ td:last-child {
   }
   .circuit-caption > span:last-child {
     display: none;
-  }
-  .component-inspector {
-    position: absolute;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    width: 180px;
-    box-shadow: -7px 0 12px var(--shadow-soft);
   }
   .canvas-inner {
     width: 100%;

@@ -122,9 +122,9 @@ describe('shared detached canvas sessions', () => {
 
 describe('detached canvas addressing', () => {
   it('addresses circuit, WDF and their plots independently, including the tolerance mask', () => {
-    const views = ['circuit', 'wdf', 'response', 'wdf-response', 'tolerance'] as const;
+    const views = ['circuit', 'wdf', 'wdf-signal', 'response', 'wdf-response', 'tolerance'] as const;
     const urls = views.map(view => detachedCanvasUrl('https://example.test/filterstudio/', 'same-project', view));
-    expect(new Set(urls).size).toBe(5);
+    expect(new Set(urls).size).toBe(6);
     urls.forEach((url, i) => expect(detachedCanvasRoute(new URL(url).hash)).toEqual({ id: 'same-project', view: views[i] }));
   });
 

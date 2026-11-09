@@ -41,7 +41,7 @@ import {
   X,
 } from "lucide-react";
 import { CircuitEditor } from "./components/CircuitEditor";
-import { WdfView } from "./components/WdfView";
+import { WdfView, type WdfRepresentation } from "./components/WdfView";
 import { WdfPlotPanel } from "./components/WdfPlotPanel";
 import { DetachCanvasButton } from "./components/DetachCanvasButton";
 import { detachedCanvasRoute, detachedCanvasUrl, type CanvasSession, type CanvasSnapshot, type CanvasView, type CanvasWriter, type DetachedView } from "./lib/detached-canvas";
@@ -558,10 +558,12 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const scatteringReadout = (value?: Complex) => !value ? "—" : magnitudeScale === "db"
     ? `${dbReadout(decibels(value), language)} dB` : number(magnitude(value), 6);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [circuitView, setCircuitView] = useState<CanvasView>(initialView === 'wdf' || initialView === 'wdf-response' ? 'wdf' : 'circuit');
+  const [circuitView, setCircuitView] = useState<CanvasView>(initialView === 'wdf' || initialView === 'wdf-signal' || initialView === 'wdf-response' ? 'wdf' : 'circuit');
+  const [wdfRepresentation, setWdfRepresentation] = useState<WdfRepresentation>(initialView === 'wdf-signal' ? 'signal' : 'adaptors');
+  const canvasView: DetachedView = circuitView === 'wdf' && wdfRepresentation === 'signal' ? 'wdf-signal' : circuitView;
   const detachedPlots = !!detached && (initialView === 'response' || initialView === 'tolerance' || initialView === 'wdf-response');
-  const detachedView: DetachedView = detachedPlots ? initialView === 'wdf-response' ? 'wdf-response' : resultTab === 'tolerance' ? 'tolerance' : 'response' : circuitView;
-  const detachedLabel = detachedPlots ? detachedView === 'wdf-response' ? t('WDF-Plots', 'WDF plots') : t('Analoge Plots', 'Analog plots') : circuitView === 'wdf' ? t('WDF-Schaltung', 'WDF circuit') : t('Schaltung', 'Circuit');
+  const detachedView: DetachedView = detachedPlots ? initialView === 'wdf-response' ? 'wdf-response' : resultTab === 'tolerance' ? 'tolerance' : 'response' : canvasView;
+  const detachedLabel = detachedPlots ? detachedView === 'wdf-response' ? t('WDF-Plots', 'WDF plots') : t('Analoge Plots', 'Analog plots') : canvasView === 'wdf-signal' ? t('WDF-Signalflussgraph', 'WDF signal-flow graph') : circuitView === 'wdf' ? t('WDF-Schaltung', 'WDF circuit') : t('Schaltung', 'Circuit');
   useEffect(() => {
     if (!detached) return;
     document.title = `${project.name} · ${detachedLabel}`;
@@ -653,14 +655,15 @@ const FilterWorkspace = memo(function FilterWorkspace({
     commit, undo, redo,
     setTolerance: spec => { setToleranceDraft(spec); setDesignMode('tolerance'); },
     focus: view => {
-      setCircuitView(view === 'wdf' || view === 'wdf-response' ? 'wdf' : 'circuit');
+      setCircuitView(view === 'wdf' || view === 'wdf-signal' || view === 'wdf-response' ? 'wdf' : 'circuit');
+      if (view === 'wdf' || view === 'wdf-signal') setWdfRepresentation(view === 'wdf-signal' ? 'signal' : 'adaptors');
       if (view === 'response' || view === 'tolerance') setResultTab(view);
       if (view === 'tolerance') setDesignMode('tolerance');
       onFocusTab();
       requestAnimationFrame(() => document.getElementById(`${tabId}-${view === 'wdf-response' ? 'wdf-plots' : view === 'response' || view === 'tolerance' ? 'plots' : 'canvas'}`)?.scrollIntoView({ block: 'start' }));
     },
   }, !detached);
-  function detachCanvas(destination: 'window' | 'tab', view: DetachedView = circuitView) {
+  function detachCanvas(destination: 'window' | 'tab', view: DetachedView = canvasView) {
     if (!canvasHost.open(view, destination)) setToast(t(
       'Der Browser hat das neue Fenster blockiert. Erlaube Pop-ups für Filterstudio und versuche es erneut.',
       'The browser blocked the new window. Allow pop-ups for Filterstudio and try again.',
@@ -1235,12 +1238,15 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   <Maximize size={16} />
                 </button>
               </div> : <div className="canvas-actions">
-                <span className="canvas-hint">{t("Wellen-Digitalfilter aus der analogen Struktur", "Wave digital filter from the analog circuit")}</span>
+                <div className="circuit-view-switch" role="group" aria-label={t('WDF-Darstellung', 'WDF representation')}>
+                  <button aria-pressed={wdfRepresentation === 'adaptors'} onClick={() => setWdfRepresentation('adaptors')}>{t('Adaptoren', 'Adaptors')}</button>
+                  <button aria-pressed={wdfRepresentation === 'signal'} onClick={() => setWdfRepresentation('signal')}>{t('Signalflussgraph', 'Signal-flow graph')}</button>
+                </div>
                 <button className="icon-button" onClick={undo} disabled={!canUndo || generating} aria-label={t("Rückgängig", "Undo")} title={t("Rückgängig", "Undo")}><Undo2 size={16} /></button>
                 <button className="icon-button" onClick={redo} disabled={!canRedo || generating} aria-label={t("Wiederholen", "Redo")} title={t("Wiederholen", "Redo")}><Redo2 size={16} /></button>
               </div>}
             </div>
-            {circuitView === "wdf" ? <WdfView project={project} onChange={wdf => commit({ ...project, wdf })} /> : <>
+            {circuitView === "wdf" ? <WdfView project={project} onChange={wdf => commit({ ...project, wdf })} representation={wdfRepresentation} /> : <>
             <ComponentRoundingControls
               id={`component-rounding-${tabId}`}
               open={showRounding}
@@ -1256,7 +1262,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                 ));
               }}
             />
-            <div className={`canvas-area ${selected ? "has-inspector" : ""}`}>
+            <div className="canvas-area">
               <div className="canvas-inner">
                 <CircuitEditor
                   id={tabId}
@@ -1281,112 +1287,122 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     : t("ANALOGE LEITERSCHALTUNG", "ANALOG LADDER CIRCUIT")}
                 </div>
               </div>
-              {selected && (
-                <aside className="component-inspector">
-                  <div className="inspector-title">
-                    <h3>
-                      {selected.section?.label ??
-                        (selected.port === "input"
-                          ? t("Tor 1", "Port 1")
-                          : t("Tor 2", "Port 2"))}
-                    </h3>
-                    <button
-                      className="icon-button"
-                      onClick={() => setSelectedId(null)}
-                      aria-label={t(
-                        "Eigenschaften schließen",
-                        "Close properties",
-                      )}
-                    >
-                      <X size={15} />
-                    </button>
-                  </div>
-                  {selected.section ? (
-                    <>
-                      <span className="inspector-type">
-                        {selected.section.kind === "L"
-                          ? t("Induktivität", "Inductor")
-                          : selected.section.kind === "C"
-                            ? t("Kapazität", "Capacitor")
-                            : selected.section.kind === "R"
-                              ? t("Widerstand", "Resistor")
-                              : t("LC-Resonator", "LC resonator")}
-                      </span>
-                      <label className="field-label">
-                        {selected.section.kind === "C"
-                          ? t("Kapazität", "Capacitance")
+            </div>
+            {selected && (
+              <aside className="component-inspector">
+                <div className="inspector-title">
+                  <h3>
+                    {selected.section?.label ??
+                      (selected.port === "input"
+                        ? t("Tor 1", "Port 1")
+                        : t("Tor 2", "Port 2"))}
+                  </h3>
+                  <button
+                    className="icon-button"
+                    onClick={() => setSelectedId(null)}
+                    aria-label={t(
+                      "Eigenschaften schließen",
+                      "Close properties",
+                    )}
+                  >
+                    <X size={15} />
+                  </button>
+                </div>
+                {selected.section ? (
+                  <>
+                    <span className="inspector-type">
+                      {selected.section.kind === "L"
+                        ? t("Induktivität", "Inductor")
+                        : selected.section.kind === "C"
+                          ? t("Kapazität", "Capacitor")
                           : selected.section.kind === "R"
-                            ? t("Widerstand", "Resistance")
-                            : t("Induktivität", "Inductance")}
-                      </label>
-                      <ComponentValueInput
-                        key={`${selected.id}:value`}
-                        label={t("Bauteilwert", "Component value")}
-                        quantity={
-                          selected.section.kind === "LC"
-                            ? "L"
-                            : selected.section.kind
-                        }
-                        value={selected.section.value}
-                        onChange={(value) => updateSection({ value })}
-                      />
+                            ? t("Widerstand", "Resistor")
+                            : t("LC-Resonator", "LC resonator")}
+                    </span>
+                    <div className="inspector-fields">
+                      <div className="inspector-field">
+                        <label className="field-label">
+                          {selected.section.kind === "C"
+                            ? t("Kapazität", "Capacitance")
+                            : selected.section.kind === "R"
+                              ? t("Widerstand", "Resistance")
+                              : t("Induktivität", "Inductance")}
+                        </label>
+                        <ComponentValueInput
+                          key={`${selected.id}:value`}
+                          label={t("Bauteilwert", "Component value")}
+                          quantity={
+                            selected.section.kind === "LC"
+                              ? "L"
+                              : selected.section.kind
+                          }
+                          value={selected.section.value}
+                          onChange={(value) => updateSection({ value })}
+                        />
+                      </div>
                       {selected.section.kind === "LC" && (
                         <>
-                          <label className="field-label">
-                            {t("Kapazität", "Capacitance")}
-                          </label>
-                          <ComponentValueInput
-                            key={`${selected.id}:value2`}
-                            label={t(
-                              "Resonator-Kapazität",
-                              "Resonator capacitance",
-                            )}
-                            quantity="C"
-                            value={selected.section.value2!}
-                            onChange={(value2) => updateSection({ value2 })}
-                          />
-                          <label className="field-label">Resonator</label>
-                          <select
-                            aria-label={t("Resonatorart", "Resonator type")}
-                            value={selected.section.resonator}
-                            onChange={(e) =>
-                              updateSection({
-                                resonator: e.target
-                                  .value as Section["resonator"],
-                              })
-                            }
-                          >
-                            <option value="series">
-                              {t("Serienresonanz", "Series resonance")}
-                            </option>
-                            <option value="parallel">
-                              {t("Parallelresonanz", "Parallel resonance")}
-                            </option>
-                          </select>
+                          <div className="inspector-field">
+                            <label className="field-label">
+                              {t("Kapazität", "Capacitance")}
+                            </label>
+                            <ComponentValueInput
+                              key={`${selected.id}:value2`}
+                              label={t(
+                                "Resonator-Kapazität",
+                                "Resonator capacitance",
+                              )}
+                              quantity="C"
+                              value={selected.section.value2!}
+                              onChange={(value2) => updateSection({ value2 })}
+                            />
+                          </div>
+                          <div className="inspector-field">
+                            <label className="field-label">Resonator</label>
+                            <select
+                              aria-label={t("Resonatorart", "Resonator type")}
+                              value={selected.section.resonator}
+                              onChange={(e) =>
+                                updateSection({
+                                  resonator: e.target
+                                    .value as Section["resonator"],
+                                })
+                              }
+                            >
+                              <option value="series">
+                                {t("Serienresonanz", "Series resonance")}
+                              </option>
+                              <option value="parallel">
+                                {t("Parallelresonanz", "Parallel resonance")}
+                              </option>
+                            </select>
+                          </div>
                         </>
                       )}
-                      <label className="field-label">
-                        {t("Anordnung", "Configuration")}
-                      </label>
-                      <select
-                        aria-label={t(
-                          "Bauteilanordnung",
-                          "Component configuration",
-                        )}
-                        value={selected.section.connection}
-                        onChange={(e) =>
-                          updateSection({
-                            connection: e.target.value as Section["connection"],
-                          })
-                        }
-                      >
-                        <option value="series">
-                          {t("Serienzweig", "Series branch")}
-                        </option>
-                        <option value="shunt">
-                          {t("Querzweig nach Masse", "Shunt to ground")}
-                        </option>
-                      </select>
+                      <div className="inspector-field">
+                        <label className="field-label">
+                          {t("Anordnung", "Configuration")}
+                        </label>
+                        <select
+                          aria-label={t(
+                            "Bauteilanordnung",
+                            "Component configuration",
+                          )}
+                          value={selected.section.connection}
+                          onChange={(e) =>
+                            updateSection({
+                              connection: e.target.value as Section["connection"],
+                            })
+                          }
+                        >
+                          <option value="series">
+                            {t("Serienzweig", "Series branch")}
+                          </option>
+                          <option value="shunt">
+                            {t("Querzweig nach Masse", "Shunt to ground")}
+                          </option>
+                        </select>
+                      </div>
                       <button
                         className="delete-component"
                         onClick={removeSelected}
@@ -1394,42 +1410,49 @@ const FilterWorkspace = memo(function FilterWorkspace({
                         <Trash2 size={13} />{" "}
                         {t("Bauelement entfernen", "Remove component")}
                       </button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="inspector-type">
-                        {t("Reelle Bezugsimpedanz", "Real reference impedance")}
-                      </p>
-                      <PositiveInput
-                        label={t("Torimpedanz", "Port impedance")}
-                        value={
-                          selected.port === "input"
-                            ? project.settings.impedance
-                            : project.z2
-                        }
-                        unit="Ω"
-                        min={0.01}
-                        max={selected.port === "input" ? 1e6 : 1e9}
-                        onChange={(n) =>
-                          selected.port === "input"
-                            ? commit({
-                                ...project,
-                                settings: { ...project.settings, impedance: n },
-                              })
-                            : commit({ ...project, z2: n })
-                        }
-                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="inspector-type">
+                      {t("Reelle Bezugsimpedanz", "Real reference impedance")}
+                    </p>
+                    <div className="inspector-fields">
+                      <div className="inspector-field">
+                        <label className="field-label">
+                          {t("Torimpedanz", "Port impedance")}
+                        </label>
+                        <PositiveInput
+                          label={t("Torimpedanz", "Port impedance")}
+                          value={
+                            selected.port === "input"
+                              ? project.settings.impedance
+                              : project.z2
+                          }
+                          unit="Ω"
+                          min={0.01}
+                          max={selected.port === "input" ? 1e6 : 1e9}
+                          onChange={(n) =>
+                            selected.port === "input"
+                              ? commit({
+                                  ...project,
+                                  settings: { ...project.settings, impedance: n },
+                                })
+                              : commit({ ...project, z2: n })
+                          }
+                        />
+                      </div>
                       <p className="inspector-note">
                         {t(
                           "Die S-Parameter werden mit dieser Torimpedanz neu berechnet.",
                           "S-parameters are recalculated using this port impedance.",
                         )}
                       </p>
-                    </>
-                  )}
-                </aside>
-              )}
-            </div>
+                    </div>
+                  </>
+                )}
+              </aside>
+            )}
             <div className="circuit-caption">
               <span>
                 <span className="caption-dot" />

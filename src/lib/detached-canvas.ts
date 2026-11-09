@@ -3,7 +3,7 @@ import { parseTolerance } from './tolerance';
 import type { FilterSettings, Project, ToleranceSpec } from './types';
 
 export type CanvasView = 'circuit' | 'wdf';
-export type DetachedView = CanvasView | 'response' | 'wdf-response' | 'tolerance';
+export type DetachedView = CanvasView | 'wdf-signal' | 'response' | 'wdf-response' | 'tolerance';
 export type CanvasDesign = { settings: FilterSettings; tolerance: ToleranceSpec; mode: 'parameters' | 'tolerance' };
 export type CanvasSnapshot = {
   project: Project; revision: number; available: boolean;
@@ -99,7 +99,7 @@ export function detachedCanvasRoute(hash: string): { id: string; view: DetachedV
   const id = params.get('canvas');
   if (!id || !/^[\w-]{1,128}$/.test(id)) return null;
   const view = params.get('view');
-  return { id, view: view === 'wdf' || view === 'response' || view === 'wdf-response' || view === 'tolerance' ? view : 'circuit' };
+  return { id, view: view === 'wdf' || view === 'wdf-signal' || view === 'response' || view === 'wdf-response' || view === 'tolerance' ? view : 'circuit' };
 }
 export function detachedCanvasUrl(currentUrl: string, id: string, view: DetachedView): string {
   const url = new URL(currentUrl);
