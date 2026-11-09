@@ -1,46 +1,65 @@
 import { describe, expect, it } from "vitest";
-import { catalogReference, catalogTableSource } from "./filter-catalog";
+import { catalogReference, catalogTableSource, verifiedCatalogReferences } from "./filter-catalog";
 import { defaultSettings } from "./project";
 import { designTolerance } from "./tolerance";
 import type { FilterFamily } from "./types";
 
-describe("catalog lookup coordinates", () => {
-  it("uses Zverev B for Butterworth and does not truncate orders above 99", () => {
-    expect(catalogReference({ ...defaultSettings, family: "butterworth", order: 5 })?.code).toBe("B 05");
-    expect(catalogReference({ ...defaultSettings, family: "butterworth", order: 100 })?.code).toBe("B 100");
+// Independently evaluated using Python Decimal (60-digit AGM elliptic integrals)
+// for the published n=3/5, rho=20%, theta=30° reference parameters.
+const cauerReferences = [
+  { order: 3, attenuation: 26.528386648019725, code: "CC 03 20 30" },
+  { order: 5, attenuation: 61.42640285280452, code: "CC 05 20 30" },
+];
+
+describe("documented catalog references", () => {
+  it("returns a sourced table row without manufacturing a Butterworth code", () => {
+    const entry = catalogReference({ ...defaultSettings, family: "butterworth", order: 8 })!;
+    expect(entry.code).toBeNull();
+    expect(entry.location[1]).toBe("Table 1, column n = 8");
+    expect(verifiedCatalogReferences).toContain(entry);
+    for (const order of [1, 10, 100])
+      expect(catalogReference({ ...defaultSettings, family: "butterworth", order })).toBeNull();
   });
 
-  it("converts ripple in dB to reflection percent rather than using dB as the catalog suffix", () => {
-    const result = catalogReference({ ...defaultSettings, family: "chebyshev", order: 7, ripple: -10 * Math.log10(1 - .1 ** 2) })!;
-    expect(result.code).toBe("C 07 10");
-    expect(result.alternative).toBe("T 07 10");
-    expect(result.reflectionPercent).toBeCloseTo(10, 10);
-    expect(result.fractional).toBe(false);
-    const betweenEntries = catalogReference({ ...defaultSettings, family: "chebyshev", ripple: .5 })!;
-    expect(betweenEntries.fractional).toBe(true);
-    expect(betweenEntries.code).toContain("32.9771");
-    // Independently evaluated with Python Decimal at 60-digit precision.
-    expect(betweenEntries.reflectionPercent).toBeCloseTo(32.97712265590412, 10);
+  it("only matches the explicitly registered Chebyshev table cells", () => {
+    const settings = { ...defaultSettings, family: "chebyshev" as const, order: 5, ripple: 1 };
+    const entry = catalogReference(settings)!;
+    expect(entry.code).toBeNull();
+    expect(entry.location[1]).toBe("Table 2, n = 5, ripple = 1 dB");
+    expect(catalogReference({ ...settings, ripple: .999999 })).toBeNull();
+    expect(catalogReference({ ...settings, ripple: .5 })).toBeNull();
+    expect(catalogReference({ ...settings, order: 6 })).toBeNull();
   });
 
-  it("uses the realized Cauer stopband instead of the mask edge after order rounding", () => {
+  it.each(cauerReferences)("returns the literal published $code only on a matching prototype", ({ order, attenuation, code }) => {
+    const settings = { ...defaultSettings, family: "cauer" as const, order, ripple: -10 * Math.log10(.96), attenuation };
+    const entry = catalogReference(settings)!;
+    expect(entry.code).toBe(code);
+    expect(entry.sourceTitle).toContain("Zverev");
+    expect(entry.location[1]).toContain("144");
+    expect(entry.sourceUrl).toContain(encodeURIComponent(code));
+    expect(verifiedCatalogReferences).toContain(entry);
+    // No nearest-entry matching, even when the code would round to identical integers.
+    expect(catalogReference({ ...settings, attenuation: attenuation + .0001 })).toBeNull();
+    expect(catalogReference({ ...settings, ripple: settings.ripple + .0001 })).toBeNull();
+    expect(catalogReference({ ...settings, response: "bandpass", bandwidth: 2e5, impedance: 600 })).toBe(entry);
+  });
+
+  it("does not assign a reference to arbitrary synthesized Cauer designs or other families", () => {
     const design = designTolerance({ response: "lowpass", passband: [1e6], stopband: [2e6], passbandLoss: 1, stopbandLoss: 40 }, "cauer", 50);
-    expect(design.minimumOrder).toBe(4);
-    expect(design.settings!.order).toBe(5);
-    const reference = catalogReference(design.settings!)!;
-    expect(reference.code).toMatch(/^CC 05 /);
-    expect(reference.alternative).toMatch(/^C 05 /);
-    expect(reference.stopbandRatio).toBeLessThan(2);
-    expect(reference.modularAngle).toBeGreaterThan(30);
-    expect(reference.modularAngle).toBeLessThan(90);
-    // A transformed bandpass has degree 10 but keeps its order-5 catalog prototype.
-    expect(catalogReference({ ...design.settings!, response: "bandpass", bandwidth: 2e5, impedance: 600 })).toEqual(reference);
-  });
-
-  it("does not invent historical codes for families outside the documented convention", () => {
+    expect(catalogReference(design.settings!)).toBeNull();
     for (const family of ["bessel", "legendre", "chebyshev2", "linkwitz-riley"] as FilterFamily[])
       expect(catalogReference({ ...defaultSettings, family })).toBeNull();
-    expect(catalogTableSource("linkwitz-riley")).toBeNull();
     expect(catalogTableSource("cauer")).toBe("cauerTables");
+  });
+
+  it("keeps evidence on every registered entry and a finite list of literal codes", () => {
+    expect(verifiedCatalogReferences.filter(entry => entry.code).map(entry => entry.code)).toEqual(["CC 03 20 30", "CC 05 20 30"]);
+    for (const entry of verifiedCatalogReferences) {
+      expect(entry.sourceUrl).toMatch(/^https:\/\//);
+      expect(entry.sourceTitle).toBeTruthy();
+      expect(entry.location[0]).toBeTruthy();
+      expect(entry.location[1]).toBeTruthy();
+    }
   });
 });

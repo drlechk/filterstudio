@@ -108,7 +108,7 @@ export function FilterCatalog({ spec, settings, onSelect, onGenerate, onShowMask
     </dl>
     <h3>{t("Passende Prototypen", "Matching prototypes")}</h3>
     <p>{t("Je Familie wird der kleinste unterstützte Prototypgrad für dieselben Vorgaben ermittelt. Wähle eine Karte für deinen Entwurf.", "Each family uses the smallest supported prototype order for the same specifications. Select a card for your design.")}</p>
-    <p>{t("Kennungen nach Zverev: B / C / CC. Zahlenwerte werden berechnet; Dezimalwerte sind Zwischenwerte für den Katalogvergleich.", "Zverev designations: B / C / CC. Numerical values are calculated; decimals indicate intermediate values for catalog comparison.")}</p>
+    <p>{t("Katalogreferenzen werden nur bei Übereinstimmung mit einem belegten Eintrag angezeigt. Eine passende Notationsregel allein reicht dafür nicht aus.", "Catalog references appear only for a matching, documented entry. A valid naming convention alone is not sufficient.")}</p>
     <div className="catalog-candidates" role="group" aria-label={t("Filterfamilie für Katalogentwurf", "Filter family for catalog design")}>
       {candidates.map(({ family, name, design, reference: candidateReference }) => <button key={family}
         className={`catalog-candidate ${family === settings.family ? "selected" : ""}`}
@@ -116,7 +116,8 @@ export function FilterCatalog({ spec, settings, onSelect, onGenerate, onShowMask
         onClick={() => onSelect(family)}>
         <span className="catalog-candidate-title"><strong>{name}</strong>{family === settings.family && <Check size={15} aria-hidden="true" />}</span>
         <small>{descriptions[family]}</small>
-        {candidateReference && <code className="catalog-code">{candidateReference.code}</code>}
+        {candidateReference?.code ? <code className="catalog-code">{candidateReference.code}</code>
+          : <small>{candidateReference ? t("Belegter Tabelleneintrag", "Documented table entry") : t("Keine belegte Katalogreferenz", "No documented catalog reference")}</small>}
         <span>{design.settings
           ? t(`Grad ${filterDegree(design.settings)} · Prototyp n = ${design.settings.order}`, `Order ${filterDegree(design.settings)} · prototype n = ${design.settings.order}`)
           : t("Mit diesen Vorgaben nicht verfügbar", "Unavailable for these specifications")}</span>
@@ -138,32 +139,32 @@ export function FilterCatalog({ spec, settings, onSelect, onGenerate, onShowMask
       </div>
       {error && <p className="catalog-error" role="status">{error}</p>}
       {proposed && <div className="catalog-reference">
-        <h3>{t("Katalogreferenz nach Zverev", "Catalog reference using Zverev notation")}</h3>
+        <h3>{t("Katalognachweis des Tiefpass-Prototyps", "Catalog evidence for the low-pass prototype")}</h3>
         {reference ? <>
-          <code className="catalog-code">{reference.code}</code>
-          <p>{t("Alternative P/T/C-Schreibweise:", "Alternative P/T/C notation:")} <code>{reference.alternative}</code></p>
+          {reference.code ? <code className="catalog-code">{reference.code}</code>
+            : <p>{t("Die Quelle führt diesen Filter als Tabelleneintrag ohne Kurzkennung. Es wird keine B-/C-Kennung ergänzt.", "The source lists this filter as a table entry without a short code. No B/C designation is added.")}</p>}
+          <p><strong>{reference.sourceTitle}</strong> · {t(...reference.location)}</p>
+          <div className="catalog-source-links"><a href={reference.sourceUrl} target="_blank" rel="noopener noreferrer">
+            {t("Beleg für genau diesen Eintrag öffnen", "Open evidence for this specific entry")} <ExternalLink size={13} />
+          </a></div>
           <dl className="catalog-reference-values">
             <div><dt>n</dt><dd>{reference.order} · {t("Tiefpass-Prototypgrad", "Low-pass prototype order")}</dd></div>
+            {reference.ripple !== undefined && <div><dt>Aₚ</dt><dd>{number(reference.ripple)} dB</dd></div>}
             {reference.reflectionPercent !== undefined && <div><dt>ρ</dt><dd>{number(reference.reflectionPercent, 8)} % · {t("max. Durchlassreflexion", "max. passband reflection")}</dd></div>}
             {reference.modularAngle !== undefined && <div><dt>θ</dt><dd>{number(reference.modularAngle, 8)}° · {t("Modulwinkel", "Modular angle")}</dd></div>}
-            {reference.stopbandRatio !== undefined && <div><dt>Ωₛ</dt><dd>{number(reference.stopbandRatio, 8)} · {t("Sperrgrenze des berechneten Prototyps", "Stopband edge of the calculated prototype")}</dd></div>}
           </dl>
-          <p>{t("B = Butterworth, C = Chebyshev I, CC = Cauer. Die folgenden Zahlen stehen für n, gegebenenfalls ρ in Prozent und θ in Grad. Bei Bandfiltern bezieht sich n auf den Tiefpass-Prototyp.", "B = Butterworth, C = Chebyshev I, CC = Cauer. The numbers specify n, followed where applicable by ρ in percent and θ in degrees. For band filters, n refers to the low-pass prototype.")}</p>
-          <p>{reference.fractional
-            ? t("Berechneter Suchschlüssel mit Zwischenwerten (Anzeige auf vier Nachkommastellen gerundet), kein bestätigter gedruckter Tabelleneintrag. Zum Vergleich im Katalog n, ρ und θ sowie Normierung, Schaltungstopologie und Abschlussverhältnis abgleichen.", "Computed lookup key with intermediate values (display rounded to four decimal places), not a verified printed table entry. Compare n, ρ and θ along with normalization, circuit topology and termination ratio in the catalog.")
-            : t("Kennung aus den berechneten Prototypdaten; ein konkreter gedruckter Tabelleneintrag wurde nicht geprüft. Zum Vergleich auch Normierung, Schaltungstopologie und Abschlussverhältnis beachten.", "Designation derived from the calculated prototype; a specific printed table entry has not been verified. Also compare normalization, circuit topology and termination ratio.")}</p>
-          {reference.modularAngle !== undefined && <p>ρ = 100 √(1 − 10<sup>−Aₚ/10</sup>) %, θ = arcsin(1/Ωₛ).</p>}
-        </> : <p>{t("Für diese Familie ist hier keine B/C/CC-Katalogkennung hinterlegt. Vergleiche den Prototypgrad und die normierten Bauteilwerte.", "No B/C/CC catalog designation is provided for this family. Compare the prototype order and normalized component values.")}</p>}
+          <p>{t("Der Nachweis betrifft den normierten Tiefpass-Prototyp. Die Schaltung wird weiterhin numerisch realisiert und skaliert; für einen Bauteilvergleich auch Topologie und Abschlussverhältnis abgleichen.", "The evidence identifies the normalized low-pass prototype. The circuit is still realized and scaled numerically; also compare topology and termination ratio when comparing components.")}</p>
+        </> : <p role="status">{t("Kein belegter Katalogeintrag hinterlegt. Dieser frei berechnete Entwurf erhält keine Katalogkennung. Das bedeutet nicht, dass er in keinem anderen Katalog vorkommt.", "No documented catalog entry is registered. This freely calculated design receives no catalog designation. This does not imply that it appears in no other catalog.")}</p>}
+        <p className="catalog-note">{t("Die hinterlegte Sammlung ist ein belegter Ausschnitt, kein vollständiger Filterkatalog. Die folgenden Links sind allgemeine Tabellenquellen und kein Nachweis einer Übereinstimmung.", "The registered collection is a documented subset, not a complete filter catalog. The following links are general table resources, not evidence of a match.")}</p>
         <div className="catalog-source-links">
           {tableSource && <a href={catalogSources[tableSource]} target="_blank" rel="noopener noreferrer">{tableLabels[tableSource]} <ExternalLink size={13} /></a>}
           {reference && tableSource !== "zverev" && <a href={catalogSources.zverev} target="_blank" rel="noopener noreferrer">{tableLabels.zverev} <ExternalLink size={13} /></a>}
-          {reference && <a href={catalogSources.notation} target="_blank" rel="noopener noreferrer">{t("P/T/C-Kennungen erklärt (PDF, S. 18)", "P/T/C notation explained (PDF, p. 18)")} <ExternalLink size={13} /></a>}
           {settings.family === "cauer" && <a href={catalogSources.cauerNotation} target="_blank" rel="noopener noreferrer">{t("Cauer: Modulwinkel und Kennung (Analog Devices, PDF)", "Cauer: modular angle and designation (Analog Devices, PDF)")} <ExternalLink size={13} /></a>}
         </div>
       </div>}
       <p>{t("Generieren skaliert den Prototyp auf die Vorgaben und ersetzt die aktuelle Schaltung. Rückgängig stellt sie wieder her.", "Generating scales the prototype to the specifications and replaces the current circuit. Undo restores it.")}</p>
     {prototype && <details className="catalog-prototype">
-      <summary>{t("Katalogeintrag: normierter Tiefpass", "Catalog entry: normalized low-pass")}</summary>
+      <summary>{t("Berechneter Tiefpass-Prototyp", "Calculated low-pass prototype")}</summary>
       <p>{t("Normierung: ω₀ = 1 rad/s, Z₁ = 1 Ω. L und C sind normierte Prototypwerte. Bandfilter werden aus diesem Tiefpass transformiert; ihre Ordnung ist 2n.", "Normalization: ω₀ = 1 rad/s, Z₁ = 1 Ω. L and C are normalized prototype values. Band filters are transformed from this low-pass; their order is 2n.")}</p>
       <div className="table-scroll"><table>
         <thead><tr><th>#</th><th>{t("Anordnung", "Configuration")}</th><th>{t("Normierte Werte", "Normalized values")}</th></tr></thead>
@@ -178,6 +179,6 @@ export function FilterCatalog({ spec, settings, onSelect, onGenerate, onShowMask
       <p>{t("Tiefpass-Skalierung: L = Lₙ · Z₀ / ω₀, C = Cₙ / (Z₀ · ω₀), mit ω₀ = 2πf₀. Hochpass und Bandfilter nutzen die entsprechende Frequenztransformation.", "Low-pass scaling: L = Lₙ · Z₀ / ω₀, C = Cₙ / (Z₀ · ω₀), with ω₀ = 2πf₀. High-pass and band filters use the corresponding frequency transformation.")}</p>
     </details>}
     </div>
-    <p className="catalog-note">{t("Die LC-Werte werden berechnet. Die Referenzkennungen dienen zum Abgleich mit Katalogen; verlinkte Tabellen können andere Normierungen, Topologien oder Abschlussimpedanzen verwenden.", "LC values are calculated. Reference designations support catalog comparisons; linked tables may use different normalizations, topologies or termination impedances.")}</p>
+    <p className="catalog-note">{t("Kurzkennungen werden ausschließlich aus belegten Quellen übernommen. Es gibt keine erzeugten Kennungen, keine interpolierten Katalognummern und keine automatische Zuordnung zum nächstgelegenen Eintrag.", "Short codes are taken exclusively from documented sources. Codes are never generated, interpolated or assigned from the nearest entry.")}</p>
   </section>;
 }

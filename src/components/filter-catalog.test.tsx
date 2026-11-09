@@ -22,8 +22,11 @@ it("compares independently calculated orders and exposes the normalized selected
   expect(html).toContain('aria-label="Catalog parameters"');
   expect(html).toContain('aria-label="Passband edge (MHz)"');
   expect(html).toContain('aria-label="Reference impedance (Ω)"');
-  expect(html).toContain('B 08');
-  expect(html).toContain('Alternative P/T/C notation:');
+  expect(html).not.toContain('B 08');
+  expect(html).not.toContain('Alternative P/T/C notation:');
+  expect(html).toContain('Table 1, column n = 8');
+  expect(html).toContain('Open evidence for this specific entry');
+  expect(html).toContain('No documented catalog reference');
   expect(html).toContain('target="_blank" rel="noopener noreferrer"');
 });
 
@@ -46,4 +49,12 @@ it("offers all four frequency edges directly for band designs", () => {
   expect(html).toContain('value="bandpass" selected=""');
   expect(html).toContain('aria-label="Max. passband loss (dB)"');
   expect(html).toContain('aria-label="Min. stopband attenuation (dB)"');
+});
+
+it("identifies unmatched designs without fabricating or rounding a catalog number", () => {
+  const html = render({ ...spec, stopband: [1.5e6] });
+  expect(html).toContain("No documented catalog entry is registered.");
+  expect(html).not.toContain('class="catalog-code"');
+  expect(html).not.toContain("Computed lookup key");
+  expect(html).toContain("Calculated low-pass prototype");
 });
