@@ -2,7 +2,7 @@ import type { FilterSettings, Section } from './types';
 import { MIN_RELATIVE_BANDWIDTH } from './frequency';
 import { hasHalfPowerCutoff, isMonotonicFamily, monotonicPrototype } from './monotonic';
 import { linkwitzRileyPrototype } from './linkwitz-riley';
-import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from './filter-limits';
+import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation, defaultLadderStart } from './filter-limits';
 
 /** Normalized LC ladder synthesis. Frequencies are angular internally.
  * Elliptic prototype: Orfanidis, Introduction to Signal Processing, 2e, ch. 13,
@@ -423,6 +423,8 @@ function bandTransform(section: Section, b: number, response: 'bandpass' | 'band
 
 export function synthesize(settings: FilterSettings): SynthesisResult {
   const { family, response, order: n, cutoff, impedance: z, ripple, attenuation } = settings;
+  if (settings.ladderStart !== undefined && settings.ladderStart !== 'series' && settings.ladderStart !== 'shunt') throw new Error('Der Leiterbeginn muss series oder shunt sein.');
+  const dual = (settings.ladderStart ?? defaultLadderStart(family)) !== defaultLadderStart(family);
   if (!Number.isInteger(n) || n < 1 || n > MAX_PROTOTYPE_ORDER) throw new Error('Der Filtergrad muss zwischen 1 und 100 liegen.');
   if (!(cutoff > 0) || !Number.isFinite(cutoff) || !(z > 0) || !Number.isFinite(z)) throw new Error('Frequenz und Impedanz müssen positiv sein.');
   if ((family === 'chebyshev' || family === 'cauer') && (!(ripple >= .01 && ripple <= 3) || !Number.isFinite(ripple))) throw new Error('Die Welligkeit muss zwischen 0,01 und 3 dB liegen.');
@@ -483,6 +485,18 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
       else if (s.kind === 'C') scaled = { ...s, kind: 'L', value: 1 / s.value };
       else if (s.kind === 'LC') scaled = { ...s, value: 1 / s.value2!, value2: 1 / s.value };
     }
+    // Dualize the normalized circuit after frequency transformation: Z → 1/Z,
+    // series ↔ shunt, L ↔ C, series LC ↔ parallel LC (swap L/C values).
+    // Transforming first also covers the split finite-zero band resonators.
+    if (dual) {
+      scaled.connection = scaled.connection === 'series' ? 'shunt' : 'series';
+      if (scaled.kind === 'L') scaled.kind = 'C';
+      else if (scaled.kind === 'C') scaled.kind = 'L';
+      else if (scaled.kind === 'LC') {
+        [scaled.value, scaled.value2] = [scaled.value2!, scaled.value];
+        scaled.resonator = scaled.resonator === 'series' ? 'parallel' : 'series';
+      } else scaled.value = 1 / scaled.value;
+    }
     if (scaled.kind === 'L') scaled.value *= z / omega;
     if (scaled.kind === 'C') scaled.value /= z * omega;
     if (scaled.kind === 'LC') { scaled.value *= z / omega; scaled.value2! /= z * omega; }
@@ -499,5 +513,5 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
   else if (hasHalfPowerCutoff(family)) notes.push('Die Grenzfrequenz bezeichnet den −3,0103-dB-Punkt.');
   else notes.push('Die Grenzfrequenz bezeichnet die Durchlassbandgrenze bei −Rp dB.');
   if (load !== 1) notes.push('Gerader Chebyshev-Grad: Der Ausgangsabschluss wird für die spezifizierte Welligkeit angepasst.');
-  return { sections, z2: z * load, notes };
+  return { sections, z2: z * (dual ? 1 / load : load), notes };
 }

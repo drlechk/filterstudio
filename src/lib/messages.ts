@@ -2,6 +2,7 @@ import type { Language } from "./preference-storage";
 
 /** Engine messages stay canonical German so open diagnostics can change language. */
 const english: Record<string, string> = {
+  "Der Leiterbeginn muss series oder shunt sein.": "Ladder start must be series or shunt.",
   "WDF: Ungültige Verbindung im Signalflussgraphen.": "WDF: invalid connection in the signal-flow graph.",
   "WDF: Der Signalflussgraph enthält eine verzögerungsfreie Schleife.": "WDF: the signal-flow graph contains a delay-free loop.",
   "Die Verbindung zum ursprünglichen Projekt wurde geschlossen.": "The connection to the original project has closed.",

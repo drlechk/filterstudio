@@ -3,11 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { FilterCatalog } from "./FilterCatalog";
 import { PreferencesProvider } from "../lib/preferences";
 import { defaultSettings } from "../lib/project";
-import type { ToleranceSpec } from "../lib/types";
+import type { FilterSettings, ToleranceSpec } from "../lib/types";
 
 const spec: ToleranceSpec = { response: "lowpass", passband: [1e6], stopband: [2e6], passbandLoss: 1, stopbandLoss: 40 };
-const render = (mask: ToleranceSpec, previewError: string | null = null) => renderToStaticMarkup(<PreferencesProvider>
-  <FilterCatalog spec={mask} settings={{ ...defaultSettings, family: "butterworth" }} onSelect={() => {}}
+const render = (mask: ToleranceSpec, previewError: string | null = null, settings: FilterSettings = defaultSettings) => renderToStaticMarkup(<PreferencesProvider>
+  <FilterCatalog spec={mask} settings={settings} onSelect={() => {}}
     onSpecChange={() => {}} onSettingsChange={() => {}} frequencyUnit="MHz" onFrequencyUnitChange={() => {}}
     onGenerate={() => {}} onShowMask={() => {}} generating={false} previewError={previewError} />
 </PreferencesProvider>);
@@ -28,6 +28,17 @@ it("compares independently calculated orders and exposes the normalized selected
   expect(html).toContain('Open evidence for this specific entry');
   expect(html).toContain('No documented catalog reference');
   expect(html).toContain('target="_blank" rel="noopener noreferrer"');
+});
+
+it('shows both ladder choices and uses the selected topology in the normalized catalog prototype', () => {
+  const series = render(spec, null, { ...defaultSettings, ladderStart: 'series' });
+  const shunt = render(spec, null, { ...defaultSettings, ladderStart: 'shunt' });
+  expect(shunt).toContain('aria-label="Ladder start"');
+  expect(shunt).toContain('aria-pressed="true" title="Shunt branch first">Shunt First');
+  expect(shunt).toContain('aria-pressed="false" title="Series branch first">Series First');
+  expect(series).toContain('aria-pressed="true" title="Series branch first">Series First');
+  expect(series).toContain('<tr><td>1</td><td>Series branch</td><td>L = ');
+  expect(shunt).toContain('<tr><td>1</td><td>Shunt branch</td><td>C = ');
 });
 
 it("disables entries for an invalid mask and hides the prototype", () => {

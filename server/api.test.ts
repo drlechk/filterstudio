@@ -103,6 +103,29 @@ describe("REST/OpenAPI", () => {
     await request(server.httpServer).post("/api/filters/validate").send({ project: { ...project, wdf: { ...wdf, sampleRate: 0 } } }).expect(400);
   });
 
+  it('synthesizes and round-trips both ladder starts, including tolerance designs and small dual loads', async () => {
+    const tolerance = { response: 'lowpass', passband: [1e6], stopband: [2e6], passbandLoss: 1, stopbandLoss: 40 };
+    for (const family of ['butterworth', 'chebyshev', 'chebyshev2', 'cauer', 'bessel', 'legendre', 'linkwitz-riley']) {
+      for (const ladderStart of ['series', 'shunt']) {
+        const generated = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family, ladderStart } }).expect(200);
+        const candidate = generated.body.project;
+        expect(candidate.settings.ladderStart).toBe(ladderStart);
+        expect(candidate.nodes[1].section.connection).toBe(ladderStart);
+        const reopened = await request(server.httpServer).post('/api/filters/validate').send({ project: candidate }).expect(200);
+        expect(reopened.body.project).toEqual(candidate);
+      }
+    }
+    for (const ladderStart of ['series', 'shunt']) {
+      const masked = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'cauer', ladderStart }, tolerance }).expect(200);
+      expect(masked.body.project.settings.ladderStart).toBe(ladderStart);
+      expect(masked.body.project.nodes[1].section.connection).toBe(ladderStart);
+    }
+    const small = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'chebyshev', order: 4, ripple: 3, impedance: .01, ladderStart: 'shunt' } }).expect(200);
+    expect(small.body.project.z2).toBeLessThan(.01);
+    await request(server.httpServer).post('/api/filters/validate').send({ project: small.body.project }).expect(200);
+    await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { ladderStart: 'invalid' } }).expect(400);
+  });
+
   it("handles band/tolerance designs and singular samples explicitly", async () => {
     const band = await request(server.httpServer).post("/api/filters/synthesize").send({ settings: { family: "cauer", response: "bandstop", order: 3, cutoff: 1e6, bandwidth: 2e5 } }).expect(200);
     const response = await request(server.httpServer).post("/api/filters/analyze").send({ project: band.body.project, frequencies: [0, 1e6] }).expect(200);

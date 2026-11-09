@@ -12,6 +12,8 @@ export type FilterResponse = "lowpass" | "highpass" | "bandpass" | "bandstop";
 export type FilterSettings = {
   family: FilterFamily;
   response: FilterResponse;
+  /** First ladder branch; omitted in legacy files to retain the family's original topology. */
+  ladderStart?: Section["connection"];
   order: number;
   cutoff: number;
   bandwidth?: number;

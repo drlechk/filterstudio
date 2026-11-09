@@ -144,6 +144,7 @@ export function designTolerance(
   spec: ToleranceSpec,
   family: FilterFamily,
   impedance: number,
+  ladderStart?: FilterSettings['ladderStart'],
 ): ToleranceDesign {
   const { max: maximumOrder } = filterOrderLimits(family);
   const issue = validateTolerance(spec);
@@ -241,6 +242,7 @@ export function designTolerance(
     ripple: ap,
     attenuation,
     ...(band ? { bandwidth } : {}),
+    ...(ladderStart ? { ladderStart } : {}),
   };
   let inRange = Number.isFinite(cutoff) && cutoff >= 1 && cutoff <= 1e12;
   if (band) {

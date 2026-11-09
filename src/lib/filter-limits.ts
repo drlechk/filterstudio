@@ -1,6 +1,10 @@
 import type { FilterFamily } from "./types";
 
 export const MAX_PROTOTYPE_ORDER = 100;
+// Dual even-order Chebyshev ladders can terminate below the 0.01 Ω input limit.
+export const MIN_LOAD_IMPEDANCE = .001;
+export const defaultLadderStart = (family: FilterFamily): 'series' | 'shunt' =>
+  family === 'cauer' || family === 'chebyshev2' ? 'shunt' : 'series';
 // These spectral-factor tables are independently validated through order 20.
 export const MAX_MONOTONIC_ORDER = 20;
 export const LINKWITZ_RILEY_ORDERS: readonly number[] = Array.from({ length: MAX_PROTOTYPE_ORDER / 2 }, (_, i) => 2 * (i + 1));

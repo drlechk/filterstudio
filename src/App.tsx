@@ -50,7 +50,7 @@ import "./components/DetachedCanvas.css";
 import { ProjectTabs } from "./components/ProjectTabs";
 import { SiteFooter } from "./components/SiteFooter";
 import { createFilterTab, workspaceReducer, type Workspace } from "./lib/workspace";
-import { MAX_CIRCUIT_NODES, MAX_CIRCUIT_SECTIONS, nearestFilterOrder, filterOrderLimits, minimumStopbandAttenuation } from "./lib/filter-limits";
+import { MAX_CIRCUIT_NODES, MAX_CIRCUIT_SECTIONS, MIN_LOAD_IMPEDANCE, nearestFilterOrder, filterOrderLimits, minimumStopbandAttenuation } from "./lib/filter-limits";
 import { useRemoteWorkspace } from "./lib/use-remote-workspace";
 import { hasHalfPowerCutoff } from "./lib/monotonic";
 import { checkRevision, RemoteError, type RemoteController, type RemoteTab } from "./lib/remote-protocol";
@@ -66,6 +66,7 @@ import { Formula, MathView } from "./components/MathView";
 import { SectionMatrixView } from "./components/SectionMatrixView";
 import { ApproximationView } from "./components/ApproximationView";
 import { ToleranceControls } from "./components/ToleranceControls";
+import { LadderStartControl } from "./components/LadderStartControl";
 import { FilterCatalog } from "./components/FilterCatalog";
 import { TolerancePlot } from "./components/TolerancePlot";
 import {
@@ -748,8 +749,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
     [reference, project.settings],
   );
   const toleranceDesign = useMemo(
-    () => designTolerance(toleranceDraft, settings.family, settings.impedance),
-    [toleranceDraft, settings.family, settings.impedance],
+    () => designTolerance(toleranceDraft, settings.family, settings.impedance, settings.ladderStart),
+    [toleranceDraft, settings.family, settings.impedance, settings.ladderStart],
   );
   const tolerancePreview = useMemo(() => {
     if (!toleranceDesign.settings || (designMode !== "tolerance" && resultTab !== "tolerance"))
@@ -1430,7 +1431,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                               : project.z2
                           }
                           unit="Ω"
-                          min={0.01}
+                          min={selected.port === "input" ? 0.01 : MIN_LOAD_IMPEDANCE}
                           max={selected.port === "input" ? 1e6 : 1e9}
                           onChange={(n) =>
                             selected.port === "input"
@@ -2598,6 +2599,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     )}
                   </>
                 )}
+                <LadderStartControl settings={settings} onChange={ladderStart => updateSettings({ ladderStart })} />
                 <div className="parameter-field">
                   <label className="field-label">
                     {t("Bezugsimpedanz", "Reference impedance")} <span>Z₀</span>

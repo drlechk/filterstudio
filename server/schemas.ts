@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseProject } from "../src/lib/project";
-import { MAX_PROTOTYPE_ORDER, MAX_CIRCUIT_NODES } from "../src/lib/filter-limits";
+import { MAX_PROTOTYPE_ORDER, MAX_CIRCUIT_NODES, MIN_LOAD_IMPEDANCE } from "../src/lib/filter-limits";
 
 export const idSchema = z.string().min(1).max(128);
 export const digitsSchema = z.number().int().min(1).max(15);
@@ -10,6 +10,7 @@ const value = z.number().positive().max(1e15);
 export const settingsSchema = z.object({
   family: z.enum(["butterworth", "chebyshev", "chebyshev2", "cauer", "bessel", "legendre", "linkwitz-riley"]),
   response: z.enum(["lowpass", "highpass", "bandpass", "bandstop"]),
+  ladderStart: z.enum(["series", "shunt"]).optional().describe("First ladder branch. Both topologies are supported for every family/response. Defaults to shunt for Cauer/Chebyshev II and series otherwise. Even-order Chebyshev I adjusts the load for the selected topology."),
   order: z.number().int().min(1).max(MAX_PROTOTYPE_ORDER).describe("Prototype order: even 2–100 for Linkwitz–Riley; 1–100 for Butterworth/Chebyshev I; 1–20 for Bessel/Legendre; odd 3–19 for Cauer (>= 40 dB at n >= 7); odd 1–11 for Chebyshev II (>= 30 dB at n=5, >= 60 dB at n=7/9, 80 dB at n=11). Band filters have order 2n."),
   cutoff: frequency.describe("Reference/center frequency in Hz. Linkwitz–Riley uses the crossover at -6.0206 dB (band edges for band filters). Butterworth/Bessel/Legendre use the half-power cutoff (-3.0103 dB). Chebyshev II uses the stopband edge at -attenuation dB; its bandwidth is measured between stopband edges."),
   bandwidth: z.number().positive().max(1e12).optional().describe("Required for band filters; at least 0.1% of cutoff. Band edges must be in 1 Hz–1 THz."),
@@ -40,7 +41,7 @@ export const projectSchema = z.object({
     section: sectionSchema.optional(), port: z.enum(["input", "output"]).optional(),
   })).min(2).max(MAX_CIRCUIT_NODES),
   wires: z.array(z.object({ id: idSchema, source: idSchema, target: idSchema })).max(MAX_CIRCUIT_NODES),
-  z2: z.number().min(0.01).max(1e9), tolerance: toleranceSchema.optional(),
+  z2: z.number().min(MIN_LOAD_IMPEDANCE).max(1e9), tolerance: toleranceSchema.optional(),
   componentPrecision: precisionSchema.optional(), sweep: sweepSchema,
   wdf: z.object({ sampleRate: z.number().min(1).max(1e15), rootId: z.string().min(1).max(256).optional() }).optional(),
 }).superRefine((project, context) => {

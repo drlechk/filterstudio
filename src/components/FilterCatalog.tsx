@@ -6,6 +6,7 @@ import { synthesize } from "../lib/synthesis";
 import { filterDegree } from "../lib/frequency";
 import { formatEngineering } from "../lib/network";
 import { SpecSlider, ToleranceControls, toleranceIssueLabels } from "./ToleranceControls";
+import { LadderStartControl } from "./LadderStartControl";
 import { catalogReference, catalogSources, catalogTableSource } from "../lib/filter-catalog";
 import type { FrequencyUnit } from "../lib/frequency-units";
 import type { FilterFamily, FilterSettings, ToleranceSpec } from "../lib/types";
@@ -35,9 +36,9 @@ export function FilterCatalog({ spec, settings, onSelect, onGenerate, onShowMask
   const engineering = (value: number, unit: string) =>
     formatEngineering(value, unit, 4, language === "de" ? "de-DE" : "en-US");
   const candidates = useMemo(() => families.map(([family, name]) => {
-    const design = designTolerance(spec, family, settings.impedance);
+    const design = designTolerance(spec, family, settings.impedance, settings.ladderStart);
     return { family, name, design, reference: design.settings ? catalogReference(design.settings) : null };
-  }), [spec, settings.impedance]);
+  }), [spec, settings.impedance, settings.ladderStart]);
   const selected = candidates.find(candidate => candidate.family === settings.family)!;
   const prototype = useMemo(() => {
     if (!selected.design.settings) return null;
@@ -94,6 +95,7 @@ export function FilterCatalog({ spec, settings, onSelect, onGenerate, onShowMask
           value={settings.impedance} min={0.01} max={1e6} step={0.001} logarithmic
           onChange={impedance => onSettingsChange({ impedance })} />
       </div>
+      <LadderStartControl settings={settings} onChange={ladderStart => onSettingsChange({ ladderStart })} />
       <ToleranceControls spec={spec} design={selected.design} family={settings.family}
         frequencyUnit={frequencyUnit} onFrequencyUnitChange={onFrequencyUnitChange}
         onChange={onSpecChange} showSummary={false} />
