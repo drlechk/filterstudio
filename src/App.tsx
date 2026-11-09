@@ -60,6 +60,7 @@ import { Formula, MathView } from "./components/MathView";
 import { SectionMatrixView } from "./components/SectionMatrixView";
 import { ApproximationView } from "./components/ApproximationView";
 import { ToleranceControls } from "./components/ToleranceControls";
+import { FilterCatalog } from "./components/FilterCatalog";
 import { TolerancePlot } from "./components/TolerancePlot";
 import {
   defaultTolerance,
@@ -1354,10 +1355,12 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     aria-pressed={designMode === "tolerance"}
                     onClick={() => selectDesignMode("tolerance")}
                   >
-                    {t("Toleranzmaske", "Tolerance mask")}
+                    {t("Filterkatalog", "Filter catalog")}
                   </button>
                 </div>
                 {designMode === "tolerance" ? (
+                  <>
+                  <p className="spec-hint">{t("Interaktiver Katalog · Auslegung nach Toleranzmaske", "Interactive catalog · tolerance-mask design")}</p>
                   <ToleranceControls
                     spec={toleranceDraft}
                     design={toleranceDesign}
@@ -1366,6 +1369,9 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     onFrequencyUnitChange={setFrequencyUnit}
                     onChange={setToleranceDraft}
                   />
+                  <FilterCatalog spec={toleranceDraft} settings={settings}
+                    onSelect={family => updateSettings({ family })} />
+                  </>
                 ) : (
                   <>
                     <div className="order-label">

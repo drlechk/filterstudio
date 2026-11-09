@@ -1513,6 +1513,17 @@ h1 {
 .tolerance-controls {
   grid-column: 1 / -1;
 }
+
+.filter-catalog { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.filter-catalog h3 { font-size: 13px; margin: 0 0 8px; }
+.filter-catalog p, .filter-catalog li { font-size: 11px; line-height: 1.6; }
+.catalog-candidates { display: grid; gap: 6px; margin: 12px 0; }
+.catalog-candidate { display: grid; gap: 4px; text-align: left; padding: 10px; border: 1px solid currentColor; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; }
+.catalog-candidate span { font-size: 11px; }
+.catalog-candidate.selected { background: var(--accent-soft); color: var(--accent-text); }
+.catalog-candidate:disabled { opacity: .5; cursor: default; }
+.filter-catalog summary { cursor: pointer; font-size: 12px; font-weight: 600; }
+.filter-catalog ol { padding-left: 22px; }
 .spec-section-title {
   display: flex;
   align-items: center;
