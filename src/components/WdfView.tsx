@@ -113,7 +113,7 @@ function AdaptorDetails({ adaptor, model, onRoot }: { adaptor: WdfAdaptor; model
     <p>{root ? t('An der Wurzel ist kein Tor als reflexionsfrei vorgegeben.', 'No port is constrained to be reflection-free at the root.')
       : t(`Tor ${adaptor.adaptedPort! + 1} ist zur Wurzel hin angepasst (ρ = 0).`, `Port ${adaptor.adaptedPort! + 1} is adapted toward the root (ρ = 0).`)}</p>
     <div className="wdf-table-scroll"><table><caption>{t('Torwiderstände und Koeffizienten', 'Port resistances and coefficients')}</caption><thead><tr>
-      <th>{t('Tor → Element', 'Port → element')}</th><th>Rᵢ / Ω</th><th>{adaptor.kind === 'series' ? 'βᵢ' : 'αᵢ'}</th><th>ρᵢ</th>
+      <th>{t('Tor → Element', 'Port → element')}</th><th>Rᵢ / Ω</th><th>γᵢ</th><th>ρᵢ</th>
     </tr></thead><tbody>{adaptor.ports.map((port, i) => <tr key={i} className={i === adaptor.adaptedPort ? 'adapted' : ''}>
       <th>{i + 1}{i === adaptor.adaptedPort ? '*' : ''} → {name(port.neighborId)}</th>
       <td title={String(port.resistance)}>{formatEngineering(port.resistance, '', 7, language)}</td>
@@ -176,9 +176,12 @@ export function WdfView({ project, onChange, analysis, ...plotControls }: {
       <p>{t('Spannungswellen: a = v + Ri, b = v − Ri. Die Doppellinien führen die beiden Wellenrichtungen. An jedem verbundenen Tor gilt a₁ = b₂ und a₂ = b₁. Die Quelle enthält R₁; die Ausgangsspannung wird an R₂ abgegriffen.',
         'Voltage waves: a = v + Ri, b = v − Ri. The double lines carry the two wave directions. At connected ports a₁ = b₂ and a₂ = b₁. The source includes R₁; output voltage is measured across R₂.')}</p>
       <Formula latex={String.raw`R_C=\frac{1}{2f_sC},\quad R_L=2f_sL,\quad R_R=R`} />
-      <Formula latex={String.raw`\beta_i=\frac{2R_i}{\sum_kR_k},\quad S^{\mathrm{series}}_{ij}=\delta_{ij}-\beta_i\sigma_i\sigma_j,\qquad \alpha_i=\frac{2/R_i}{\sum_k1/R_k},\quad S^{\mathrm{parallel}}_{ij}=\alpha_j-\delta_{ij}`} />
-      <p>{t('Beim Serienadaptor kennzeichnet − das Tor mit σ = −1; alle anderen Tore haben σ = +1. Diese Spannungspolarität bleibt beim Wechsel der Wurzel erhalten. Das angepasste Tor hat Rₚ = Σ Rₖ (Serie) bzw. Rₚ = 1 / Σ(1/Rₖ) (Parallel), jeweils über die übrigen Tore. Somit gilt Sₚₚ = 0.',
-        'For series adaptors, − marks the port with σ = −1; all other ports have σ = +1. This voltage polarity is preserved when changing the root. The adapted port has Rₚ = Σ Rₖ (series) or Rₚ = 1 / Σ(1/Rₖ) (parallel), summing over the other ports. Thus Sₚₚ = 0.')}</p>
+      <p>{t('Die Adaptor-Koeffizienten werden für Serien- und Paralleladaptoren einheitlich mit γᵢ bezeichnet, sowohl bei reflexionsfreien als auch bei nicht-reflexionsfreien Toren. Der Torreflexionsfaktor ist ρᵢ = Sᵢᵢ.',
+        'Adaptor coefficients are denoted by γᵢ for both series and parallel adaptors, at both reflection-free and reflective ports. The port reflection coefficient is ρᵢ = Sᵢᵢ.')}</p>
+      <Formula latex={String.raw`\gamma_i=\frac{2R_i}{\sum_kR_k},\qquad S^{\mathrm{series}}_{ij}=\delta_{ij}-\gamma_i\sigma_i\sigma_j`} />
+      <Formula latex={String.raw`\gamma_i=\frac{2/R_i}{\sum_k1/R_k},\qquad S^{\mathrm{parallel}}_{ij}=\gamma_j-\delta_{ij}`} />
+      <p>{t('Beim Serienadaptor kennzeichnet − das Tor mit σ = −1; alle anderen Tore haben σ = +1. Diese Spannungspolarität bleibt beim Wechsel der Wurzel erhalten. Das angepasste Tor hat Rₚ = Σ Rₖ (Serie) bzw. Rₚ = 1 / Σ(1/Rₖ) (Parallel), jeweils über die übrigen Tore. Somit gilt γₚ = 1 und ρₚ = Sₚₚ = 0.',
+        'For series adaptors, − marks the port with σ = −1; all other ports have σ = +1. This voltage polarity is preserved when changing the root. The adapted port has Rₚ = Σ Rₖ (series) or Rₚ = 1 / Σ(1/Rₖ) (parallel), summing over the other ports. Thus γₚ = 1 and ρₚ = Sₚₚ = 0.')}</p>
       <p>{t('Bilineare Transformation ohne Vorverzerrung: Die analogen Bauteilwerte bleiben erhalten. Analoge Frequenzen werden nicht linear auf die digitale Frequenzachse abgebildet. Die Ergebnis-Tabs unterhalb zeigen weiterhin die analoge Schaltung.',
         'Bilinear transform without prewarping: analog component values are retained. Analog frequencies map nonlinearly to the digital frequency axis. The result tabs below continue to show the analog circuit.')}</p>
       <Formula latex={String.raw`s=2f_s\frac{1-z^{-1}}{1+z^{-1}},\qquad f_d=\frac{f_s}{\pi}\arctan\!\left(\frac{\pi f_a}{f_s}\right)`} />

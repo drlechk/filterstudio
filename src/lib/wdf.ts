@@ -7,6 +7,7 @@ export type WdfSettings = { sampleRate: number; rootId?: string };
 export type WdfPort = {
   neighborId: string;
   resistance: number;
+  /** Adaptor coefficient gamma_i for both series and parallel adaptors. */
   coefficient: number;
   /** Series voltage orientation: sum(sign_i * v_i) = 0. */
   sign: number;
@@ -158,6 +159,7 @@ export function createWdfProcessor(model: WdfModel): { process: (input: number) 
 
 export function exportWdf(model: WdfModel): string {
   return JSON.stringify({ format: 'filterstudio-wdf', version: 1, waveConvention: 'a = v + R*i; b = v - R*i',
+    coefficientConvention: 'coefficient = gamma_i; series: 2*R_i/sum(R_k); parallel: (2/R_i)/sum(1/R_k); adapted port: gamma_p = 1',
     input: 'source voltage Vs', output: 'load voltage (a_load + b_load)/2',
     elementReflections: { R: '0', source: 'Vs', C: 'z^-1', L: '-z^-1' },
     algorithm: 'upward pass to root; root scattering; downward pass; update element delays',
