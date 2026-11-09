@@ -2096,6 +2096,10 @@ const FilterWorkspace = memo(function FilterWorkspace({
                 spec={toleranceDraft}
                 settings={settings}
                 onSelect={family => updateSettings({ family })}
+                onSpecChange={setToleranceDraft}
+                onSettingsChange={updateSettings}
+                frequencyUnit={frequencyUnit}
+                onFrequencyUnitChange={setFrequencyUnit}
                 onGenerate={() => void generate()}
                 onShowMask={() => setResultTab("tolerance")}
                 generating={generating}

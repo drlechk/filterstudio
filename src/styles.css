@@ -1518,6 +1518,23 @@ h1 {
 .filter-catalog .response-heading { flex-wrap: wrap; }
 .filter-catalog h3 { font-size: 13px; margin: 0 0 6px; }
 .filter-catalog p { font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+.catalog-inputs { margin-top: 18px; padding: 18px; border: 1px solid var(--border); border-radius: 8px; }
+.catalog-input-basics, .catalog-inputs .tolerance-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 26px; }
+.catalog-inputs .spec-section-title, .catalog-inputs .spec-hint { grid-column: 1 / -1; }
+.catalog-response-field { display: flex; flex-direction: column; gap: 10px; margin: 14px 0; color: var(--text-muted); font-size: 12px; }
+.catalog-response-field select { padding: 8px; border: 1px solid var(--border); border-radius: 5px; background: var(--input-bg); color: var(--text); font: inherit; }
+.catalog-inputs .spec-slider { min-width: 0; }
+.catalog-code { display: inline-block; font-size: 13px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.catalog-reference { margin: 16px 0; padding: 16px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-subtle); }
+.catalog-reference > .catalog-code { margin: 8px 0; font-size: 18px; font-weight: 600; }
+.catalog-reference p + p { margin-top: 8px; }
+.catalog-reference-values { display: grid; gap: 8px; margin: 12px 0; font-size: 12px; }
+.catalog-reference-values > div { display: flex; gap: 12px; }
+.catalog-reference-values dt { min-width: 25px; font-weight: 600; }
+.catalog-reference-values dd { margin: 0; }
+.catalog-source-links { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; margin-top: 14px; }
+.catalog-source-links a { display: inline-flex; align-items: center; gap: 6px; color: var(--accent-text); font-size: 12px; text-decoration: underline; text-underline-offset: 3px; }
+.catalog-source-links svg { flex-shrink: 0; }
 .catalog-specs { display: flex; flex-wrap: wrap; gap: 16px 28px; margin: 18px 0 24px; padding: 16px; background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 8px; }
 .catalog-specs dt { font-size: 11px; color: var(--text-muted); margin-bottom: 5px; }
 .catalog-specs dd { margin: 0; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -1542,6 +1559,8 @@ h1 {
 @media (max-width: 760px) {
   .filter-catalog { padding: 18px 13px; }
   .catalog-design { padding: 14px; }
+  .catalog-inputs { padding: 14px; }
+  .catalog-input-basics, .catalog-inputs .tolerance-controls { grid-template-columns: 1fr; }
 }
 .spec-section-title {
   display: flex;

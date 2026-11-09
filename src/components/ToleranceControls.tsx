@@ -33,7 +33,7 @@ export const toleranceIssueLabels: Record<ToleranceIssue, [string, string]> = {
   ],
 };
 
-function SpecSlider({
+export function SpecSlider({
   label,
   symbol,
   value,
@@ -140,6 +140,7 @@ export function ToleranceControls({
   frequencyUnit,
   onFrequencyUnitChange,
   onChange,
+  showSummary = true,
 }: {
   spec: ToleranceSpec;
   design: ToleranceDesign;
@@ -147,6 +148,7 @@ export function ToleranceControls({
   frequencyUnit: FrequencyUnit;
   onFrequencyUnitChange: (unit: FrequencyUnit) => void;
   onChange: (spec: ToleranceSpec) => void;
+  showSummary?: boolean;
 }) {
   const { t, language } = usePreferences();
   const band = isBandResponse(spec.response);
@@ -226,7 +228,7 @@ export function ToleranceControls({
         unit="dB"
         onChange={(stopbandLoss) => onChange({ ...spec, stopbandLoss })}
       />
-      <div
+      {showSummary && <div
         className={`tolerance-order ${design.issue ? "is-warning" : ""}`}
         role="status"
       >
@@ -281,7 +283,7 @@ export function ToleranceControls({
             )}
           </small>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
