@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { bridgedPath, signalWireGeometry, type WireSegment } from './signal-routing';
 import { adaptorSignalLayout } from './wdf-signal-layout';
+import type { AdaptorDrawing } from './wdf-signal-layout';
 import { buildWdf, type WdfAdaptor } from './wdf';
 import { createCircuit, defaultSettings } from './project';
 import { signalGraphLayout } from '../components/WdfSignalGraph';
@@ -20,6 +21,23 @@ function separated(segments: WireSegment[]) {
       expect(h.bridges, `unmarked crossing ${h.net} / ${v.net}`).toContainEqual(p);
       expect(v.gaps).toContainEqual(p);
     }
+  }
+}
+
+// Check the drawing against the executable graph, including the peripheral
+// polarity conversions. This catches a missing/incorrect template connection
+// even if its remaining wires are routed cleanly.
+function matchesOperations(drawing: AdaptorDrawing) {
+  expect(drawing.symbols.map(s => s.operation.id).sort()).toEqual(drawing.compact.nodes.filter(n => n.kind !== 'wave').map(n => n.id).sort());
+  for (const symbol of drawing.symbols) {
+    const { x, y } = symbol.position;
+    const incoming = drawing.requests.filter(r => Math.abs(r.end.x - x) + Math.abs(r.end.y - y) === 20).map(r => r.net);
+    const expected = drawing.compact.edges.filter(e => e.target === symbol.operation.id).map(e => e.source);
+    expect(incoming.sort(), symbol.operation.id).toEqual(expected.sort());
+  }
+  for (const port of drawing.ports.filter(p => p.direction === 'b')) {
+    expect(drawing.requests.filter(r => r.end.x === port.position.x && r.end.y === port.position.y).map(r => r.net))
+      .toEqual(drawing.compact.edges.filter(e => e.target === port.waveId).map(e => e.source));
   }
 }
 
@@ -73,6 +91,7 @@ describe('signal net routing', () => {
           for (const portSides of orientations) {
             const drawing = adaptorSignalLayout(adaptor, portSides);
             separated(drawing.wires.segments);
+            matchesOperations(drawing);
             expect(drawing.compact.referencePort).toBe(reference);
             for (const symbol of drawing.symbols) {
               expect(symbol.operation.ownerId).toBe(adaptor.id);
@@ -89,6 +108,7 @@ describe('signal net routing', () => {
       const p = { settings: defaultSettings, z2, ...createCircuit([]) };
       const model = buildWdf(p, 48000), drawing = adaptorSignalLayout(model.adaptors[0]);
       separated(drawing.wires.segments);
+      matchesOperations(drawing);
       expect(drawing.symbols.filter(s => s.operation.kind === 'gain')).toHaveLength(1);
       separated(signalGraphLayout(model).edges.flatMap(e => e.data!.segments));
     }

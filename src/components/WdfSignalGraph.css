@@ -7,8 +7,9 @@
 .wdf-signal-node svg { display: block; overflow: visible; }
 .wdf-signal-node svg text { fill: var(--text); font: 13px 'DM Sans Variable', sans-serif; }
 .wdf-signal-node svg marker path, .wdf-signal-junction { fill: var(--text-muted); }
-.wdf-signal-node .wdf-signal-expression { fill: var(--accent-text); font-weight: 650; }
-.wdf-signal-node .wdf-signal-value { fill: var(--text-muted); font-size: 11px; }
+.wdf-signal-node .wdf-signal-expression { fill: var(--accent-text); font-size: 20px; font-weight: 650; }
+.wdf-signal-node .wdf-signal-value { fill: var(--text-muted); font-size: 13px; }
+.wdf-signal-node .wdf-signal-terminal { font-size: 18px; }
 .wdf-signal-wire, .wdf-signal-termination { stroke: var(--text-muted); stroke-width: 1.4; fill: none; }
 .wdf-signal-gain { stroke: var(--accent-text); stroke-width: 1.5; fill: var(--accent-soft); }
 .wdf-signal-sum, .wdf-signal-delay { stroke: var(--text-muted); stroke-width: 1.5; fill: var(--surface-subtle); }
@@ -24,5 +25,3 @@
 .wdf-signal-note { position: absolute; bottom: 12px; left: 48px; right: 12px; text-align: right; font-size: 10px; color: var(--text-muted); pointer-events: none; }
 @media (max-width: 600px) { .wdf-diagram.wdf-signal-diagram { height: 440px; } .wdf-signal-note { max-width: 240px; margin-left: auto; } }
 .wdf-signal-port { stroke: var(--text-muted); stroke-width: 1.5; fill: var(--surface); }
-.wdf-signal-node .wdf-signal-input-sign { font-size: 18px; font-weight: 650; paint-order: stroke; stroke: var(--surface); stroke-width: 4px; }
-.wdf-signal-node .wdf-signal-negate { font-size: 15px; }

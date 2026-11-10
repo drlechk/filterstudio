@@ -4,7 +4,8 @@ import { Maximize, Focus } from 'lucide-react';
 import { usePreferences } from '../lib/preferences';
 import { formatEngineering } from '../lib/network';
 import type { WdfAdaptor, WdfElement, WdfModel } from '../lib/wdf';
-import { buildWdfSignalFlow, portSubscript } from '../lib/wdf-signal-flow';
+import { buildWdfSignalFlow } from '../lib/wdf-signal-flow';
+import { AdaptorSignalDrawing, SignalMultiplier } from './WdfSignalDrawing';
 import { adaptorSignalLayout, COMPACT_ADAPTOR_SIZE, type AdaptorDrawing } from '../lib/wdf-signal-layout';
 import { wdfLadderLayout, type PortSide, type WdfLayoutMode } from '../lib/wdf-layout';
 import { bridgedPath, signalWireGeometry, type Point, type RoutedWire, type WireSegment } from '../lib/signal-routing';
@@ -37,8 +38,9 @@ function LadderSignalElement({ element, side, marker }: { element: WdfElement; s
           <path className="wdf-signal-wire" d="M180 260V210H220V102H190" markerEnd={`url(#${marker})`} />
           <rect className="wdf-signal-delay" x="90" y="80" width="100" height="44" />
           <text className="wdf-signal-delay-label" x="140" y="109" textAnchor="middle">z⁻¹</text>
-          <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M90 102H60V140M60 180V220H100V260' : 'M90 102H60V220H100V260'} markerEnd={`url(#${marker})`} />
-          {element.kind === 'L' && <><circle className="wdf-signal-sum" cx="60" cy="160" r="20" /><text x="60" y="165" textAnchor="middle">−1</text></>}
+          {element.kind === 'L' && <path className="wdf-signal-wire" d="M90 102H60V140" markerEnd={`url(#${marker})`} />}
+          <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M60 180V220H100V260' : 'M90 102H60V220H100V260'} markerEnd={`url(#${marker})`} />
+          {element.kind === 'L' && <SignalMultiplier position={{ x: 60, y: 160 }} label="−1" coefficient={-1} labelSide="right" />}
           <text x="140" y="60" textAnchor="middle">{formatEngineering(element.value, element.kind === 'C' ? 'F' : 'H', 5, language)}</text>
         </> : <>
           <path className="wdf-signal-wire" d="M180 260V150" /><path className="wdf-signal-termination" d="M171 150H189M174 143H186" />
@@ -51,8 +53,8 @@ function LadderSignalElement({ element, side, marker }: { element: WdfElement; s
         <g transform={right ? 'translate(280 260) rotate(180)' : undefined}>
           {reactive ? <>
             <path className="wdf-signal-wire" d="M0 90H70" markerEnd={`url(#${marker})`} /><rect className="wdf-signal-delay" x="70" y="68" width="80" height="44" />
-            <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M150 90H180M220 90H250V170H0' : 'M150 90H250V170H0'} markerEnd={`url(#${marker})`} />
-            {element.kind === 'L' && <circle className="wdf-signal-sum" cx="200" cy="90" r="20" />}
+            {element.kind === 'L' && <path className="wdf-signal-wire" d="M150 90H180" markerEnd={`url(#${marker})`} />}
+            <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M220 90H250V170H0' : 'M150 90H250V170H0'} markerEnd={`url(#${marker})`} />
           </> : <>
             <rect className="wdf-signal-delay" x="100" y="148" width="90" height="44" />
             <path className="wdf-signal-wire" d="M100 170H0" markerEnd={`url(#${marker})`} /><path className="wdf-signal-wire" d="M0 90H70" />
@@ -62,7 +64,7 @@ function LadderSignalElement({ element, side, marker }: { element: WdfElement; s
         </g>
         {reactive ? <>
           {label(110, right ? 83 : 97, 'z⁻¹', 'wdf-signal-delay-label')}
-          {element.kind === 'L' && label(200, right ? 85 : 95, '−1')}
+          {element.kind === 'L' && <SignalMultiplier position={p(200, 90)} label="−1" coefficient={-1} />}
           {label(140, 220, formatEngineering(element.value, element.kind === 'C' ? 'F' : 'H', 5, language))}
         </> : <>{label(145, right ? 164 : 176, element.kind === 'source' ? 'Vₛ[n]' : '0')}{label(140, 95, t('angepasst', 'matched'))}</>}
         <text x={right ? 268 : 12} y={a.y - 16} textAnchor={right ? 'end' : 'start'}>a[n]</text>
@@ -77,7 +79,7 @@ function LadderSignalElement({ element, side, marker }: { element: WdfElement; s
 function arrowTail(end: Point, previous: Point, length = 14) {
   return { x: end.x + Math.sign(previous.x - end.x) * length, y: end.y + Math.sign(previous.y - end.y) * length };
 }
-function SignalNode({ data }: NodeProps<GraphNode>) {
+export function SignalNode({ data }: NodeProps<GraphNode>) {
   const { t, number, language } = usePreferences();
   const marker = `signal-arrow-${useId().replace(/[^\w-]/g, '')}`;
   const { adaptor, element, drawing } = data;
@@ -88,31 +90,7 @@ function SignalNode({ data }: NodeProps<GraphNode>) {
         <span>{drawing.compact.multipliers.length} γ · {data.root ? t('Wurzel', 'Root') : t(`Tor ${adaptor.adaptedPort! + 1} angepasst`, `Port ${adaptor.adaptedPort! + 1} adapted`)}</span></div>
       <svg width={drawing.width} height={drawing.height} viewBox={`0 0 ${drawing.width} ${drawing.height}`} aria-label={t(`Signalfluss ${adaptor.label}`, `${adaptor.label} signal flow`)}>
         {markerDef}
-        <g className="wdf-signal-wires">{drawing.wires.segments.map((segment, i) => <path key={i} className="wdf-signal-wire" data-net={segment.net} data-bridges={segment.bridges.length} d={bridgedPath(segment)} />)}</g>
-        {drawing.requests.map(request => {
-          const p = request.end, direction = request.endDirection;
-          const tail = { x: p.x + (direction === 'left' ? -14 : direction === 'right' ? 14 : 0), y: p.y + (direction === 'up' ? -14 : direction === 'down' ? 14 : 0) };
-          return <g key={request.id}><path className="wdf-signal-wire" d={polyline([tail, p])} markerEnd={`url(#${marker})`} />
-            {request.sign === -1 && <text className="wdf-signal-input-sign" x={tail.x + (direction === 'up' || direction === 'down' ? 10 : 0)} y={tail.y - 8} textAnchor="middle">−</text>}</g>;
-        })}
-        {drawing.wires.junctions.map(p => <circle key={`${p.x}:${p.y}`} className="wdf-signal-junction" cx={p.x} cy={p.y} r="3.5" />)}
-        {drawing.symbols.map(({ operation: node, position: p }) => <g key={node.id} data-operation={node.kind} data-gain={node.coefficient}>
-          {node.kind === 'gain' ? <>
-            <title>{`${node.expression} = ${node.coefficient}`}</title>
-            <path className="wdf-signal-gain" d={`M${p.x - 20} ${p.y - 18}L${p.x + 20} ${p.y}L${p.x - 20} ${p.y + 18}Z`} />
-            <text className="wdf-signal-expression" x={p.x} y={p.y + 43} textAnchor="middle">{node.expression}<tspan className="wdf-signal-value"> = {number(node.coefficient!, 6)}</tspan></text>
-          </> : <>
-            <circle className="wdf-signal-sum" cx={p.x} cy={p.y} r="20" />
-            <text className={node.kind === 'negate' ? 'wdf-signal-negate' : 'wdf-signal-plus'} x={p.x} y={p.y + 6} textAnchor="middle">{node.kind === 'negate' ? '−1' : '+'}</text>
-          </>}
-        </g>)}
-        {drawing.ports.map(port => <g key={port.id}>
-          <circle className="wdf-signal-port" cx={port.position.x} cy={port.position.y} r="4" />
-          <text x={port.position.x + (port.side === 'left' || ((port.side === 'top' || port.side === 'bottom') && port.position.x > drawing.width / 2) ? 10 : -10)}
-            y={port.side === 'top' ? 28 : port.position.y - 12}
-            textAnchor={port.side === 'left' || ((port.side === 'top' || port.side === 'bottom') && port.position.x > drawing.width / 2) ? 'start' : 'end'}>
-            {port.direction}{portSubscript(port.port)}[n]{port.port === adaptor.adaptedPort ? '*' : ''}</text>
-        </g>)}
+        <AdaptorSignalDrawing drawing={drawing} adaptedPort={adaptor.adaptedPort} marker={marker} format={value => number(value, 6)} />
       </svg>
       {drawing.ports.map(port => <Handle key={port.id} type={port.direction === 'a' ? 'target' : 'source'} id={port.id}
         position={sidePosition[port.side]} style={port.side === 'top' || port.side === 'bottom' ? { left: port.position.x } : { top: port.position.y }} isConnectable={false} />)}
@@ -132,8 +110,9 @@ function SignalNode({ data }: NodeProps<GraphNode>) {
         <path className="wdf-signal-wire" d="M0 80H70" markerEnd={`url(#${marker})`} />
         <rect className="wdf-signal-delay" x="70" y="58" width="80" height="44" />
         <text className="wdf-signal-delay-label" x="110" y="87" textAnchor="middle">z⁻¹</text>
-        <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M150 80H180M220 80H250V160H0' : 'M150 80H250V160H0'} markerEnd={`url(#${marker})`} />
-        {element.kind === 'L' && <><circle className="wdf-signal-sum" cx="200" cy="80" r="20" /><text x="200" y="85" textAnchor="middle">−1</text></>}
+        {element.kind === 'L' && <path className="wdf-signal-wire" d="M150 80H180" markerEnd={`url(#${marker})`} />}
+        <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M220 80H250V160H0' : 'M150 80H250V160H0'} markerEnd={`url(#${marker})`} />
+        {element.kind === 'L' && <SignalMultiplier position={{ x: 200, y: 80 }} label="−1" coefficient={-1} />}
         <text x="140" y="220" textAnchor="middle">{formatEngineering(element.value, element.kind === 'C' ? 'F' : 'H', 5, language)}</text>
         <text x="12" y="64">a[n]</text><text x="12" y="144">b[n]</text>
       </> : output ? <>
@@ -260,6 +239,6 @@ export function WdfSignalGraph({ model, selectedId, onSelect, onRoot, layoutMode
       <button className="button" onClick={() => void instance?.fitView({ padding: .12, maxZoom: 1, duration: 200 })}><Maximize size={14} />{t('Gesamtgraph', 'Whole graph')}</button>
       <button className="button" onClick={() => void instance?.fitView({ nodes: [{ id: selectedId }], padding: .12, maxZoom: 1, duration: 200 })}><Focus size={14} />{t('Ausgewählter Adaptor', 'Selected adaptor')}</button>
     </div>
-    <div className="wdf-signal-note">{t('γ: Multiplikation · Kreis: Summe / −1 · Punkt: Verzweigung · Sprung: keine Verbindung · z⁻¹: ein Abtastschritt', 'γ: multiply · circle: sum / −1 · dot: branch · bridge: no connection · z⁻¹: one sample delay')}</div>
+    <div className="wdf-signal-note">{t('γ / −1: Multiplikation · +: Summe · Punkt: Verzweigung · Sprung: keine Verbindung · z⁻¹: ein Abtastschritt', 'γ / −1: multiply · +: sum · dot: branch · bridge: no connection · z⁻¹: one sample delay')}</div>
   </div>;
 }

@@ -44,6 +44,25 @@ describe('scalar WDF signal-flow expansion', () => {
     }
   });
 
+  it('makes every sign inversion an explicit multiplier, including the inductor delay outputs', () => {
+    for (const root of buildWdf(project(), 48000).adaptors) {
+      const model = buildWdf(project(), 48000, root.id), graph = buildWdfSignalFlow(model);
+      expect(graph.edges.every(edge => edge.sign !== -1)).toBe(true);
+      model.adaptors.forEach(adaptor => {
+        const compact = graph.adaptors.find(a => a.id === adaptor.id)!;
+        const polarityInversions = adaptor.kind === 'series' ? 2 * adaptor.ports.filter(p => p.sign < 0).length : 0;
+        const referenceInversions = adaptor.kind === 'parallel' ? compact.multipliers.length : adaptor.adaptedPort === null ? 1 : 2;
+        expect(compact.nodes.filter(n => n.kind === 'negate')).toHaveLength(polarityInversions + referenceInversions);
+      });
+      for (const element of model.elements.filter(e => e.kind === 'L')) {
+        const delay = graph.nodes.find(n => n.ownerId === element.id && n.kind === 'delay')!;
+        const negative = graph.nodes.find(n => n.ownerId === element.id && n.kind === 'negate')!;
+        expect(negative.expression).toBe('−1');
+        expect(graph.edges).toContainEqual({ source: delay.id, target: negative.id });
+      }
+    }
+  });
+
   it.each([8000, 48000, 96000])('matches the independent tree processor sample by sample for every root at %i Hz', sampleRate => {
     const p = project();
     for (const root of buildWdf(p, sampleRate).adaptors) {

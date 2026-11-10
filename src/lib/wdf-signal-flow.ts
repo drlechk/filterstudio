@@ -37,12 +37,11 @@ export function compactAdaptor(adaptor: WdfAdaptor): CompactAdaptor {
     nodes.push({ id, ownerId, kind, ...extra }); return id;
   };
   const connect = (source: string, target: string, sign: 1 | -1 = 1) => edges.push({ source, target, sign });
-  type Term = string | [string, 1 | -1];
-  const sum = (name: string, terms: Term[]) => {
+  const sum = (name: string, terms: string[]) => {
     // No more than three distinct summing inputs in the drawing.
     while (terms.length > 3) terms = [sum(`${name}:partial`, terms.slice(0, 3)), ...terms.slice(3)];
     const id = add(operation(ownerId, name), 'sum');
-    terms.forEach(term => typeof term === 'string' ? connect(term, id) : connect(term[0], id, term[1]));
+    terms.forEach(term => connect(term, id));
     return id;
   };
   const negate = (name: string, source: string) => {
@@ -65,7 +64,7 @@ export function compactAdaptor(adaptor: WdfAdaptor): CompactAdaptor {
   const a = inputs.map((id, i) => adaptor.kind === 'series' && adaptor.ports[i].sign < 0 ? negate(`polarity:a:${i}`, id) : id);
   const b: string[] = [];
   if (adaptor.kind === 'parallel') {
-    const differences = independent.map(i => sum(`difference:${i}`, [a[referencePort], [a[i], -1]]));
+    const differences = independent.map(i => sum(`difference:${i}`, [a[referencePort], negate(`negative:${i}`, a[i])]));
     const gains = independent.map((i, j) => multiply(i, differences[j]));
     if (adapted === null) {
       // d_i = a_r − a_i; b_r = a_r − sum(gamma_i d_i).
@@ -82,14 +81,14 @@ export function compactAdaptor(adaptor: WdfAdaptor): CompactAdaptor {
       const total = sum('total', a);
       independent.forEach(i => { b[i] = sum(`out:${i}`, [a[i], multiply(i, total)]); });
       // gamma_r = 2 − sum(gamma_i): b_r = −total − sum(b_i).
-      b[referencePort] = sum('reference', [[total, -1], ...independent.map(i => [b[i], -1] as Term)]);
+      b[referencePort] = negate('reference:negative', sum('reference', [total, ...independent.map(i => b[i])]));
     } else {
       const upward = sum('up', free.map(i => a[i]));
       b[adapted] = negate('up:negative', upward);
       const total = sum('total', [upward, a[adapted]]);
       independent.forEach(i => { b[i] = sum(`out:${i}`, [a[i], multiply(i, total)]); });
       // gamma_r = 1 − sum(gamma_i): b_r = −a_p − sum(b_i).
-      b[referencePort] = sum('reference', [[a[adapted], -1], ...independent.map(i => [b[i], -1] as Term)]);
+      b[referencePort] = negate('reference:negative', sum('reference', [a[adapted], ...independent.map(i => b[i])]));
     }
   }
   b.forEach((source, i) => connect(adaptor.kind === 'series' && adaptor.ports[i].sign < 0 ? negate(`polarity:b:${i}`, source) : source, outputs[i]));

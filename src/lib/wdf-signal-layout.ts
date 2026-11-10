@@ -2,17 +2,19 @@ import type { WdfAdaptor } from './wdf';
 import type { PortSide } from './wdf-layout';
 import { compactAdaptor, type CompactAdaptor, type SignalOperation } from './wdf-signal-flow';
 import { routeSignalWires, signalWireGeometry, type Direction, type Point, type Rect, type WireRequest } from './signal-routing';
+import { referenceAdaptorDrawing } from './wdf-signal-template';
 
-export type SignalSymbol = { operation: SignalOperation; position: Point };
+export type SignalSymbol = { operation: SignalOperation; position: Point; labelSide?: 'top' | 'right' };
+export type SignalTerminal = { position: Point; label: string; anchor: 'start' | 'end' };
 export type SignalPort = { id: string; waveId: string; port: number; direction: 'a' | 'b'; side: PortSide; position: Point };
 export type AdaptorDrawing = {
-  width: number; height: number; compact: CompactAdaptor; symbols: SignalSymbol[]; ports: SignalPort[];
+  width: number; height: number; compact: CompactAdaptor; symbols: SignalSymbol[]; ports: SignalPort[]; terminals: SignalTerminal[];
   requests: WireRequest[]; wires: ReturnType<typeof signalWireGeometry>;
 };
 
 const drawingCache = new Map<string, AdaptorDrawing>();
 // Fixed dimensions keep physical ladder placement stable when the root changes.
-export const COMPACT_ADAPTOR_SIZE = { width: 1000, height: 680 };
+export const COMPACT_ADAPTOR_SIZE = { width: 1400, height: 1120 };
 
 export function adaptorSignalLayout(adaptor: WdfAdaptor, portSides?: PortSide[]): AdaptorDrawing {
   const compact = compactAdaptor(adaptor);
@@ -51,43 +53,25 @@ export function adaptorSignalLayout(adaptor: WdfAdaptor, portSides?: PortSide[])
       ports.push({ id: `${direction}-${i}`, waveId: (direction === 'a' ? compact.inputs : compact.outputs)[i], port: i, direction, side, position });
     }
   });
+  if (adaptor.ports.length <= 3) {
+    const drawing = referenceAdaptorDrawing(adaptor, compact, ports, width, height);
+    drawingCache.set(cacheKey, drawing);
+    return drawing;
+  }
   const positions = new Map(ports.filter(p => p.direction === 'a').map(p => [p.waveId, p.position]));
   const symbols: SignalSymbol[] = [];
   layers.forEach((layer, col) => {
     const desired = (node: SignalOperation) => incoming.get(node.id)!.reduce((sum, e) => sum + (positions.get(e.source)?.y ?? height / 2), 0) / incoming.get(node.id)!.length;
     layer.sort((a, b) => desired(a) - desired(b));
     layer.forEach((node, row) => {
-      let position = { x: 160 + col * 180, y: Math.round((height / 2 + (row - (layer.length - 1) / 2) * 180) / 20) * 20 };
-      if (adaptor.ports.length <= 3) {
-        const name = JSON.parse(node.id)[1] as string;
-        const independent = adaptor.ports.map((_, i) => i).filter(i => i !== adaptor.adaptedPort && i !== compact.referencePort);
-        const index = independent.indexOf(Number(name.split(':').at(-1)));
-        if (adaptor.kind === 'parallel') {
-          const adapted = adaptor.adaptedPort !== null;
-          if (name.startsWith('difference:')) position = { x: index === 0 ? 240 : 760, y: 180 };
-          else if (name.startsWith('gamma:')) position = { x: adapted ? 500 : index === 0 ? 340 : 660, y: 340 };
-          else if (name === 'up') position = { x: 760, y: 180 };
-          else if (name === 'reference') position = { x: adapted ? 760 : 500, y: 500 };
-          else position = { x: index === 0 ? 240 : 760, y: 500 };
-        } else {
-          const adapted = adaptor.adaptedPort !== null;
-          if (name.startsWith('polarity:a')) position = { x: 120, y: 140 };
-          else if (name.startsWith('polarity:b')) position = { x: 120, y: 560 };
-          else if (name === 'up') position = { x: 500, y: 140 };
-          else if (name === 'up:negative') position = { x: 800, y: 140 };
-          else if (name === 'total') position = { x: adapted ? 800 : 500, y: adapted ? 340 : 160 };
-          else if (name.startsWith('gamma:')) position = { x: adapted ? 500 : index === 0 ? 340 : 660, y: 340 };
-          else if (name.startsWith('out:')) position = { x: index === 0 ? 240 : 800, y: adapted ? 340 : 460 };
-          else position = { x: 500, y: 540 };
-        }
-      }
+      const position = { x: 160 + col * 180, y: Math.round((height / 2 + (row - (layer.length - 1) / 2) * 180) / 20) * 20 };
       positions.set(node.id, position); symbols.push({ operation: node, position });
     });
   });
   const portByWave = new Map(ports.map(p => [p.waveId, p]));
   const obstacles: Rect[] = symbols.flatMap(({ position: p, operation: node }) => [
     { x: p.x - 20, y: p.y - 20, width: 40, height: 40 },
-    ...(node.kind === 'gain' ? [{ x: p.x - 70, y: p.y + 35, width: 140, height: 35 }] : []),
+    ...(node.kind === 'gain' || node.kind === 'negate' ? [{ x: p.x - 90, y: p.y - 60, width: 180, height: 35 }] : []),
   ]);
   obstacles.push(...ports.map(port => port.side === 'top' || port.side === 'bottom'
     ? { x: port.position.x + (port.position.x < width / 2 ? -100 : 10), y: port.side === 'top' ? 10 : height - 40, width: 90, height: 30 }
@@ -106,7 +90,7 @@ export function adaptorSignalLayout(adaptor: WdfAdaptor, portSides?: PortSide[])
       end: target ? targetPosition : { x: targetPosition.x + offset.x, y: targetPosition.y + offset.y }, endDirection: targetDirection };
   });
   const wires = signalWireGeometry(routeSignalWires(width, height, obstacles, requests, 20, portSides ? 0 : 40));
-  const drawing = { width, height, compact, symbols, ports, requests, wires };
+  const drawing = { width, height, compact, symbols, terminals: [], ports, requests, wires };
   drawingCache.set(cacheKey, drawing);
   return drawing;
 }
