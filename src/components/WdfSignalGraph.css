@@ -14,6 +14,7 @@
 .wdf-signal-sum, .wdf-signal-delay { stroke: var(--text-muted); stroke-width: 2.4; fill: var(--surface); }
 .wdf-signal-node .wdf-signal-plus { font-size: 30px; }
 .wdf-signal-node .wdf-signal-delay-label { font: 32px 'Times New Roman', serif; }
+.wdf-signal-node .wdf-signal-coefficients text { font-size: 24px; font-variant-numeric: tabular-nums; }
 .wdf-signal-node .react-flow__handle { width: 1px; height: 1px; min-width: 0; min-height: 0; border: 0; opacity: 0; }
 .wdf-signal-link path { fill: none; stroke: var(--text-muted); stroke-width: 1.5; }
 .wdf-signal-link.active path { stroke: var(--accent); }

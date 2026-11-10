@@ -1,6 +1,7 @@
 import type { WdfAdaptor } from './wdf';
 import { portSubscript, type CompactAdaptor } from './wdf-signal-flow';
 import type { AdaptorDrawing, SignalPort, SignalSymbol, SignalTerminal } from './wdf-signal-layout';
+import { SIGNAL_PORT_LEAD } from './wdf-signal-layout';
 import { routeSignalWires, signalWireGeometry, type Direction, type Point, type Rect, type RoutedWire, type WireRequest } from './signal-routing';
 
 const delta: Record<Direction, Point> = { left: { x: -1, y: 0 }, right: { x: 1, y: 0 }, up: { x: 0, y: -1 }, down: { x: 0, y: 1 } };
@@ -16,8 +17,8 @@ const orientations: Orientation[] = [1, -1].flatMap(mirror => [
 const compactX = new Map([[220, 280], [280, 340], [300, 360], [320, 380], [380, 420], [400, 440], [420, 460],
   [480, 500], [500, 520], [520, 540], [580, 580], [600, 600], [620, 620], [680, 660], [700, 680], [720, 700],
   [780, 740], [800, 760], [820, 780], [880, 820], [900, 840], [920, 860], [980, 920]]);
-const compactY = new Map([[120, 160], [200, 220], [220, 240], [240, 260], [380, 380], [400, 400], [420, 420],
-  [560, 540], [580, 560], [600, 580], [640, 620], [660, 640], [680, 660], [740, 700]]);
+const compactY = new Map([[120, 200], [200, 260], [220, 280], [240, 300], [380, 380], [400, 400], [420, 420],
+  [560, 500], [580, 520], [600, 540], [640, 580], [660, 600], [680, 620], [740, 660]]);
 const orientedPoint = (o: Orientation, x: number, y: number, width: number, height: number) =>
   ({ x: width / 2 + (o.shiftX ?? 0) + o.xx * (compactX.get(x)! - 600) + o.xy * (compactY.get(y)! - 400),
     y: height / 2 + o.yx * (compactX.get(x)! - 600) + o.yy * (compactY.get(y)! - 400) });
@@ -94,7 +95,7 @@ function drawReference(adaptor: WdfAdaptor, compact: CompactAdaptor, ports: Sign
       // Keep a polarity conversion inline with the core when it already faces
       // the port. Otherwise place it on the physical lead before the turn.
       const facesPort = outward === portOutward;
-      const distance = port.side === 'top' || port.side === 'bottom' ? 120 : 240;
+      const distance = port.side === 'top' || port.side === 'bottom' ? 100 : 120;
       const p = facesPort
         ? { x: position.x + delta[outward].x * 80, y: position.y + delta[outward].y * 60 }
         : { x: port.position.x + delta[portInward].x * distance, y: port.position.y + delta[portInward].y * distance };
@@ -198,6 +199,11 @@ function drawReference(adaptor: WdfAdaptor, compact: CompactAdaptor, ports: Sign
     // Keep perimeter leads outside the reference diagram, including its labels.
     { x: Math.min(...corners.map(p => p.x)), y: Math.min(...corners.map(p => p.y)), width: Math.abs(corners[0].x - corners[1].x), height: Math.abs(corners[0].y - corners[1].y) },
     { x: 0, y: 0, width: 360, height: 64 }, { x: width - 320, y: 0, width: 320, height: 64 },
+    // Reserve a readable coefficient footer; bottom wave pins retain their
+    // own central channel between the coefficient columns.
+    ...(ports.some(p => p.side === 'bottom')
+      ? [{ x: 0, y: height - 60, width: width / 2 - 120, height: 60 }, { x: width / 2 + 120, y: height - 60, width: width / 2 - 120, height: 60 }]
+      : [{ x: 0, y: height - 60, width, height: 60 }]),
     ...symbols.filter(s => JSON.parse(s.operation.id)[1].startsWith('polarity:')).flatMap(({ position: p, labelSide }) => [
       { x: p.x - 20, y: p.y - 20, width: 40, height: 40 },
       labelSide === 'right' ? { x: p.x + 28, y: p.y - 16, width: 50, height: 32 }
@@ -208,6 +214,6 @@ function drawReference(adaptor: WdfAdaptor, compact: CompactAdaptor, ports: Sign
       : { x: port.side === 'left' ? 0 : width - 80, y: port.position.y - 35, width: 80, height: 30 }),
   ];
   const wires = signalWireGeometry([...routes, ...routeSignalWires(width, height, obstacles, outer, 20, 0,
-    { boundaryLead: 160, bendPenalty: 12, trackSpacing: 60 })]);
+    { boundaryLead: SIGNAL_PORT_LEAD, bendPenalty: 12, trackSpacing: 60 })]);
   return { width, height, compact, symbols, terminals, ports, requests: [...requests, ...outer], wires };
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bridgedPath, routeSignalWires, signalWireGeometry, type WireSegment } from './signal-routing';
-import { adaptorSignalLayout } from './wdf-signal-layout';
+import { adaptorSignalLayout, SIGNAL_PORT_LEAD, SIGNAL_WAVE_OFFSET } from './wdf-signal-layout';
 import type { AdaptorDrawing } from './wdf-signal-layout';
 import { buildWdf, type WdfAdaptor } from './wdf';
 import { createCircuit, defaultSettings } from './project';
@@ -48,7 +48,7 @@ function straightPortLeads(drawing: AdaptorDrawing) {
     const other = port.direction === 'a' ? request.end : request.start;
     const horizontal = port.side === 'left' || port.side === 'right', axis = horizontal ? 'x' : 'y', fixed = horizontal ? 'y' : 'x';
     const directDistance = other[fixed] === port.position[fixed] ? Math.abs(other[axis] - port.position[axis]) : Infinity;
-    const length = Math.min(160, directDistance), inward = port.side === 'left' || port.side === 'top' ? 1 : -1;
+    const length = Math.min(SIGNAL_PORT_LEAD, directDistance), inward = port.side === 'left' || port.side === 'top' ? 1 : -1;
     const inner = port.position[axis] + inward * length;
     expect(drawing.wires.segments.some(s => s.net === request.net && s.start[fixed] === port.position[fixed] && s.end[fixed] === port.position[fixed]
       && s.start[axis] <= Math.min(port.position[axis], inner) && s.end[axis] >= Math.max(port.position[axis], inner)), `short or bent lead at ${port.waveId}`).toBe(true);
@@ -77,7 +77,7 @@ describe('signal net routing', () => {
       const request = drawing.requests.find(r => { const p = port.direction === 'a' ? r.start : r.end; return p.x === port.position.x && p.y === port.position.y; })!;
       expect(request.start.x === request.end.x || request.start.y === request.end.y).toBe(true);
     }
-    expect(drawing.ports.find(p => p.id === 'b-0')!.position.y - drawing.ports.find(p => p.id === 'a-0')!.position.y).toBe(320);
+    expect(drawing.ports.find(p => p.id === 'b-0')!.position.y - drawing.ports.find(p => p.id === 'a-0')!.position.y).toBe(2 * SIGNAL_WAVE_OFFSET);
   });
 
   it('bridges unrelated crossings, merges shared segments and dots only real branches', () => {
@@ -127,14 +127,24 @@ describe('signal net routing', () => {
               coefficient: i === adaptedPort ? 1 : value / total * (adaptedPort === null ? 2 : 1), reflection: 0, sign: kind === 'series' && i === 0 ? -1 : 1 })) };
           const orientations: (PortSide[] | undefined)[] = [undefined, ['left', 'top', 'right'], ['bottom', 'left', 'right']];
           for (const portSides of orientations) {
-            const drawing = adaptorSignalLayout(adaptor, portSides);
-            separated(drawing.wires.segments);
-            matchesOperations(drawing);
-            straightPortLeads(drawing);
-            expect(drawing.compact.referencePort).toBe(reference);
-            for (const symbol of drawing.symbols) {
-              expect(symbol.operation.ownerId).toBe(adaptor.id);
-              if (symbol.operation.kind === 'gain') expect(symbol.operation.coefficient).toBeCloseTo(-(adaptedPort === null ? 2 : 1) / total, 14);
+            const variants = [adaptor, ...(portSides?.[0] === 'left' ? [{ ...adaptor,
+              ports: adaptor.ports.map((port, i) => ({ ...port, neighborId: i === 0 ? 'source' : port.neighborId })) }] : [])];
+            for (const variant of variants) {
+              const drawing = adaptorSignalLayout(variant, portSides);
+              separated(drawing.wires.segments);
+              matchesOperations(drawing);
+              straightPortLeads(drawing);
+              const bottom = drawing.ports.some(p => p.side === 'bottom');
+              for (const segment of drawing.wires.segments) {
+                if (segment.end.y < drawing.height - 60) continue;
+                expect(bottom && segment.start.x > drawing.width / 2 - 120 && segment.end.x < drawing.width / 2 + 120,
+                  `wire in coefficient footer: ${segment.net}`).toBe(true);
+              }
+              expect(drawing.compact.referencePort).toBe(reference);
+              for (const symbol of drawing.symbols) {
+                expect(symbol.operation.ownerId).toBe(adaptor.id);
+                if (symbol.operation.kind === 'gain') expect(symbol.operation.coefficient).toBeCloseTo(-(adaptedPort === null ? 2 : 1) / total, 14);
+              }
             }
           }
         }

@@ -46,9 +46,10 @@ describe('physical WDF ladder layout', () => {
     const graph = signalGraphLayout(buildWdf(project(sections.slice(0, 2)), 48000));
     const main = ['source', 'adaptor:z', 'adaptor:a', 'load'].map(id => graph.nodes.find(n => n.id === id)!);
     for (const node of main.filter(n => n.data.adaptor)) {
-      expect(node.width).toBeLessThanOrEqual(640);
-      expect(node.height).toBeLessThanOrEqual(520);
+      expect(node.width).toBeLessThanOrEqual(520);
+      expect(node.height).toBeLessThanOrEqual(400);
     }
+    for (const node of graph.nodes.filter(n => n.data.element)) expect(node.height).toBeLessThanOrEqual(220);
     for (let i = 1; i < main.length; i++) {
       const gap = main[i].position.x - main[i - 1].position.x - main[i - 1].width!;
       expect(gap).toBeGreaterThanOrEqual(20);
@@ -59,6 +60,27 @@ describe('physical WDF ladder layout', () => {
       expect(points).toHaveLength(2);
       expect(points[0].x === points[1].x || points[0].y === points[1].y).toBe(true);
     }
+  });
+
+  it('swaps the source wave lanes together with the first adaptor, retaining the load orientation', () => {
+    const graph = signalGraphLayout(buildWdf(project(sections.slice(0, 2)), 48000));
+    const first = graph.nodes.find(n => n.id === 'adaptor:z')!.data.drawing!;
+    const a = first.ports.find(p => p.id === 'a-0')!, b = first.ports.find(p => p.id === 'b-0')!;
+    expect(a.position.y).toBeGreaterThan(b.position.y);
+    for (const port of [a, b]) {
+      const request = first.requests.find(r => port.direction === 'a'
+        ? r.start.x === port.position.x && r.start.y === port.position.y
+        : r.end.x === port.position.x && r.end.y === port.position.y)!;
+      expect(request.start.y).toBe(request.end.y);
+    }
+    const sourceIncident = graph.edges.find(e => e.target === 'source' && e.targetHandle === 'a')!.data!.points;
+    const sourceReflected = graph.edges.find(e => e.source === 'source' && e.sourceHandle === 'b')!.data!.points;
+    expect(sourceIncident[0].y).toBeLessThan(sourceReflected[0].y);
+    expect(sourceIncident[0].y).toBe(sourceIncident[1].y);
+    expect(sourceReflected[0].y).toBe(sourceReflected[1].y);
+    const loadIncident = graph.edges.find(e => e.target === 'load' && e.targetHandle === 'a')!.data!.points;
+    const loadReflected = graph.edges.find(e => e.source === 'load' && e.sourceHandle === 'b')!.data!.points;
+    expect(loadIncident[0].y).toBeLessThan(loadReflected[0].y);
   });
 
   it('preserves all positions, port sides and external wires through every root change', () => {

@@ -14,9 +14,10 @@ export type AdaptorDrawing = {
 
 const drawingCache = new Map<string, AdaptorDrawing>();
 // Fixed dimensions keep physical ladder placement stable when the root changes.
-export const COMPACT_ADAPTOR_SIZE = { width: 1280, height: 1040 };
-export const SIGNAL_WAVE_OFFSET = 160;
-export const LADDER_SIGNAL_ELEMENT_SIZE = { width: 280, height: 600 };
+export const COMPACT_ADAPTOR_SIZE = { width: 1040, height: 800 };
+export const SIGNAL_WAVE_OFFSET = 120;
+export const SIGNAL_PORT_LEAD = 80;
+export const LADDER_SIGNAL_ELEMENT_SIZE = { width: 280, height: 440 };
 // Keep the routing grid independent of the displayed size. Labels retain a
 // readable screen size while the circuit and the space between nodes shrink.
 export const SIGNAL_DRAWING_SCALE = .5;
@@ -24,7 +25,8 @@ export const SIGNAL_NODE_GAP = 40;
 
 export function adaptorSignalLayout(adaptor: WdfAdaptor, portSides?: PortSide[]): AdaptorDrawing {
   const compact = compactAdaptor(adaptor);
-  const cacheKey = JSON.stringify([adaptor.kind, adaptor.ports.map(p => p.sign), adaptor.adaptedPort, compact.referencePort, portSides]);
+  const sourcePort = portSides ? adaptor.ports.findIndex(p => p.neighborId === 'source') : -1;
+  const cacheKey = JSON.stringify([adaptor.kind, adaptor.ports.map(p => p.sign), adaptor.adaptedPort, compact.referencePort, portSides, sourcePort]);
   const cached = drawingCache.get(cacheKey);
   if (cached) {
     const rename = (id: string) => { const parts = JSON.parse(id); parts[0] = adaptor.id; return JSON.stringify(parts); };
@@ -51,7 +53,7 @@ export function adaptorSignalLayout(adaptor: WdfAdaptor, portSides?: PortSide[])
     const side = portSides?.[i] ?? (i === adaptor.adaptedPort ? 'left' : 'right');
     const aY = side === 'left' ? height / 2 - 40 : 120 + child++ * 160;
     for (const direction of ['a', 'b'] as const) {
-      const first = direction === (side === 'left' || side === 'top' ? 'a' : 'b');
+      const first = (direction === (side === 'left' || side === 'top' ? 'a' : 'b')) !== (i === sourcePort);
       const position = portSides ? side === 'top' || side === 'bottom'
         ? { x: width / 2 + (first ? -40 : 40), y: side === 'top' ? 0 : height }
         : { x: side === 'left' ? 0 : width, y: height / 2 + (first ? -SIGNAL_WAVE_OFFSET : SIGNAL_WAVE_OFFSET) }
