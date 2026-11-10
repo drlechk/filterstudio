@@ -4,14 +4,15 @@
 .wdf-signal-adaptor.chosen { outline: 2px solid var(--accent); }
 .wdf-signal-heading { position: absolute; top: 12px; left: 14px; right: 14px; display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
 .wdf-signal-heading span { font-size: 12px; color: var(--text-muted); }
+.wdf-signal-reactive .wdf-signal-heading { top: 8px; left: 10px; right: 10px; line-height: 18px; }
 .wdf-signal-node svg { display: block; overflow: visible; }
 .wdf-signal-node svg text { fill: var(--text); font: 26px 'DM Sans Variable', sans-serif; }
 .wdf-signal-node svg marker path, .wdf-signal-junction { fill: var(--text-muted); }
 .wdf-signal-node .wdf-signal-expression { fill: var(--text); font: 32px 'Times New Roman', serif; }
 .wdf-signal-node .wdf-signal-terminal { font: italic 28px 'Times New Roman', serif; }
-.wdf-signal-wire, .wdf-signal-termination { stroke: var(--text-muted); stroke-width: 2.4; fill: none; }
+.wdf-signal-wire { stroke: var(--text-muted); stroke-width: 2.4; fill: none; }
 .wdf-signal-gain { stroke: var(--text-muted); stroke-width: 2.4; fill: var(--surface); }
-.wdf-signal-sum, .wdf-signal-delay { stroke: var(--text-muted); stroke-width: 2.4; fill: var(--surface); }
+.wdf-signal-sum, .wdf-signal-delay, .wdf-signal-termination { stroke: var(--text-muted); stroke-width: 2.4; fill: var(--surface); }
 .wdf-signal-node .wdf-signal-plus { font-size: 30px; }
 .wdf-signal-node .wdf-signal-delay-label { font: 32px 'Times New Roman', serif; }
 .wdf-signal-node .wdf-signal-coefficients text { font-size: 24px; font-variant-numeric: tabular-nums; }
@@ -25,3 +26,4 @@
 .wdf-signal-note { position: absolute; bottom: 12px; left: 48px; right: 12px; text-align: right; font-size: 10px; color: var(--text-muted); pointer-events: none; }
 @media (max-width: 600px) { .wdf-diagram.wdf-signal-diagram { height: 440px; } .wdf-signal-note { max-width: 240px; margin-left: auto; } }
 .wdf-signal-port { stroke: var(--text-muted); stroke-width: 2.4; fill: var(--surface); }
+.wdf-signal-node .wdf-adapted-port { stroke: var(--text-muted); stroke-width: 2.4; fill: none; }

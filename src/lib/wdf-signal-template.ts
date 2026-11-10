@@ -27,7 +27,8 @@ const orientedDirection = (o: Orientation, d: Direction) => direction({ x: 0, y:
 
 /** The four diagrams in Table 4 retain their central spine and side branches.
  * Rotate/mirror the structure to face the physical ports before routing leads.
- * The largest gamma is still eliminated; the labels use actual port numbers.
+ * The largest gamma is eliminated; wave labels use physical port numbers,
+ * while the retained gamma multipliers are numbered locally from one.
  */
 export function referenceAdaptorDrawing(adaptor: WdfAdaptor, compact: CompactAdaptor, ports: SignalPort[], width: number, height: number): AdaptorDrawing {
   const independent = adaptor.ports.map((_, i) => i).filter(i => i !== compact.referencePort && i !== adaptor.adaptedPort);

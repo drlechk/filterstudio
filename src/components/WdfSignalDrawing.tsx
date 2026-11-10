@@ -1,16 +1,35 @@
 import type { AdaptorDrawing } from '../lib/wdf-signal-layout';
 import { portSubscript } from '../lib/wdf-signal-flow';
-import { bridgedPath, type Point } from '../lib/signal-routing';
+import { bridgedPath, type Direction, type Point } from '../lib/signal-routing';
+import { WdfAdaptedPort } from './WdfAdaptedPort';
+
+export const SIGNAL_DELAY_SIZE = 60;
+export function SignalDelay({ position: p }: { position: Point }) {
+  return <g data-operation="delay">
+    <rect className="wdf-signal-delay" x={p.x - SIGNAL_DELAY_SIZE / 2} y={p.y - SIGNAL_DELAY_SIZE / 2} width={SIGNAL_DELAY_SIZE} height={SIGNAL_DELAY_SIZE} />
+    <text className="wdf-signal-delay-label" x={p.x} y={p.y + 10} textAnchor="middle">z⁻¹</text>
+  </g>;
+}
+
+/** A matched wave ends at the flat face; an emitted wave starts at the arc. */
+export function SignalMatchedPort({ position, direction, kind }: {
+  position: Point; direction: Direction; kind: 'sink' | 'source';
+}) {
+  const angle = { right: 0, down: 90, left: 180, up: -90 }[direction];
+  const x = kind === 'source' ? -20 : 0;
+  return <path className="wdf-signal-termination" data-symbol="matched-port" data-wave-role={kind}
+    transform={`translate(${position.x} ${position.y}) rotate(${angle})`} d={`M${x} -20A20 20 0 0 1 ${x} 20Z`} />;
+}
 
 /** Multipliers use the labelled circles in the reference, distinct from sums. */
 export function SignalMultiplier({ position: p, label, value, coefficient, labelSide = 'top' }: {
-  position: Point; label: string; value?: string; coefficient: number; labelSide?: 'top' | 'right' | 'left';
+  position: Point; label: string; value?: string; coefficient: number; labelSide?: 'top' | 'bottom' | 'right' | 'left';
 }) {
   const description = value ? `${label} = ${value}` : `× ${label}`;
   return <g data-operation={coefficient === -1 && label === '−1' ? 'negate' : 'gain'} data-gain={coefficient} aria-label={description}>
     <title>{description}</title>
     <circle className="wdf-signal-gain" cx={p.x} cy={p.y} r="20" />
-    <text className="wdf-signal-expression" x={p.x + (labelSide === 'right' ? 32 : labelSide === 'left' ? -32 : 0)} y={p.y + (labelSide === 'top' ? -32 : 10)}
+    <text className="wdf-signal-expression" x={p.x + (labelSide === 'right' ? 32 : labelSide === 'left' ? -32 : 0)} y={p.y + (labelSide === 'top' ? -32 : labelSide === 'bottom' ? 44 : 10)}
       textAnchor={labelSide === 'right' ? 'start' : labelSide === 'left' ? 'end' : 'middle'}>{label}</text>
   </g>;
 }
@@ -37,8 +56,9 @@ export function AdaptorSignalDrawing({ drawing, adaptedPort, marker, format }: {
     {drawing.terminals.map((terminal, i) => <text key={i} className="wdf-signal-terminal" {...terminal.position} textAnchor={terminal.anchor}>{terminal.label}</text>)}
     {drawing.ports.map(port => <g key={port.id}>
       <circle className="wdf-signal-port" cx={port.position.x} cy={port.position.y} r="4" />
+      {port.port === adaptedPort && port.direction === 'b' && <WdfAdaptedPort position={port.position} side={port.side} port={port.port} depth={40} halfWidth={16} />}
       <text x={port.position.x + (port.side === 'left' || ((port.side === 'top' || port.side === 'bottom') && port.position.x > drawing.width / 2) ? 10 : -10)}
-        y={port.side === 'top' ? 28 : port.position.y - 12}
+        y={port.side === 'top' ? 28 : port.position.y - (port.port === adaptedPort && port.direction === 'b' && port.side !== 'bottom' ? 24 : 12)}
         textAnchor={port.side === 'left' || ((port.side === 'top' || port.side === 'bottom') && port.position.x > drawing.width / 2) ? 'start' : 'end'}>
         {port.direction}{portSubscript(port.port)}[n]{port.port === adaptedPort ? '*' : ''}</text>
     </g>)}

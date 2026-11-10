@@ -25,6 +25,9 @@ it('exposes sample rate, every root including resonators, port coefficients, and
   expect(html).not.toContain('WDF magnitude response');
   expect(html).not.toContain('WDF phase response');
   expect(html).not.toContain('katex-error');
+  expect(html).toContain('Symbolic difference equation · Vout / Vₛ');
+  expect(html).toContain('Difference equation with numerical values');
+  expect(html).toContain('LaTeX');
 });
 
 it('offers the same default ladder and optional tree in the signal-flow representation', () => {
@@ -32,6 +35,7 @@ it('offers the same default ladder and optional tree in the signal-flow represen
   expect(html).toContain('aria-label="WDF signal-flow graph"');
   expect(html).toContain('aria-pressed="true">Ladder layout');
   expect(html).toContain('aria-pressed="false">Tree layout');
+  expect(html).toContain('aria-label="WDF difference equation"');
 });
 
 it('renders a persisted resonator root and sample rate', () => {
@@ -47,7 +51,17 @@ it('does not display or export a stale WDF when the analog circuit is incomplete
   expect(html).toContain('The analog circuit is not ready yet.');
   expect(html).not.toContain('Port resistances and coefficients');
   expect(html).not.toContain('WDF transfer function and analog reference');
+  expect(html).not.toContain('WDF difference equation');
   expect(html).toContain('<button class="button" disabled=""');
+});
+
+it('uses the project precision setting for the numerical difference equation', () => {
+  const rounded = render({ ...project, componentPrecision: 2 });
+  const full = render({ ...project, componentPrecision: 'full' });
+  expect(rounded).toContain('Displayed with 2 significant digits');
+  expect(full).toContain('Full available numerical precision');
+  expect(rounded).not.toContain('katex-error');
+  expect(full).not.toContain('katex-error');
 });
 
 it('explains a missing stored root instead of silently retaining stale parameters', () => {

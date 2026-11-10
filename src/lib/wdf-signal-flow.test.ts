@@ -21,7 +21,7 @@ describe('scalar WDF signal-flow expansion', () => {
     for (const adaptor of model.adaptors) {
       const compact = graph.adaptors.find(a => a.id === adaptor.id)!;
       expect(compact.multipliers).toHaveLength(adaptor.ports.length - (adaptor.adaptedPort === null ? 1 : 2));
-      expect(compact.multipliers.every(node => node.expression?.startsWith('−γ'))).toBe(true);
+      expect(compact.multipliers.map(node => node.expression)).toEqual(adaptor.adaptedPort === null ? ['−γ₁', '−γ₂'] : ['−γ₁']);
     }
     expect(graph.nodes.filter(n => n.kind === 'delay')).toHaveLength(model.elements.filter(e => e.kind === 'C' || e.kind === 'L').length);
     expect(new Set(graph.nodes.map(node => node.id)).size).toBe(graph.nodes.length);

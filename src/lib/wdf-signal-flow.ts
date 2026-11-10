@@ -25,6 +25,14 @@ const wave = (owner: string, direction: 'a' | 'b', port?: number) => JSON.string
 const operation = (owner: string, kind: string) => JSON.stringify([owner, kind]);
 export const portSubscript = (port: number) => String(port + 1).replace(/\d/g, digit => '₀₁₂₃₄₅₆₇₈₉'[Number(digit)]);
 
+/** Shared numbering for the drawing and symbolic input/output equation. */
+export function adaptorCoefficientPorts(adaptor: WdfAdaptor) {
+  const free = adaptor.ports.map((_, i) => i).filter(i => i !== adaptor.adaptedPort);
+  // Retain small coefficients explicitly instead of recovering them by subtraction.
+  const referencePort = free.reduce((best, i) => adaptor.ports[i].coefficient > adaptor.ports[best].coefficient ? i : best);
+  return { referencePort, independent: free.filter(i => i !== referencePort) };
+}
+
 /** Table 4 (pp. 9–10), Lech Kolonko, Einführung in Wellendigitalfilter,
  * WS 2025/26: shared sums/differences, n−1 gamma multipliers at a general
  * adaptor, n−2 at an adapted adaptor. For three ports these are two and one.
@@ -47,9 +55,12 @@ export function compactAdaptor(adaptor: WdfAdaptor): CompactAdaptor {
   const negate = (name: string, source: string) => {
     const id = add(operation(ownerId, name), 'negate', { expression: '−1' }); connect(source, id); return id;
   };
+  let multiplierIndex = 0;
   const multiply = (port: number, source: string) => {
+    // Number only the retained coefficients locally; operation IDs still
+    // identify their physical ports for routing and scattering evaluation.
     const id = add(operation(ownerId, `gamma:${port}`), 'gain', {
-      coefficient: -adaptor.ports[port].coefficient, expression: `−γ${portSubscript(port)}`,
+      coefficient: -adaptor.ports[port].coefficient, expression: `−γ${portSubscript(multiplierIndex++)}`,
     });
     connect(source, id); return id;
   };
@@ -57,10 +68,7 @@ export function compactAdaptor(adaptor: WdfAdaptor): CompactAdaptor {
   const outputs = adaptor.ports.map((_, port) => add(wave(ownerId, 'b', port), 'wave'));
   const adapted = adaptor.adaptedPort;
   const free = adaptor.ports.map((_, i) => i).filter(i => i !== adapted);
-  // Eliminate the largest coefficient, retaining tiny independent coefficients
-  // explicitly rather than recovering them by a cancellation such as 1−gamma.
-  const referencePort = free.reduce((best, i) => adaptor.ports[i].coefficient > adaptor.ports[best].coefficient ? i : best);
-  const independent = free.filter(i => i !== referencePort);
+  const { referencePort, independent } = adaptorCoefficientPorts(adaptor);
   const a = inputs.map((id, i) => adaptor.kind === 'series' && adaptor.ports[i].sign < 0 ? negate(`polarity:a:${i}`, id) : id);
   const b: string[] = [];
   if (adaptor.kind === 'parallel') {

@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
-import { Background, Controls, Handle, MarkerType, Position, ReactFlow, getBezierPath, type Edge, type EdgeProps, type Node, type NodeProps } from '@xyflow/react';
+import { Background, Controls, Handle, MarkerType, Position, ReactFlow, getBezierPath, type Edge, type EdgeProps, type Node } from '@xyflow/react';
 import { Download, Network } from 'lucide-react';
 import { FrequencyInput } from './FrequencyInput';
 import { Formula } from './MathView';
 import { WdfSignalGraph } from './WdfSignalGraph';
+import { WdfAdaptedPort } from './WdfAdaptedPort';
+import { WdfEquation } from './WdfEquation';
 import { usePreferences } from '../lib/preferences';
 import type { FrequencyUnit } from '../lib/frequency-units';
 import { formatEngineering } from '../lib/network';
@@ -14,31 +16,36 @@ import { wdfLadderLayout, type PortSide, type WdfLayoutMode } from '../lib/wdf-l
 import './WdfView.css';
 
 type WdfNode = Node<{ item: WdfAdaptor | WdfElement; root: boolean; selected: boolean; portSides?: PortSide[] }, 'wdf'>;
-type WdfEdge = Edge<{ resistance: number }, 'waves'>;
+type WdfEdge = Edge<{ resistance: number; ladder?: boolean }, 'waves'>;
+const LADDER_WAVE_OFFSET = 32;
 const childY = (index: number, count: number) => count === 1 ? 64 : 30 + index * 68 / (count - 1);
 const portPosition = { left: Position.Left, top: Position.Top, right: Position.Right, bottom: Position.Bottom };
+const adaptorKindName = (kind: WdfAdaptor['kind'], t: (de: string, en: string) => string) =>
+  kind === 'series' ? t('Serienadapter', 'Series adaptor') : t('Paralleladapter', 'Parallel adaptor');
 
-function LadderSymbol({ data }: { data: WdfNode['data'] }) {
+export function LadderSymbol({ data }: { data: WdfNode['data'] }) {
   const { t, language } = usePreferences();
   const { item, root, selected, portSides = [] } = data;
   const adaptor = item.type === 'adaptor';
   return <div className={`wdf-symbol wdf-ladder-symbol ${adaptor ? 'adaptor' : 'element'} ${root ? 'root' : ''} ${selected ? 'chosen' : ''}`}>
     <svg width="196" height="176" viewBox="0 0 196 176" aria-hidden="true">
       <rect className="wdf-block" x="44" y="42" width="108" height="92" rx="2" />
-      <text className="wdf-ladder-label" x="98" y="62" textAnchor="middle">{item.label}</text>
-      <text className={adaptor ? 'wdf-kind' : 'wdf-delay'} x="98" y="91" textAnchor="middle">{adaptor ? item.kind === 'series' ? 'S' : 'P'
+      <text className="wdf-ladder-label" x="98" y="62" textAnchor="middle">{adaptor ? adaptorKindName(item.kind, t) : item.label}</text>
+      <text className={adaptor ? 'wdf-kind' : 'wdf-delay'} x="98" y="91" textAnchor="middle">{adaptor ? item.label
         : item.kind === 'C' ? 'z⁻¹' : item.kind === 'L' ? '−z⁻¹' : item.kind === 'source' ? 'Vₛ[n]' : '0'}</text>
-      <text x="98" y="118" textAnchor="middle">{adaptor ? root ? t('Wurzel', 'Root') : `ρ${item.adaptedPort! + 1} = 0`
-        : formatEngineering(item.value, item.kind === 'C' ? 'F' : item.kind === 'L' ? 'H' : 'Ω', 4, language)}</text>
+      {(!adaptor || root) && <text x="98" y="118" textAnchor="middle">{adaptor ? t('Wurzel', 'Root')
+        : formatEngineering(item.value, item.kind === 'C' ? 'F' : item.kind === 'L' ? 'H' : 'Ω', 4, language)}</text>}
       {portSides.map((side, port) => {
         const adapted = adaptor && port === item.adaptedPort;
         const vertical = side === 'top' || side === 'bottom';
         const x = side === 'left' ? 44 : side === 'right' ? 152 : 98;
         const y = side === 'top' ? 42 : side === 'bottom' ? 134 : 88;
         const end = side === 'top' ? 0 : side === 'bottom' ? 176 : side === 'left' ? 0 : 196;
+        const offset = LADDER_WAVE_OFFSET;
+        const b = { x: x + (vertical ? side === 'top' ? offset : -offset : 0), y: y + (vertical ? 0 : side === 'left' ? offset : -offset) };
         return <g key={port}>
-          <path d={vertical ? `M95 ${y}V${end}M101 ${y}V${end}` : `M${x} 85H${end}M${x} 91H${end}`} />
-          {adapted && <circle className="wdf-adapted-port" cx={x} cy={y} r="5" />}
+          <path d={vertical ? `M${x - offset} ${y}V${end}M${x + offset} ${y}V${end}` : `M${x} ${y - offset}H${end}M${x} ${y + offset}H${end}`} />
+          {adapted && <WdfAdaptedPort position={b} side={side} port={port} />}
           {adaptor && <text x={vertical ? 111 : side === 'left' ? 8 : 160} y={vertical ? side === 'top' ? 27 : 159 : 75}>
             {port + 1}{item.ports[port].sign < 0 ? '−' : ''}{adapted ? '*' : ''}</text>}
         </g>;
@@ -49,7 +56,7 @@ function LadderSymbol({ data }: { data: WdfNode['data'] }) {
   </div>;
 }
 
-function WdfSymbol({ data }: NodeProps<WdfNode>) {
+export function WdfSymbol({ data }: { data: WdfNode['data'] }) {
   const { t, language } = usePreferences();
   const { item, root, selected } = data;
   const eng = (n: number, unit: string) => formatEngineering(n, unit, 4, language);
@@ -57,11 +64,11 @@ function WdfSymbol({ data }: NodeProps<WdfNode>) {
   const adaptor = item.type === 'adaptor';
   const childPorts = adaptor ? item.ports.map((_, i) => i).filter(i => i !== item.adaptedPort) : [];
   return <div className={`wdf-symbol ${adaptor ? 'adaptor' : 'element'} ${root ? 'root' : ''} ${selected ? 'chosen' : ''}`}>
-    <div className="wdf-node-heading">{item.label}{root && <span>{t('Wurzel', 'Root')}</span>}</div>
+    <div className="wdf-node-heading">{adaptor ? adaptorKindName(item.kind, t) : item.label}{root && <span>{t('Wurzel', 'Root')}</span>}</div>
     <svg width="196" height="128" viewBox="0 0 196 128" aria-hidden="true">
       <rect className="wdf-block" x="44" y="18" width="106" height="92" rx="2" />
       {adaptor ? <>
-        <text className="wdf-kind" x="97" y="58" textAnchor="middle">{item.kind === 'series' ? 'S' : 'P'}</text>
+        <text className="wdf-kind" x="97" y="58" textAnchor="middle">{item.label}</text>
         {item.kind === 'series' ? <path className="wdf-glyph" d="M77 75H117" /> : <path className="wdf-glyph" d="M91 68V84M103 68V84" />}
         {childPorts.map((port, index) => {
           const y = childY(index, childPorts.length);
@@ -71,7 +78,7 @@ function WdfSymbol({ data }: NodeProps<WdfNode>) {
         })}
         {item.adaptedPort !== null && <>
           <path d="M0 61H44M0 67H44" />
-          <circle className="wdf-adapted-port" cx="44" cy="64" r="5" />
+          <WdfAdaptedPort position={{ x: 44, y: 67 }} side="left" port={item.adaptedPort} />
           <text x="10" y="50">{item.adaptedPort + 1}{item.ports[item.adaptedPort].sign < 0 ? '−' : ''} *</text>
         </>}
       </> : <>
@@ -83,25 +90,30 @@ function WdfSymbol({ data }: NodeProps<WdfNode>) {
     {item.parentId !== null && <Handle type="target" id="parent" position={Position.Left} style={{ top: 88 }} isConnectable={false} />}
     {childPorts.map((port, i) => <Handle key={port} type="source" id={`port-${port}`} position={Position.Right}
       style={{ top: 24 + childY(i, childPorts.length) }} isConnectable={false} />)}
-    <div className="wdf-node-footer">{adaptor ? root ? t('freie Streuung', 'Root scattering') : `ρ${item.adaptedPort! + 1} = 0`
+    <div className="wdf-node-footer">{adaptor ? root ? t('freie Streuung', 'Root scattering') : null
       : item.kind === 'source' ? 'b = Vₛ[n]' : item.kind === 'R' ? 'b = 0' : 'b[n] = ' + (item.kind === 'L' ? '−' : '') + 'a[n−1]'}</div>
   </div>;
 }
 
-function WaveEdge(props: EdgeProps<WdfEdge>) {
+export function WaveEdge(props: EdgeProps<WdfEdge>) {
   const { language } = usePreferences();
   const offset = (amount: number) => ({ ...props,
     sourceX: props.sourceX + ([Position.Top, Position.Bottom].includes(props.sourcePosition) ? amount : 0),
     sourceY: props.sourceY + ([Position.Left, Position.Right].includes(props.sourcePosition) ? amount : 0),
     targetX: props.targetX + ([Position.Top, Position.Bottom].includes(props.targetPosition) ? amount : 0),
     targetY: props.targetY + ([Position.Left, Position.Right].includes(props.targetPosition) ? amount : 0) });
-  const [up, x, y] = getBezierPath(offset(-3));
-  const [down] = getBezierPath(offset(3));
+  const separation = props.data!.ladder ? LADDER_WAVE_OFFSET : 3;
+  const [up] = getBezierPath(offset(-separation));
+  const [down] = getBezierPath(offset(separation));
+  const [, x, y] = getBezierPath(props);
   const vertical = props.sourcePosition === Position.Top || props.sourcePosition === Position.Bottom;
+  const incomingAtSource = !props.data!.ladder || props.sourcePosition === Position.Left || props.sourcePosition === Position.Top;
+  const captionX = x + (vertical ? separation + 8 : -49), captionY = y - (props.data!.ladder ? 10 : 29);
   return <g className="wdf-wave-edge">
-    <path d={up} markerStart={props.markerStart} /><path d={down} markerEnd={props.markerEnd} />
-    <rect x={x + (vertical ? 10 : -49)} y={y - 26} width="98" height="19" rx="3" />
-    <text x={x + (vertical ? 59 : 0)} y={y - 13} textAnchor="middle">{formatEngineering(props.data!.resistance, 'Ω', 4, language)}</text>
+    <path d={up} markerStart={incomingAtSource ? props.markerStart : undefined} markerEnd={incomingAtSource ? undefined : props.markerEnd} />
+    <path d={down} markerStart={incomingAtSource ? undefined : props.markerStart} markerEnd={incomingAtSource ? props.markerEnd : undefined} />
+    <rect x={captionX} y={captionY} width="98" height="19" rx="3" />
+    <text x={captionX + 49} y={captionY + 13} textAnchor="middle">{formatEngineering(props.data!.resistance, 'Ω', 4, language)}</text>
   </g>;
 }
 const nodeTypes = { wdf: WdfSymbol };
@@ -125,7 +137,7 @@ export function wdfDiagram(model: WdfModel, selected: string, mode: WdfLayoutMod
       const neighbor = map.get(port.neighborId)!;
       const targetPort = neighbor.type === 'adaptor' ? neighbor.ports.findIndex(p => p.neighborId === adaptor.id) : 0;
       edges.push({ id, source: adaptor.id, target: neighbor.id, sourceHandle: `port-${i}`, targetHandle: `port-${targetPort}`, type: 'waves',
-        data: { resistance: port.resistance }, markerStart: { type: MarkerType.ArrowClosed, color: 'var(--text-muted)' }, markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--text-muted)' } });
+        data: { resistance: port.resistance, ladder: true }, markerStart: { type: MarkerType.ArrowClosed, color: 'var(--text-muted)' }, markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--text-muted)' } });
     });
     return { nodes, edges };
   }
@@ -166,7 +178,7 @@ function AdaptorDetails({ adaptor, model, onRoot }: { adaptor: WdfAdaptor; model
   const name = (id: string) => model.adaptors.find(n => n.id === id)?.label ?? model.elements.find(n => n.id === id)?.label ?? id;
   const root = adaptor.id === model.rootId;
   return <aside className="wdf-inspector" aria-label={t('Adaptordetails', 'Adaptor details')}>
-    <div className="wdf-inspector-title"><strong>{adaptor.label} · {adaptor.kind === 'series' ? t('Serienadaptor', 'Series adaptor') : t('Paralleladaptor', 'Parallel adaptor')}</strong>
+    <div className="wdf-inspector-title"><strong>{adaptor.label} · {adaptorKindName(adaptor.kind, t)}</strong>
       <button className="button" disabled={root} onClick={() => onRoot(adaptor.id)}>{root ? t('Wurzelelement', 'Root element') : t('Als Wurzel festlegen', 'Set as root')}</button></div>
     <p>{root ? t('An der Wurzel ist kein Tor als reflexionsfrei vorgegeben.', 'No port is constrained to be reflection-free at the root.')
       : t(`Tor ${adaptor.adaptedPort! + 1} ist zur Wurzel hin angepasst (ρ = 0).`, `Port ${adaptor.adaptedPort! + 1} is adapted toward the root (ρ = 0).`)}</p>
@@ -233,14 +245,15 @@ export function WdfView({ project, onChange, representation = 'adaptors' }: {
         </div>}
         <AdaptorDetails adaptor={selected} model={model} onRoot={chooseRoot} />
       </div>
-      <div className="wdf-legend"><span><b>S —</b> {t('Serie', 'Series')}</span><span><b>P ∥</b> Parallel</span><span><b>*</b> ρ = 0</span><span><b>z⁻¹</b> C</span><span><b>−z⁻¹</b> L</span><span>{model.adaptors.length} {t('Adaptoren', 'adaptors')} · {model.elements.filter(e => e.kind === 'L' || e.kind === 'C').length} {t('Speicher', 'delays')}</span>
+      <div className="wdf-legend"><span><b>S —</b> {t('Serie', 'Series')}</span><span><b>P ∥</b> Parallel</span><span><b>⊢ / *</b> ρ = 0</span><span><b>z⁻¹</b> C</span><span><b>−z⁻¹</b> L</span><span>{model.adaptors.length} {t('Adaptoren', 'adaptors')} · {model.elements.filter(e => e.kind === 'L' || e.kind === 'C').length} {t('Speicher', 'delays')}</span>
         <span>{t('Bilinear ohne Vorverzerrung · Ergebnis-Tabs: analoge Schaltung', 'Bilinear without prewarping · result tabs: analog circuit')}</span></div>
+      <WdfEquation model={model} precision={project.componentPrecision} />
     </>}
     <details className="wdf-method"><summary>{t('Wellenvariablen, Anpassung und Frequenzabbildung', 'Wave variables, adaptation and frequency mapping')}</summary>
-      <p>{t('Der Signalflussgraph verwendet die kompakten Adaptor-Strukturen aus Tabelle 4 (S. 9–10) in „Einführung in Wellendigitalfilter“, Lech Kolonko, WS 2025/26. Ein reflexionsfreier Dreitoradaptor benötigt einen Gamma-Multiplikator, ein allgemeiner Dreitoradaptor zwei. Gemeinsame Summen und Differenzen werden wiederverwendet. Die Torpolarität der analogen Schaltung bleibt durch explizite −1-Multiplikatoren erhalten. Der innere Aufbau folgt der Vorlage; die Wellenleitungen werden zu den Außenanschlüssen geführt. Die angezeigten Gamma-Indizes gehören zu den unveränderten Tornummern.',
-        'The signal-flow graph uses the compact adaptor structures from Table 4 (pp. 9–10) of “Einführung in Wellendigitalfilter”, Lech Kolonko, winter semester 2025/26. An adapted three-port adaptor needs one gamma multiplier; a general three-port adaptor needs two. Shared sums and differences are reused. Explicit −1 multipliers preserve the analog circuit’s port polarity. The internal arrangement follows the reference; wave leads are routed to the external ports. The displayed gamma indices refer to the unchanged port numbers.')}</p>
-      <p>{t('Punkte kennzeichnen echte Verzweigungen. Leitungssprünge kennzeichnen Kreuzungen ohne Verbindung. Ein- und rücklaufende Wellen werden auf getrennten Leitungen geführt. C wird zu z⁻¹, L zu z⁻¹ mit anschließendem Vorzeichenwechsel −1. Angepasste Widerstände reflektieren 0. Am Lastwiderstand gilt Vout = aR₂ / 2.',
-        'Dots mark actual branches. Wire bridges mark crossings without a connection. Incident and reflected waves use separate routes. C becomes z⁻¹; L becomes z⁻¹ followed by a sign change of −1. Matched resistors reflect 0. At the load, Vout = aR₂ / 2.')}</p>
+      <p>{t('Der Signalflussgraph verwendet die kompakten Adaptor-Strukturen aus Tabelle 4 (S. 9–10) in „Einführung in Wellendigitalfilter“, Lech Kolonko, WS 2025/26. Ein reflexionsfreier Dreitoradaptor benötigt einen Gamma-Multiplikator, ein allgemeiner Dreitoradaptor zwei. Gemeinsame Summen und Differenzen werden wiederverwendet. Die Torpolarität der analogen Schaltung bleibt durch explizite −1-Multiplikatoren erhalten. Der innere Aufbau folgt der Vorlage; die Wellenleitungen werden zu den Außenanschlüssen geführt. Im Signalflussgraphen heißen die unabhängigen Koeffizienten je Adaptor γ₁ beziehungsweise γ₁ und γ₂. Nur ihre Werte stehen im Adaptorblock. In der Tortabelle und den Torformeln bezieht sich der Gamma-Index auf die Tornummer.',
+        'The signal-flow graph uses the compact adaptor structures from Table 4 (pp. 9–10) of “Einführung in Wellendigitalfilter”, Lech Kolonko, winter semester 2025/26. An adapted three-port adaptor needs one gamma multiplier; a general three-port adaptor needs two. Shared sums and differences are reused. Explicit −1 multipliers preserve the analog circuit’s port polarity. The internal arrangement follows the reference; wave leads are routed to the external ports. Within each signal-flow adaptor, the independent coefficients are named γ₁ or γ₁ and γ₂. Only their values appear in the adaptor block. In the port table and port formulas, the gamma index refers to the port number.')}</p>
+      <p>{t('Die T-Markierung am b-Anschluss kennzeichnet das reflexionsfreie Tor (ρ = 0). Punkte kennzeichnen echte Verzweigungen. Leitungssprünge kennzeichnen Kreuzungen ohne Verbindung. Ein- und rücklaufende Wellen werden auf getrennten Leitungen geführt. C wird zu z⁻¹, L zu z⁻¹ mit anschließendem Vorzeichenwechsel −1. Angepasste Widerstände reflektieren 0. Am Lastwiderstand gilt Vout = aR₂ / 2.',
+        'The T mark at the b connection identifies the reflection-free port (ρ = 0). Dots mark actual branches. Wire bridges mark crossings without a connection. Incident and reflected waves use separate routes. C becomes z⁻¹; L becomes z⁻¹ followed by a sign change of −1. Matched resistors reflect 0. At the load, Vout = aR₂ / 2.')}</p>
       <p>{t('Spannungswellen: a = v + Ri, b = v − Ri. Die Doppellinien führen die beiden Wellenrichtungen. An jedem verbundenen Tor gilt a₁ = b₂ und a₂ = b₁. Die Quelle enthält R₁; die Ausgangsspannung wird an R₂ abgegriffen.',
         'Voltage waves: a = v + Ri, b = v − Ri. The double lines carry the two wave directions. At connected ports a₁ = b₂ and a₂ = b₁. The source includes R₁; output voltage is measured across R₂.')}</p>
       <Formula latex={String.raw`R_C=\frac{1}{2f_sC},\quad R_L=2f_sL,\quad R_R=R`} />

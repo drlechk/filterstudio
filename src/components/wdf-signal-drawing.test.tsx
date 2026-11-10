@@ -40,20 +40,29 @@ it('uses the reference gamma label with the numerical coefficient available as a
   expect(html).not.toContain('<tspan');
 });
 
-it('shows all current port coefficients in the adaptor footer, including adapted and eliminated coefficients', () => {
+it('labels only the independent coefficients γ₁ and γ₂ and matches their footer values after root changes', () => {
   const project = { settings: defaultSettings, z2: 50, ...createCircuit([
     { id: 'l', kind: 'L' as const, connection: 'series' as const, value: .002 },
     { id: 'lc', kind: 'LC' as const, connection: 'shunt' as const, resonator: 'series' as const, value: .002, value2: 2e-6 },
   ]) };
-  for (const root of ['adaptor:l', 'resonator:lc']) {
-    for (const node of signalGraphLayout(buildWdf(project, 48000, root)).nodes.filter(n => n.data.adaptor)) {
-      const html = render(node.data);
-      const footer = html.match(/<g class="wdf-signal-coefficients">([\s\S]*?)<\/g>/)![1];
-      expect(footer.match(/<text /g)).toHaveLength(node.data.adaptor!.ports.length);
-      node.data.adaptor!.ports.forEach((port, i) => {
-        expect(footer).toContain(`γ${portSubscript(i)} = ${formatNumber(port.coefficient, 'en', 6)}`);
-        expect(footer).toContain(`data-coefficient="${port.coefficient}"`);
-      });
+  for (const root of buildWdf(project, 48000).adaptors) {
+    for (const mode of ['ladder', 'tree'] as const) {
+      for (const node of signalGraphLayout(buildWdf(project, 48000, root.id), mode).nodes.filter(n => n.data.adaptor)) {
+        const html = render(node.data), adaptor = node.data.adaptor!, drawing = node.data.drawing!;
+        expect([...html.matchAll(/data-adapted-port="(\d+)"/g)].map(match => Number(match[1])))
+          .toEqual(adaptor.adaptedPort === null ? [] : [adaptor.adaptedPort]);
+        const footer = html.match(/<g class="wdf-signal-coefficients">([\s\S]*?)<\/g>/)![1];
+        const independent = adaptor.ports.filter((_, i) => i !== adaptor.adaptedPort && i !== drawing.compact.referencePort);
+        expect(footer.match(/<text /g)).toHaveLength(adaptor.adaptedPort === null ? 2 : 1);
+        expect(html).not.toContain('γ₃');
+        independent.forEach((port, i) => {
+          const label = `γ${portSubscript(i)}`;
+          expect(footer).toContain(`${label} = ${formatNumber(port.coefficient, 'en', 6)}`);
+          expect(footer).toContain(`data-coefficient="${port.coefficient}"`);
+          expect(html).toContain(`aria-label="−${label} = ${formatNumber(-port.coefficient, 'en', 6)}"`);
+          expect(drawing.compact.multipliers[i]).toMatchObject({ expression: `−${label}`, coefficient: -port.coefficient });
+        });
+      }
     }
   }
 });
@@ -68,4 +77,22 @@ it('shows z⁻¹ followed by a separate −1 multiplier for inductors in all lad
     expect(html).toContain('>−1</text>');
   }
   expect(render({ element: model.elements.find(e => e.kind === 'C')!, root: false, chosen: false })).not.toContain('data-operation="negate"');
+});
+
+it('keeps tree wires attached to the rendered pins when reactive and resistive blocks have different sizes', () => {
+  const project = { settings: defaultSettings, z2: 50, ...createCircuit([
+    { id: 'l', kind: 'L', connection: 'series', value: .002 },
+    { id: 'c', kind: 'C', connection: 'shunt', value: 2e-6 },
+  ]) };
+  const graph = signalGraphLayout(buildWdf(project, 48000, 'adaptor:c'), 'tree');
+  for (const node of graph.nodes.filter(n => n.data.element)) {
+    const html = render(node.data);
+    for (const handle of ['a', 'b']) {
+      const markup = html.match(new RegExp(`<div[^>]*data-handleid="${handle}"[^>]*>`))![0];
+      const top = Number(markup.match(/top:([\d.-]+)px/)![1]);
+      const edge = graph.edges.find(e => handle === 'a' ? e.target === node.id && e.targetHandle === handle : e.source === node.id && e.sourceHandle === handle)!;
+      const endpoint = handle === 'a' ? edge.data!.points.at(-1)! : edge.data!.points[0];
+      expect(endpoint, `${node.id}:${handle}`).toEqual({ x: node.position.x, y: node.position.y + top });
+    }
+  }
 });

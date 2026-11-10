@@ -32,7 +32,7 @@
 .wdf-symbol .wdf-delay { font-size: 20px; }
 .wdf-symbol .wdf-ladder-label { font-weight: 700; }
 .wdf-symbol .wdf-glyph { stroke-width: 2; }
-.wdf-symbol .wdf-adapted-port { fill: var(--surface); stroke: var(--success); stroke-width: 2; }
+.wdf-symbol .wdf-adapted-port { fill: none; stroke: currentColor; stroke-width: 1.5; }
 .wdf-wave-edge path { stroke: var(--text-muted); stroke-width: 1; fill: none; }
 .wdf-wave-edge rect { fill: var(--surface-subtle); }
 .wdf-wave-edge text { fill: var(--text-muted); font-size: 11px; }
@@ -58,6 +58,13 @@
 .wdf-method summary { cursor: pointer; color: var(--text-muted); font-weight: 600; }
 .wdf-method p { line-height: 1.7; max-width: 1000px; margin: 12px 0; }
 .wdf-method .math-render { overflow: auto; }
+.wdf-equation { display: grid; gap: 12px; padding: 18px; border-top: 1px solid var(--border); min-width: 0; }
+.wdf-equation .math-card { min-width: 0; margin: 0; }
+.wdf-equation .math-formula-groups { max-height: 380px; overflow: auto; }
+.wdf-equation-groups { padding: 2px 14px 10px; min-width: 0; }
+.wdf-equation-groups summary { cursor: pointer; color: var(--text-muted); font-weight: 600; }
+.wdf-equation-groups p { color: var(--text-muted); line-height: 1.7; }
+.wdf-equation-groups > .math-formula-groups { margin-top: 12px; }
 .wdf-source-links { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 6px 0; }
 .wdf-source-links a { color: var(--accent-text); text-decoration: underline; text-underline-offset: 3px; }
 .wdf-error { min-height: 250px; padding: 45px 20px; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; text-align: center; color: var(--text-muted); }
