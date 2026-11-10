@@ -36,7 +36,7 @@ export function LadderSymbol({ data }: { data: WdfNode['data'] }) {
       {(!adaptor || root) && <text x="98" y="118" textAnchor="middle">{adaptor ? t('Wurzel', 'Root')
         : formatEngineering(item.value, item.kind === 'C' ? 'F' : item.kind === 'L' ? 'H' : 'Ω', 4, language)}</text>}
       {portSides.map((side, port) => {
-        const adapted = adaptor && port === item.adaptedPort;
+        const adapted = adaptor ? port === item.adaptedPort : item.kind === 'source' || item.kind === 'R';
         const vertical = side === 'top' || side === 'bottom';
         const x = side === 'left' ? 44 : side === 'right' ? 152 : 98;
         const y = side === 'top' ? 42 : side === 'bottom' ? 134 : 88;
@@ -83,6 +83,7 @@ export function WdfSymbol({ data }: { data: WdfNode['data'] }) {
         </>}
       </> : <>
         <path d="M0 61H44M0 67H44" />
+        {(item.kind === 'source' || item.kind === 'R') && <WdfAdaptedPort position={{ x: 44, y: 67 }} side="left" port={0} />}
         <text className="wdf-delay" x="97" y="57" textAnchor="middle">{item.kind === 'C' ? 'z⁻¹' : item.kind === 'L' ? '−z⁻¹' : item.kind === 'source' ? 'Vₛ[n]' : '0'}</text>
         <text x="97" y="84" textAnchor="middle">{eng(item.value, item.kind === 'C' ? 'F' : item.kind === 'L' ? 'H' : 'Ω')}</text>
       </>}
