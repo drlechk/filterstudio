@@ -4,13 +4,14 @@ import { bridgedPath, type Point } from '../lib/signal-routing';
 
 /** Multipliers use the labelled circles in the reference, distinct from sums. */
 export function SignalMultiplier({ position: p, label, value, coefficient, labelSide = 'top' }: {
-  position: Point; label: string; value?: string; coefficient: number; labelSide?: 'top' | 'right';
+  position: Point; label: string; value?: string; coefficient: number; labelSide?: 'top' | 'right' | 'left';
 }) {
-  return <g data-operation={coefficient === -1 && label === '−1' ? 'negate' : 'gain'} data-gain={coefficient}>
-    <title>{value ? `${label} = ${coefficient}` : `× ${label}`}</title>
+  const description = value ? `${label} = ${value}` : `× ${label}`;
+  return <g data-operation={coefficient === -1 && label === '−1' ? 'negate' : 'gain'} data-gain={coefficient} aria-label={description}>
+    <title>{description}</title>
     <circle className="wdf-signal-gain" cx={p.x} cy={p.y} r="20" />
-    <text className="wdf-signal-expression" x={p.x + (labelSide === 'right' ? 32 : 0)} y={p.y + (labelSide === 'right' ? 6 : -32)}
-      textAnchor={labelSide === 'right' ? 'start' : 'middle'}>{label}{value && <tspan className="wdf-signal-value"> = {value}</tspan>}</text>
+    <text className="wdf-signal-expression" x={p.x + (labelSide === 'right' ? 32 : labelSide === 'left' ? -32 : 0)} y={p.y + (labelSide === 'top' ? -32 : 10)}
+      textAnchor={labelSide === 'right' ? 'start' : labelSide === 'left' ? 'end' : 'middle'}>{label}</text>
   </g>;
 }
 
@@ -31,7 +32,7 @@ export function AdaptorSignalDrawing({ drawing, adaptedPort, marker, format }: {
         value={node.kind === 'gain' ? format(node.coefficient!) : undefined} labelSide={labelSide} />
       : <g key={node.id} data-operation={node.kind}>
         <circle className="wdf-signal-sum" cx={p.x} cy={p.y} r="20" />
-        <text className="wdf-signal-plus" x={p.x} y={p.y + 7} textAnchor="middle">+</text>
+        <text className="wdf-signal-plus" x={p.x} y={p.y + 10} textAnchor="middle">+</text>
       </g>)}
     {drawing.terminals.map((terminal, i) => <text key={i} className="wdf-signal-terminal" {...terminal.position} textAnchor={terminal.anchor}>{terminal.label}</text>)}
     {drawing.ports.map(port => <g key={port.id}>

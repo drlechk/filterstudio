@@ -32,7 +32,8 @@ class Heap {
   get length() { return this.items.length; }
 }
 
-export function routeSignalWires(width: number, height: number, obstacles: Rect[], requests: WireRequest[], step = 20, topPadding = 40): RoutedWire[] {
+export type RoutingOptions = { boundaryLead?: number; bendPenalty?: number; trackSpacing?: number };
+export function routeSignalWires(width: number, height: number, obstacles: Rect[], requests: WireRequest[], step = 20, topPadding = 40, options: RoutingOptions = {}): RoutedWire[] {
   const columns = Math.round(width / step) + 1, rows = Math.round(height / step) + 1, size = columns * rows;
   const cell = (p: Point) => Math.round(p.y / step) * columns + Math.round(p.x / step);
   const point = (id: number) => ({ x: id % columns * step, y: Math.floor(id / columns) * step });
@@ -42,10 +43,17 @@ export function routeSignalWires(width: number, height: number, obstacles: Rect[
     if (obstacles.some(r => p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height)) blocked[id] = 1;
   }
   const pins = new Map<number, Set<string>>();
-  requests.forEach(r => [[r.start, r.startDirection], [r.end, r.endDirection]].forEach(([pointValue, directionValue]) => {
-    const p = pointValue as Point, d = delta[directionValue as Direction];
-    for (const q of [p, { x: p.x + step * d.x, y: p.y + step * d.y }]) {
-      const id = cell(q); if (!pins.has(id)) pins.set(id, new Set()); pins.get(id)!.add(r.net);
+  const lead = (p: Point, direction: Direction, other: Point) => {
+    const boundary = p.x === 0 || p.x === width || p.y === 0 || p.y === height;
+    const d = delta[direction], distance = (other.x - p.x) * d.x + (other.y - p.y) * d.y;
+    const aligned = d.x ? p.y === other.y : p.x === other.x;
+    const maxLength = aligned && distance > 0 ? Math.max(1, Math.round(distance / step) - 1) : Infinity;
+    const length = boundary ? Math.min(maxLength, Math.max(1, Math.round((options.boundaryLead ?? step) / step))) : 1;
+    return Array.from({ length: length + 1 }, (_, i) => cell({ x: p.x + i * step * d.x, y: p.y + i * step * d.y }));
+  };
+  requests.forEach(r => [[r.start, r.startDirection, r.end], [r.end, r.endDirection, r.start]].forEach(([pointValue, directionValue, other]) => {
+    for (const id of lead(pointValue as Point, directionValue as Direction, other as Point)) {
+      if (!pins.has(id)) pins.set(id, new Set()); pins.get(id)!.add(r.net);
     }
   }));
   const usedEdges = new Map<string, string>(), usedCells = new Map<number, Map<string, number>>();
@@ -56,10 +64,23 @@ export function routeSignalWires(width: number, height: number, obstacles: Rect[
     const nets = usedCells.get(id)!; nets.set(net, (nets.get(net) ?? 0) | bit);
   };
   const canCross = (id: number, net: string, axis: number) => [...(usedCells.get(id) ?? [])].every(([other, mask]) => other === net || mask === (axis === 1 ? 12 : 3));
+  const proximityCost = (id: number, net: string, axis: number) => {
+    let cost = 0;
+    for (let offset = 1; offset * step < (options.trackSpacing ?? 0); offset++) {
+      for (const sign of [-1, 1]) {
+        const nearby = id + sign * offset * (axis === 1 ? columns : 1);
+        if (nearby < 0 || nearby >= size || (axis === 2 && Math.floor(nearby / columns) !== Math.floor(id / columns))) continue;
+        if ([...(usedCells.get(nearby) ?? [])].some(([other, mask]) => other !== net && (mask & (axis === 1 ? 3 : 12)))) cost += 3 / offset;
+      }
+    }
+    return cost;
+  };
   const routes: RoutedWire[] = [];
   for (const request of requests) {
-    const start = cell(request.start), end = cell(request.end), sd = delta[request.startDirection], ed = delta[request.endDirection];
-    const startLead = start + sd.x + sd.y * columns, endLead = end + ed.x + ed.y * columns;
+    const startCells = lead(request.start, request.startDirection, request.end), endCells = lead(request.end, request.endDirection, request.start);
+    const protectedLead = new Set([...startCells.slice(0, -1), ...endCells.slice(0, -1)]);
+    const sd = delta[request.startDirection], ed = delta[request.endDirection];
+    const startLead = startCells.at(-1)!, endLead = endCells.at(-1)!;
     const initialAxis = sd.x ? 1 : 2, endAxis = ed.x ? 1 : 2;
     const distance = new Float64Array(size * 3).fill(Infinity), previous = new Int32Array(size * 3).fill(-1), queue = new Heap();
     const initial = startLead * 3 + initialAxis; distance[initial] = 0; queue.push({ state: initial, score: 0 });
@@ -72,6 +93,7 @@ export function routeSignalWires(width: number, height: number, obstacles: Rect[
         const nx = x + move.dx, ny = y + move.dy;
         if (nx <= 0 || nx >= columns - 1 || ny * step <= topPadding || ny >= rows - 1) continue;
         const next = ny * columns + nx;
+        if (protectedLead.has(next)) continue;
         if ((blocked[next] && next !== endLead && next !== startLead) || ([...pins.get(next) ?? []].some(net => net !== request.net))) continue;
         const used = usedEdges.get(edgeKey(id, next));
         if (used && used !== request.net) continue;
@@ -79,7 +101,8 @@ export function routeSignalWires(width: number, height: number, obstacles: Rect[
         const crossing = [...(usedCells.get(id)?.keys() ?? [])].some(n => n !== request.net);
         if (crossing && axis !== move.axis) continue;
         const nextState = next * 3 + move.axis;
-        const cost = distance[state] + (used === request.net ? .25 : 1) + (axis !== move.axis ? .8 : 0) + (crossing ? 4 : 0);
+        const cost = distance[state] + (used === request.net ? .25 : 1) + (axis !== move.axis ? options.bendPenalty ?? .8 : 0)
+          + (crossing ? 4 : 0) + proximityCost(next, request.net, move.axis);
         if (cost >= distance[nextState]) continue;
         distance[nextState] = cost; previous[nextState] = state;
         const endPoint = point(endLead), heuristic = (Math.abs(nx * step - endPoint.x) + Math.abs(ny * step - endPoint.y)) / step * .25;
@@ -87,9 +110,9 @@ export function routeSignalWires(width: number, height: number, obstacles: Rect[
       }
     }
     if (found < 0) throw new Error(`Cannot route signal wire ${request.id}`);
-    const ids = [end];
+    const ids = [...endCells.slice(0, -1)];
     for (let state = found; state !== -1; state = previous[state]) ids.push(Math.floor(state / 3));
-    ids.push(start); ids.reverse();
+    ids.push(...startCells.slice(0, -1).reverse()); ids.reverse();
     for (let i = 1; i < ids.length; i++) {
       const a = ids[i - 1], b = ids[i], pa = point(a), pb = point(b);
       const move = moves.find(m => m.dx === (pb.x - pa.x) / step && m.dy === (pb.y - pa.y) / step)!;

@@ -6,9 +6,9 @@ import { formatEngineering } from '../lib/network';
 import type { WdfAdaptor, WdfElement, WdfModel } from '../lib/wdf';
 import { buildWdfSignalFlow } from '../lib/wdf-signal-flow';
 import { AdaptorSignalDrawing, SignalMultiplier } from './WdfSignalDrawing';
-import { adaptorSignalLayout, COMPACT_ADAPTOR_SIZE, type AdaptorDrawing } from '../lib/wdf-signal-layout';
+import { adaptorSignalLayout, COMPACT_ADAPTOR_SIZE, LADDER_SIGNAL_ELEMENT_SIZE, SIGNAL_WAVE_OFFSET, SIGNAL_DRAWING_SCALE, SIGNAL_NODE_GAP, type AdaptorDrawing } from '../lib/wdf-signal-layout';
 import { wdfLadderLayout, type PortSide, type WdfLayoutMode } from '../lib/wdf-layout';
-import { bridgedPath, signalWireGeometry, type Point, type RoutedWire, type WireSegment } from '../lib/signal-routing';
+import { bridgedPath, routeSignalWires, signalWireGeometry, type Point, type RoutedWire, type WireSegment } from '../lib/signal-routing';
 import './WdfSignalGraph.css';
 
 type GraphNode = Node<{
@@ -17,63 +17,64 @@ type GraphNode = Node<{
 }, 'signal'>;
 type GraphEdge = Edge<{ segments: WireSegment[]; points: Point[]; active: boolean; caption: string }, 'signal'>;
 const polyline = (points: Point[]) => points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join('');
+const displaySize = ({ width, height }: { width: number; height: number }) => ({ width: width * SIGNAL_DRAWING_SCALE, height: height * SIGNAL_DRAWING_SCALE });
 const sidePosition = { left: Position.Left, right: Position.Right, top: Position.Top, bottom: Position.Bottom };
 function elementPort(side: PortSide, handle: string): Point {
-  if (handle === 'voltage') return { x: 280, y: 220 };
-  if (side === 'bottom') return { x: handle === 'a' ? 180 : 100, y: 260 };
-  return { x: side === 'right' ? 280 : 0, y: (handle === 'a') === (side === 'left') ? 90 : 170 };
+  if (handle === 'voltage') return { x: 280, y: 540 };
+  if (side === 'bottom') return { x: handle === 'a' ? 180 : 100, y: LADDER_SIGNAL_ELEMENT_SIZE.height };
+  return { x: side === 'right' ? 280 : 0, y: LADDER_SIGNAL_ELEMENT_SIZE.height / 2 + ((handle === 'a') === (side === 'left') ? -SIGNAL_WAVE_OFFSET : SIGNAL_WAVE_OFFSET) };
 }
 
 function LadderSignalElement({ element, side, marker }: { element: WdfElement; side: PortSide; marker: string }) {
   const { t, language } = usePreferences();
   const reactive = element.kind === 'L' || element.kind === 'C';
   const bottom = side === 'bottom', right = side === 'right';
-  const p = (x: number, y: number) => right ? { x: 280 - x, y: 260 - y } : { x, y };
+  const p = (x: number, y: number) => right ? { x: 280 - x, y: 600 - y } : { x, y };
   const label = (x: number, y: number, text: string, className?: string) => <text {...p(x, y)} textAnchor="middle" className={className}>{text}</text>;
   const a = elementPort(side, 'a'), b = elementPort(side, 'b');
   return <>
-    <svg width="280" height="260" aria-label={element.label}>
+    <svg {...displaySize(LADDER_SIGNAL_ELEMENT_SIZE)} viewBox="0 0 280 600" aria-label={element.label}>
       {bottom ? <>
         {reactive ? <>
-          <path className="wdf-signal-wire" d="M180 260V210H220V102H190" markerEnd={`url(#${marker})`} />
-          <rect className="wdf-signal-delay" x="90" y="80" width="100" height="44" />
-          <text className="wdf-signal-delay-label" x="140" y="109" textAnchor="middle">z⁻¹</text>
-          {element.kind === 'L' && <path className="wdf-signal-wire" d="M90 102H60V140" markerEnd={`url(#${marker})`} />}
-          <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M60 180V220H100V260' : 'M90 102H60V220H100V260'} markerEnd={`url(#${marker})`} />
-          {element.kind === 'L' && <SignalMultiplier position={{ x: 60, y: 160 }} label="−1" coefficient={-1} labelSide="right" />}
-          <text x="140" y="60" textAnchor="middle">{formatEngineering(element.value, element.kind === 'C' ? 'F' : 'H', 5, language)}</text>
+          <path className="wdf-signal-wire" d="M180 600V262" markerEnd={`url(#${marker})`} />
+          <rect className="wdf-signal-delay" x="140" y="218" width="80" height="44" />
+          <text className="wdf-signal-delay-label" x="180" y="247" textAnchor="middle">z⁻¹</text>
+          {element.kind === 'L' && <path className="wdf-signal-wire" d="M180 218V140H100V320" markerEnd={`url(#${marker})`} />}
+          <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M100 360V600' : 'M180 218V140H100V600'} markerEnd={`url(#${marker})`} />
+          {element.kind === 'L' && <SignalMultiplier position={{ x: 100, y: 340 }} label="−1" coefficient={-1} labelSide="right" />}
+          <text x="140" y="100" textAnchor="middle">{formatEngineering(element.value, element.kind === 'C' ? 'F' : 'H', 5, language)}</text>
         </> : <>
-          <path className="wdf-signal-wire" d="M180 260V150" /><path className="wdf-signal-termination" d="M171 150H189M174 143H186" />
+          <path className="wdf-signal-wire" d="M180 600V150" /><path className="wdf-signal-termination" d="M171 150H189M174 143H186" />
           <rect className="wdf-signal-delay" x="55" y="80" width="90" height="44" /><text x="100" y="108" textAnchor="middle">0</text>
-          <path className="wdf-signal-wire" d="M100 124V260" markerEnd={`url(#${marker})`} />
+          <path className="wdf-signal-wire" d="M100 124V600" markerEnd={`url(#${marker})`} />
           <text x="180" y="128" textAnchor="middle">{t('angepasst', 'matched')}</text>
         </>}
-        <text x="194" y="246">a[n]</text><text x="86" y="246" textAnchor="end">b[n]</text>
+        <text x="194" y="586">a[n]</text><text x="86" y="586" textAnchor="end">b[n]</text>
       </> : <>
-        <g transform={right ? 'translate(280 260) rotate(180)' : undefined}>
+        <g transform={right ? 'translate(280 600) rotate(180)' : undefined}>
           {reactive ? <>
-            <path className="wdf-signal-wire" d="M0 90H70" markerEnd={`url(#${marker})`} /><rect className="wdf-signal-delay" x="70" y="68" width="80" height="44" />
-            {element.kind === 'L' && <path className="wdf-signal-wire" d="M150 90H180" markerEnd={`url(#${marker})`} />}
-            <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M220 90H250V170H0' : 'M150 90H250V170H0'} markerEnd={`url(#${marker})`} />
+            <path className="wdf-signal-wire" d="M0 140H70" markerEnd={`url(#${marker})`} /><rect className="wdf-signal-delay" x="70" y="118" width="80" height="44" />
+            {element.kind === 'L' && <path className="wdf-signal-wire" d="M150 140H180" markerEnd={`url(#${marker})`} />}
+            <path className="wdf-signal-wire" d={element.kind === 'L' ? 'M220 140H250V460H0' : 'M150 140H250V460H0'} markerEnd={`url(#${marker})`} />
           </> : <>
-            <rect className="wdf-signal-delay" x="100" y="148" width="90" height="44" />
-            <path className="wdf-signal-wire" d="M100 170H0" markerEnd={`url(#${marker})`} /><path className="wdf-signal-wire" d="M0 90H70" />
-            <path className="wdf-signal-termination" d="M70 81V99M77 84V96" />
-            {element.id === 'load' && <><path className="wdf-signal-wire" d="M30 90V50H240V220H280" markerEnd={`url(#${marker})`} /><circle className="wdf-signal-junction" cx="30" cy="90" r="3.5" /></>}
+            <rect className="wdf-signal-delay" x="100" y="438" width="90" height="44" />
+            <path className="wdf-signal-wire" d="M100 460H0" markerEnd={`url(#${marker})`} /><path className="wdf-signal-wire" d="M0 140H70" />
+            <path className="wdf-signal-termination" d="M70 131V149M77 134V146" />
+            {element.id === 'load' && <><path className="wdf-signal-wire" d="M30 140V80H240V540H280" markerEnd={`url(#${marker})`} /><circle className="wdf-signal-junction" cx="30" cy="140" r="3.5" /></>}
           </>}
         </g>
         {reactive ? <>
-          {label(110, right ? 83 : 97, 'z⁻¹', 'wdf-signal-delay-label')}
-          {element.kind === 'L' && <SignalMultiplier position={p(200, 90)} label="−1" coefficient={-1} />}
-          {label(140, 220, formatEngineering(element.value, element.kind === 'C' ? 'F' : 'H', 5, language))}
-        </> : <>{label(145, right ? 164 : 176, element.kind === 'source' ? 'Vₛ[n]' : '0')}{label(140, 95, t('angepasst', 'matched'))}</>}
+          {label(110, right ? 131 : 149, 'z⁻¹', 'wdf-signal-delay-label')}
+          {element.kind === 'L' && <SignalMultiplier position={p(200, 140)} label="−1" coefficient={-1} />}
+          {label(140, right ? 400 : 540, formatEngineering(element.value, element.kind === 'C' ? 'F' : 'H', 5, language))}
+        </> : <>{label(145, right ? 452 : 468, element.kind === 'source' ? 'Vₛ[n]' : '0')}{label(140, 180, t('angepasst', 'matched'))}</>}
         <text x={right ? 268 : 12} y={a.y - 16} textAnchor={right ? 'end' : 'start'}>a[n]</text>
         <text x={right ? 268 : 12} y={b.y - 16} textAnchor={right ? 'end' : 'start'}>b[n]</text>
       </>}
     </svg>
     {(['a', 'b'] as const).map(handle => { const point = elementPort(side, handle); return <Handle key={handle} id={handle} type={handle === 'a' ? 'target' : 'source'}
-      position={sidePosition[side]} style={bottom ? { left: point.x } : { top: point.y }} isConnectable={false} />; })}
-    {element.id === 'load' && <Handle type="source" id="voltage" position={Position.Right} style={{ top: 220 }} isConnectable={false} />}
+      position={sidePosition[side]} style={bottom ? { left: point.x * SIGNAL_DRAWING_SCALE } : { top: point.y * SIGNAL_DRAWING_SCALE }} isConnectable={false} />; })}
+    {element.id === 'load' && <Handle type="source" id="voltage" position={Position.Right} style={{ top: 540 * SIGNAL_DRAWING_SCALE }} isConnectable={false} />}
   </>;
 }
 function arrowTail(end: Point, previous: Point, length = 14) {
@@ -88,12 +89,12 @@ export function SignalNode({ data }: NodeProps<GraphNode>) {
     return <div className={`wdf-signal-node wdf-signal-adaptor ${data.root ? 'root' : ''} ${data.chosen ? 'chosen' : ''}`}>
       <div className="wdf-signal-heading"><strong>{adaptor.label} · {adaptor.kind === 'series' ? t('Serienadaptor', 'Series adaptor') : t('Paralleladaptor', 'Parallel adaptor')}</strong>
         <span>{drawing.compact.multipliers.length} γ · {data.root ? t('Wurzel', 'Root') : t(`Tor ${adaptor.adaptedPort! + 1} angepasst`, `Port ${adaptor.adaptedPort! + 1} adapted`)}</span></div>
-      <svg width={drawing.width} height={drawing.height} viewBox={`0 0 ${drawing.width} ${drawing.height}`} aria-label={t(`Signalfluss ${adaptor.label}`, `${adaptor.label} signal flow`)}>
+      <svg {...displaySize(drawing)} viewBox={`0 0 ${drawing.width} ${drawing.height}`} aria-label={t(`Signalfluss ${adaptor.label}`, `${adaptor.label} signal flow`)}>
         {markerDef}
         <AdaptorSignalDrawing drawing={drawing} adaptedPort={adaptor.adaptedPort} marker={marker} format={value => number(value, 6)} />
       </svg>
       {drawing.ports.map(port => <Handle key={port.id} type={port.direction === 'a' ? 'target' : 'source'} id={port.id}
-        position={sidePosition[port.side]} style={port.side === 'top' || port.side === 'bottom' ? { left: port.position.x } : { top: port.position.y }} isConnectable={false} />)}
+        position={sidePosition[port.side]} style={port.side === 'top' || port.side === 'bottom' ? { left: port.position.x * SIGNAL_DRAWING_SCALE } : { top: port.position.y * SIGNAL_DRAWING_SCALE }} isConnectable={false} />)}
     </div>;
   }
   if (element && data.elementSide) return <div className="wdf-signal-node wdf-signal-element">
@@ -104,7 +105,7 @@ export function SignalNode({ data }: NodeProps<GraphNode>) {
   const output = !element, reactive = element?.kind === 'L' || element?.kind === 'C';
   return <div className="wdf-signal-node wdf-signal-element">
     <div className="wdf-signal-heading"><strong>{element?.label ?? 'Vout[n]'}</strong></div>
-    <svg width={output ? 240 : 280} height={output ? 160 : 260} aria-label={element?.label ?? 'Vout[n]'}>
+    <svg {...displaySize(output ? { width: 240, height: 160 } : { width: 280, height: 280 })} viewBox={`0 0 ${output ? 240 : 280} ${output ? 160 : 280}`} aria-label={element?.label ?? 'Vout[n]'}>
       {markerDef}
       {reactive ? <>
         <path className="wdf-signal-wire" d="M0 80H70" markerEnd={`url(#${marker})`} />
@@ -128,9 +129,9 @@ export function SignalNode({ data }: NodeProps<GraphNode>) {
         {element!.id === 'load' && <><path className="wdf-signal-wire" d="M30 160V220H280" markerEnd={`url(#${marker})`} /><circle className="wdf-signal-junction" cx="30" cy="160" r="3.5" /></>}
       </>}
     </svg>
-    <Handle type="target" id="a" position={Position.Left} style={{ top: reactive || output ? 80 : 160 }} isConnectable={false} />
-    {!output && <Handle type="source" id="b" position={Position.Left} style={{ top: reactive ? 160 : 80 }} isConnectable={false} />}
-    {element?.id === 'load' && <Handle type="source" id="voltage" position={Position.Right} style={{ top: 220 }} isConnectable={false} />}
+    <Handle type="target" id="a" position={Position.Left} style={{ top: (reactive || output ? 80 : 160) * SIGNAL_DRAWING_SCALE }} isConnectable={false} />
+    {!output && <Handle type="source" id="b" position={Position.Left} style={{ top: (reactive ? 160 : 80) * SIGNAL_DRAWING_SCALE }} isConnectable={false} />}
+    {element?.id === 'load' && <Handle type="source" id="voltage" position={Position.Right} style={{ top: 220 * SIGNAL_DRAWING_SCALE }} isConnectable={false} />}
   </div>;
 }
 
@@ -147,17 +148,17 @@ const nodeTypes = { signal: SignalNode }, edgeTypes = { signal: SignalEdge };
 export function signalGraphLayout(model: WdfModel, mode: WdfLayoutMode = 'ladder'): { nodes: GraphNode[]; edges: GraphEdge[] } {
   const graph = buildWdfSignalFlow(model);
   const items = new Map<string, WdfAdaptor | WdfElement>([...model.adaptors, ...model.elements].map(item => [item.id, item]));
-  const ladder = mode === 'ladder' ? wdfLadderLayout(model, id => items.get(id)?.type === 'adaptor'
-    ? COMPACT_ADAPTOR_SIZE : { width: 280, height: 260 }, 200) : null;
+  const ladder = mode === 'ladder' ? wdfLadderLayout(model, id => displaySize(items.get(id)?.type === 'adaptor'
+    ? COMPACT_ADAPTOR_SIZE : LADDER_SIGNAL_ELEMENT_SIZE), SIGNAL_NODE_GAP) : null;
   const drawings = new Map(model.adaptors.map(a => [a.id, adaptorSignalLayout(a, ladder?.get(a.id)?.portSides)]));
-  const size = (id: string) => drawings.get(id) ?? (id === 'voltage-output' ? { width: 240, height: 160 } : { width: 280, height: 260 });
+  const size = (id: string) => displaySize(drawings.get(id) ?? (id === 'voltage-output' ? { width: 240, height: 160 } : ladder ? LADDER_SIGNAL_ELEMENT_SIZE : { width: 280, height: 280 }));
   type Layout = { points: { id: string; depth: number; y: number }[]; contour: { min: number; max: number }[] };
   function layout(id: string): Layout {
     const item = items.get(id), { height } = size(id), contour: Layout['contour'] = [];
     const children = item?.type === 'adaptor' ? item.ports.filter((_, i) => i !== item.adaptedPort).map(port => port.neighborId) : id === 'load' ? ['voltage-output'] : [];
     const packed = children.map(child => {
       const branch = layout(child);
-      const offset = branch.contour.reduce((shift, box, depth) => Math.max(shift, contour[depth] ? contour[depth].max + 160 - box.min : 0), 0);
+      const offset = branch.contour.reduce((shift, box, depth) => Math.max(shift, contour[depth] ? contour[depth].max + 80 - box.min : 0), 0);
       branch.contour.forEach((box, depth) => {
         const previous = contour[depth];
         contour[depth] = { min: Math.min(previous?.min ?? Infinity, box.min + offset), max: Math.max(previous?.max ?? -Infinity, box.max + offset) };
@@ -174,7 +175,7 @@ export function signalGraphLayout(model: WdfModel, mode: WdfLayoutMode = 'ladder
   const widths: number[] = [], gaps: number[] = [], offsets = [0];
   points.forEach(p => { widths[p.depth] = Math.max(widths[p.depth] ?? 0, size(p.id).width); });
   if (!ladder) graph.links.forEach(link => { const d = Math.min(depthById.get(link.source)!, depthById.get(link.target)!); gaps[d] = (gaps[d] ?? 0) + 1; });
-  widths.forEach((w, d) => { offsets[d + 1] = offsets[d] + w + Math.max(200, (gaps[d] ?? 0) * 24 + 100); });
+  widths.forEach((w, d) => { offsets[d + 1] = offsets[d] + w + Math.max(80, (gaps[d] ?? 0) * 20 + 40); });
   const nodes: GraphNode[] = ladder ? [...ladder].map(([id, placement]) => {
     const item = items.get(id)!, { width, height } = size(id);
     return { id, type: 'signal', position: placement.position, width, height,
@@ -187,30 +188,42 @@ export function signalGraphLayout(model: WdfModel, mode: WdfLayoutMode = 'ladder
   });
   if (ladder) {
     const load = nodes.find(node => node.id === 'load')!;
-    nodes.push({ id: 'voltage-output', type: 'signal', position: { x: load.position.x + load.width! + 200, y: load.position.y + 140 },
-      width: 240, height: 160, draggable: false, selectable: false, data: { root: false, chosen: false } });
+    nodes.push({ id: 'voltage-output', type: 'signal', position: { x: load.position.x + load.width! + SIGNAL_NODE_GAP, y: load.position.y + 460 * SIGNAL_DRAWING_SCALE },
+      ...size('voltage-output'), draggable: false, selectable: false, data: { root: false, chosen: false } });
   }
   const positioned = new Map(nodes.map(node => [node.id, node]));
   const portPosition = (id: string, handle: string): Point => {
     const node = positioned.get(id)!, drawing = drawings.get(id), item = items.get(id);
-    if (drawing) { const port = drawing.ports.find(p => p.id === handle)!; return { x: node.position.x + port.position.x, y: node.position.y + port.position.y }; }
-    if (node.data.elementSide) { const p = elementPort(node.data.elementSide, handle); return { x: node.position.x + p.x, y: node.position.y + p.y }; }
+    if (drawing) { const port = drawing.ports.find(p => p.id === handle)!; return { x: node.position.x + port.position.x * SIGNAL_DRAWING_SCALE, y: node.position.y + port.position.y * SIGNAL_DRAWING_SCALE }; }
+    if (node.data.elementSide) { const p = elementPort(node.data.elementSide, handle); return { x: node.position.x + p.x * SIGNAL_DRAWING_SCALE, y: node.position.y + p.y * SIGNAL_DRAWING_SCALE }; }
     const reactive = item?.type === 'element' && (item.kind === 'L' || item.kind === 'C');
-    return { x: node.position.x + (handle === 'voltage' ? 280 : 0),
-      y: node.position.y + (handle === 'voltage' ? 220 : handle === 'a' ? reactive || !item ? 80 : 160 : reactive ? 160 : 80) };
+    return { x: node.position.x + (handle === 'voltage' ? 280 : 0) * SIGNAL_DRAWING_SCALE,
+      y: node.position.y + (handle === 'voltage' ? 220 : handle === 'a' ? reactive || !item ? 80 : 160 : reactive ? 160 : 80) * SIGNAL_DRAWING_SCALE };
   };
-  const used = new Map<number, number>();
   const routes: RoutedWire[] = graph.links.map(link => {
     const start = portPosition(link.source, link.sourceHandle), end = portPosition(link.target, link.targetHandle);
-    if (ladder) {
-      // Opposing wave pins align in the physical ladder, including vertical branches.
-      return { id: link.id, net: link.id, points: [start, end] };
-    }
-    const depth = Math.min(depthById.get(link.source)!, depthById.get(link.target)!);
-    const lane = used.get(depth) ?? 0; used.set(depth, lane + 1);
-    const x = offsets[depth] + widths[depth] + 40 + lane * 24;
-    return { id: link.id, net: link.id, points: [start, { x, y: start.y }, { x, y: end.y }, end] };
+    // Opposing wave pins align in the physical ladder, including vertical branches.
+    return { id: link.id, net: link.id, points: [start, end] };
   });
+  if (!ladder) {
+    // Compact tree columns can put unrelated incident/reflected pins at the
+    // same height. Route each gutter instead of letting their leads overlap.
+    for (let depth = 0; depth < widths.length - 1; depth++) {
+      const indices = graph.links.flatMap((link, i) => Math.min(depthById.get(link.source)!, depthById.get(link.target)!) === depth ? [i] : []);
+      const parents = nodes.filter(node => depthById.get(node.id) === depth);
+      const x0 = offsets[depth] + Math.min(...parents.map(node => node.width!)), x1 = offsets[depth + 1];
+      const yValues = indices.flatMap(i => routes[i].points.map(p => p.y));
+      const y0 = Math.floor((Math.min(...yValues, ...parents.map(node => node.position.y)) - 40) / 10) * 10;
+      const y1 = Math.ceil((Math.max(...yValues, ...parents.map(node => node.position.y + node.height!)) + 40) / 10) * 10;
+      const local = (p: Point) => ({ x: p.x - x0, y: p.y - y0 });
+      const obstacles = parents.map(node => ({ x: node.position.x - x0, y: node.position.y - y0, width: node.width!, height: node.height! }));
+      const requests = indices.map(i => ({ id: routes[i].id, net: routes[i].net, start: local(routes[i].points[0]), end: local(routes[i].points[1]),
+        startDirection: depthById.get(graph.links[i].source) === depth ? 'right' as const : 'left' as const,
+        endDirection: depthById.get(graph.links[i].target) === depth ? 'right' as const : 'left' as const }));
+      routeSignalWires(x1 - x0, y1 - y0, obstacles, requests, 10, 0, { boundaryLead: 20, bendPenalty: 8, trackSpacing: 20 })
+        .forEach((route, i) => { routes[indices[i]] = { ...route, points: route.points.map(p => ({ x: p.x + x0, y: p.y + y0 })) }; });
+    }
+  }
   const geometry = signalWireGeometry(routes);
   const edges: GraphEdge[] = graph.links.map((link, index) => ({ ...link, type: 'signal', data: {
     segments: geometry.segments.filter(s => s.net === link.id), points: routes[index].points, active: false, caption: link.label },

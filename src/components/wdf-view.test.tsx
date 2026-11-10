@@ -39,7 +39,7 @@ it('renders a persisted resonator root and sample rate', () => {
   expect(html).toContain('aria-label="WDF sample rate (kHz)"');
   expect(html).toContain('value="96"');
   expect(html).toContain('value="resonator:res" selected=""');
-  expect(html).toContain('A1r · Series adaptor');
+  expect(html).toContain('S1 · Series adaptor');
 });
 
 it('does not display or export a stale WDF when the analog circuit is incomplete', () => {

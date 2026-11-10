@@ -42,6 +42,25 @@ function checkPlacement(nodes: Box[], parts: Section[]) {
 }
 
 describe('physical WDF ladder layout', () => {
+  it('keeps the displayed signal adaptors compact and close together with aligned wave leads', () => {
+    const graph = signalGraphLayout(buildWdf(project(sections.slice(0, 2)), 48000));
+    const main = ['source', 'adaptor:z', 'adaptor:a', 'load'].map(id => graph.nodes.find(n => n.id === id)!);
+    for (const node of main.filter(n => n.data.adaptor)) {
+      expect(node.width).toBeLessThanOrEqual(640);
+      expect(node.height).toBeLessThanOrEqual(520);
+    }
+    for (let i = 1; i < main.length; i++) {
+      const gap = main[i].position.x - main[i - 1].position.x - main[i - 1].width!;
+      expect(gap).toBeGreaterThanOrEqual(20);
+      expect(gap).toBeLessThanOrEqual(40);
+    }
+    for (const edge of graph.edges) {
+      const points = edge.data!.points;
+      expect(points).toHaveLength(2);
+      expect(points[0].x === points[1].x || points[0].y === points[1].y).toBe(true);
+    }
+  });
+
   it('preserves all positions, port sides and external wires through every root change', () => {
     const p = project(), initial = buildWdf(p, 48000);
     const original = wdfDiagram(initial, initial.rootId), signal = signalGraphLayout(initial);

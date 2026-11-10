@@ -28,7 +28,7 @@ export type WdfModel = {
 };
 
 type RawAdaptor = {
-  type: 'adaptor'; id: string; label: string; kind: WdfAdaptor['kind'];
+  type: 'adaptor'; id: string; kind: WdfAdaptor['kind'];
   sectionId?: string; neighbors: string[];
 };
 type RawElement = Omit<WdfElement, 'parentId'>;
@@ -63,8 +63,8 @@ export function buildWdf(project: Pick<Project, 'nodes' | 'wires' | 'settings' |
     const node = raw.get(id)!;
     if (node.type === 'adaptor') node.neighbors[0] = parent;
   };
-  const addAdaptor = (id: string, label: string, kind: WdfAdaptor['kind'], children: string[], sectionId?: string) => {
-    raw.set(id, { type: 'adaptor', id, label, kind, neighbors: ['', ...children], sectionId });
+  const addAdaptor = (id: string, kind: WdfAdaptor['kind'], children: string[], sectionId?: string) => {
+    raw.set(id, { type: 'adaptor', id, kind, neighbors: ['', ...children], sectionId });
     children.forEach(child => connectParent(child, id));
     return id;
   };
@@ -74,20 +74,29 @@ export function buildWdf(project: Pick<Project, 'nodes' | 'wires' | 'settings' |
     if (section.resonator !== 'series' && section.resonator !== 'parallel') throw new Error('WDF: Der LC-Resonatortyp fehlt.');
     const l = addElement(`inductor:${section.id}`, `${label} · L`, 'L', section.value, section.id);
     const c = addElement(`capacitor:${section.id}`, `${label} · C`, 'C', section.value2!, section.id);
-    return addAdaptor(`resonator:${section.id}`, `A${index + 1}r`, section.resonator, [l, c], section.id);
+    return addAdaptor(`resonator:${section.id}`, section.resonator, [l, c], section.id);
   };
   const source = addElement('source', 'Vₛ / R₁', 'source', project.settings.impedance);
   let tail = addElement('load', 'R₂ / Vout', 'R', project.z2);
   for (let i = sections.length - 1; i >= 0; i--) {
     const section = sections[i];
-    tail = addAdaptor(`adaptor:${section.id}`, `A${i + 1}`, section.connection === 'series' ? 'series' : 'parallel', [component(section, i), tail], section.id);
+    tail = addAdaptor(`adaptor:${section.id}`, section.connection === 'series' ? 'series' : 'parallel', [component(section, i), tail], section.id);
   }
   if (sections.length) connectParent(tail, source);
   else {
     // A directly connected, resistively terminated two-port still has a WDF.
     tail = 'termination';
-    raw.set(tail, { type: 'adaptor', id: tail, label: 'A₀', kind: 'parallel', neighbors: [source, 'load'] });
+    raw.set(tail, { type: 'adaptor', id: tail, kind: 'parallel', neighbors: [source, 'load'] });
   }
+  // Number each adaptor type along the physical ladder, including resonators.
+  // IDs and numbering are independent of the chosen scattering root.
+  const adaptorIds = sections.length ? sections.flatMap(section => [`adaptor:${section.id}`, ...(section.kind === 'LC' ? [`resonator:${section.id}`] : [])]) : ['termination'];
+  const adaptorOrder = new Map(adaptorIds.map((id, index) => [id, index]));
+  const counts = { series: 0, parallel: 0 };
+  const labels = new Map(adaptorIds.map(id => {
+    const { kind } = raw.get(id) as RawAdaptor;
+    return [id, `${kind === 'series' ? 'S' : 'P'}${++counts[kind]}`];
+  }));
   const rootId = requestedRoot && raw.get(requestedRoot)?.type === 'adaptor' ? requestedRoot : tail;
   const resistances = new Map<string, number>();
   const parents = new Map<string, string | null>();
@@ -121,10 +130,10 @@ export function buildWdf(project: Pick<Project, 'nodes' | 'wires' | 'settings' |
     const matrix = ports.map((pi, i) => ports.map((pj, j) => node.kind === 'series'
       ? (i === j ? 1 : 0) - pi.coefficient * pi.sign * pj.sign
       : pj.coefficient - (i === j ? 1 : 0)));
-    adaptors.push({ type: 'adaptor', id: node.id, label: node.label, kind: node.kind, sectionId: node.sectionId, parentId, adaptedPort, ports, matrix });
+    adaptors.push({ type: 'adaptor', id: node.id, label: labels.get(node.id)!, kind: node.kind, sectionId: node.sectionId, parentId, adaptedPort, ports, matrix });
   }
   // Display ordering follows the analog ladder; stable IDs survive value edits.
-  adaptors.sort((a, b) => a.label.localeCompare(b.label, 'en', { numeric: true }));
+  adaptors.sort((a, b) => adaptorOrder.get(a.id)! - adaptorOrder.get(b.id)!);
   return { sampleRate, rootId, rootChanged: !!requestedRoot && requestedRoot !== rootId, adaptors, elements };
 }
 

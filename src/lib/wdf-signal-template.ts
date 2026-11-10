@@ -6,20 +6,69 @@ import { routeSignalWires, signalWireGeometry, type Direction, type Point, type 
 const delta: Record<Direction, Point> = { left: { x: -1, y: 0 }, right: { x: 1, y: 0 }, up: { x: 0, y: -1 }, down: { x: 0, y: 1 } };
 const opposite: Record<Direction, Direction> = { left: 'right', right: 'left', up: 'down', down: 'up' };
 const direction = (a: Point, b: Point): Direction => a.x === b.x ? b.y < a.y ? 'up' : 'down' : b.x < a.x ? 'left' : 'right';
+type Orientation = { xx: number; xy: number; yx: number; yy: number; shiftX?: number };
+const orientations: Orientation[] = [1, -1].flatMap(mirror => [
+  { xx: mirror, xy: 0, yx: 0, yy: 1 }, { xx: 0, xy: -1, yx: mirror, yy: 0 },
+  { xx: -mirror, xy: 0, yx: 0, yy: -1 }, { xx: 0, xy: 1, yx: -mirror, yy: 0 },
+]);
+// Remove empty spans between the reference's operations, preserving the
+// 20-unit symbol radius and the incoming/outgoing pins around each circle.
+const compactX = new Map([[220, 280], [280, 340], [300, 360], [320, 380], [380, 420], [400, 440], [420, 460],
+  [480, 500], [500, 520], [520, 540], [580, 580], [600, 600], [620, 620], [680, 660], [700, 680], [720, 700],
+  [780, 740], [800, 760], [820, 780], [880, 820], [900, 840], [920, 860], [980, 920]]);
+const compactY = new Map([[120, 160], [200, 220], [220, 240], [240, 260], [380, 380], [400, 400], [420, 420],
+  [560, 540], [580, 560], [600, 580], [640, 620], [660, 640], [680, 660], [740, 700]]);
+const orientedPoint = (o: Orientation, x: number, y: number, width: number, height: number) =>
+  ({ x: width / 2 + (o.shiftX ?? 0) + o.xx * (compactX.get(x)! - 600) + o.xy * (compactY.get(y)! - 400),
+    y: height / 2 + o.yx * (compactX.get(x)! - 600) + o.yy * (compactY.get(y)! - 400) });
+const orientedDirection = (o: Orientation, d: Direction) => direction({ x: 0, y: 0 },
+  { x: o.xx * delta[d].x + o.xy * delta[d].y, y: o.yx * delta[d].x + o.yy * delta[d].y });
 
 /** The four diagrams in Table 4 retain their central spine and side branches.
- * Only the perimeter leads are autorouted to the physical ladder/tree ports.
+ * Rotate/mirror the structure to face the physical ports before routing leads.
  * The largest gamma is still eliminated; the labels use actual port numbers.
  */
 export function referenceAdaptorDrawing(adaptor: WdfAdaptor, compact: CompactAdaptor, ports: SignalPort[], width: number, height: number): AdaptorDrawing {
+  const independent = adaptor.ports.map((_, i) => i).filter(i => i !== compact.referencePort && i !== adaptor.adaptedPort);
+  const orders = independent.length === 2 ? [independent, [...independent].reverse()] : [independent];
+  const candidates = orders.flatMap(order => orientations.map(orientation => {
+    const verticalReference = ports.find(p => p.port === compact.referencePort && (p.side === 'top' || p.side === 'bottom')
+      && orientedDirection(orientation, p.direction === 'a' ? 'up' : 'down') === (p.side === 'top' ? 'up' : 'down'));
+    // Align the central reference wave with its vertical physical pin instead
+    // of introducing a short sideways jog just below/above the border.
+    orientation = { ...orientation, shiftX: verticalReference ? verticalReference.position.x - width / 2 : 0 };
+    const anchors: [number, 'a' | 'b', number, number, Direction][] = [
+      [compact.referencePort, 'a', 600, 120, 'up'], [compact.referencePort, 'b', 600, 740, 'down'],
+      ...order.flatMap((i, index): typeof anchors => [[i, 'a', index === 0 ? 220 : 980, 220, index === 0 ? 'left' : 'right'],
+        [i, 'b', index === 0 ? 220 : 980, 580, index === 0 ? 'left' : 'right']]),
+      ...(adaptor.adaptedPort === null ? [] : [[adaptor.adaptedPort, 'a', 980, 580, 'right'], [adaptor.adaptedPort, 'b', 980, 220, 'right']] as typeof anchors),
+    ];
+    const score = anchors.reduce((sum, [i, wave, x, y, side]) => {
+      const port = ports.find(p => p.port === i && p.direction === wave)!, p = orientedPoint(orientation, x, y, width, height);
+      const outward = orientedDirection(orientation, side), target = port.side === 'top' ? 'up' : port.side === 'bottom' ? 'down' : port.side;
+      const aligned = p.x === port.position.x || p.y === port.position.y;
+      const bends = outward === target ? aligned ? 0 : 2 : outward === opposite[target] ? 4 : 1;
+      return sum + 200 * bends + Math.abs(port.position.x - p.x) + Math.abs(port.position.y - p.y);
+    }, 0);
+    return { orientation, independent: order, score };
+  })).sort((a, b) => a.score - b.score);
+  let failure: unknown;
+  for (const candidate of candidates) {
+    try { return drawReference(adaptor, compact, ports, width, height, candidate.orientation, candidate.independent); }
+    catch (error) { if (!(error instanceof Error) || !error.message.startsWith('Cannot route signal wire')) throw error; failure = error; }
+  }
+  throw failure;
+}
+
+function drawReference(adaptor: WdfAdaptor, compact: CompactAdaptor, ports: SignalPort[], width: number, height: number, orientation: Orientation, independent: number[]): AdaptorDrawing {
   const symbols: SignalSymbol[] = [], terminals: SignalTerminal[] = [], requests: WireRequest[] = [], routes: RoutedWire[] = [], outer: WireRequest[] = [];
   const nodes = new Map(compact.nodes.map(node => [node.id, node]));
   const id = (name: string) => JSON.stringify([adaptor.id, name]);
-  const point = (x: number, y: number): Point => ({ x: x + 100, y: y + 140 });
+  const point = (x: number, y: number): Point => orientedPoint(orientation, x, y, width, height);
   const symbol = (name: string, x: number, y: number, labelSide: 'top' | 'right' = 'top') => {
     const operation = nodes.get(id(name));
     if (!operation) throw new Error(`Missing signal operation ${name}`);
-    symbols.push({ operation, position: point(x, y), labelSide });
+    symbols.push({ operation, position: point(x, y), labelSide: orientation.xx === 0 ? labelSide === 'top' ? 'right' : 'top' : labelSide });
     return operation.id;
   };
   const line = (net: string, coordinates: number[][]) => {
@@ -37,24 +86,32 @@ export function referenceAdaptorDrawing(adaptor: WdfAdaptor, compact: CompactAda
   const terminal = (i: number, wave: 'a' | 'b', source: string, x: number, y: number, outward: Direction) => {
     const position = point(x, y), port = ports.find(p => p.port === i && p.direction === wave)!;
     const negative = adaptor.kind === 'series' && adaptor.ports[i].sign < 0;
-    const inward = opposite[outward], portInward = opposite[port.side === 'top' ? 'up' : port.side === 'bottom' ? 'down' : port.side];
-    terminals.push({ position: point(x + (outward === 'left' ? 8 : outward === 'right' ? -8 : 16), y + (outward === 'up' ? 24 : -16)),
+    outward = orientedDirection(orientation, outward);
+    const portOutward = port.side === 'top' ? 'up' : port.side === 'bottom' ? 'down' : port.side, portInward = opposite[portOutward];
+    terminals.push({ position: { x: position.x + (outward === 'left' ? 8 : outward === 'right' ? -8 : 16), y: position.y + (outward === 'up' ? 24 : -16) },
       label: `${negative ? '−' : ''}${wave}${portSubscript(i)}`, anchor: outward === 'right' ? 'end' : 'start' });
     if (negative) {
-      const px = x + delta[outward].x * 80, py = y + delta[outward].y * 60, p = point(px, py);
-      const polarity = symbol(`polarity:${wave}:${i}`, px, py, outward === 'up' || outward === 'down' ? 'right' : 'top');
+      // Keep a polarity conversion inline with the core when it already faces
+      // the port. Otherwise place it on the physical lead before the turn.
+      const facesPort = outward === portOutward;
+      const distance = port.side === 'top' || port.side === 'bottom' ? 120 : 240;
+      const p = facesPort
+        ? { x: position.x + delta[outward].x * 80, y: position.y + delta[outward].y * 60 }
+        : { x: port.position.x + delta[portInward].x * distance, y: port.position.y + delta[portInward].y * distance };
+      const polarity = id(`polarity:${wave}:${i}`);
+      symbols.push({ operation: nodes.get(polarity)!, position: p, labelSide: port.side === 'top' || port.side === 'bottom'
+        ? p.x < width / 2 ? 'left' : 'right' : 'top' });
       if (wave === 'a') {
-        perimeter(compact.inputs[i], port.position, pin(p, outward), portInward, outward);
-        perimeter(polarity, pin(p, inward), position, inward, outward);
+        perimeter(compact.inputs[i], port.position, pin(p, portOutward), portInward, portOutward);
+        perimeter(polarity, pin(p, portInward), position, portInward, outward);
       } else {
-        perimeter(source, position, pin(p, inward), outward, inward);
-        perimeter(polarity, pin(p, outward), port.position, outward, portInward);
+        perimeter(source, position, pin(p, portInward), outward, portInward);
+        perimeter(polarity, pin(p, portOutward), port.position, portOutward, portInward);
       }
     } else if (wave === 'a') perimeter(source, port.position, position, portInward, outward);
     else perimeter(source, position, port.position, outward, portInward);
   };
   const ref = compact.referencePort, adapted = adaptor.adaptedPort;
-  const independent = adaptor.ports.map((_, i) => i).filter(i => i !== ref && i !== adapted);
   terminal(ref, 'a', a(ref), 600, 120, 'up');
   independent.forEach((i, index) => terminal(i, 'a', a(i), index === 0 ? 220 : 980, 220, index === 0 ? 'left' : 'right'));
   if (adapted !== null) terminal(adapted, 'a', a(adapted), 980, 580, 'right');
@@ -136,18 +193,21 @@ export function referenceAdaptorDrawing(adaptor: WdfAdaptor, compact: CompactAda
     terminal(ref, 'b', id('reference:negative'), 600, 740, 'down');
   }
 
+  const corners = [point(220, 120), point(980, 740)];
   const obstacles: Rect[] = [
     // Keep perimeter leads outside the reference diagram, including its labels.
-    { x: 320, y: 260, width: 760, height: 620 },
-    { x: 0, y: 0, width: 360, height: 40 }, { x: width - 320, y: 0, width: 320, height: 40 },
+    { x: Math.min(...corners.map(p => p.x)), y: Math.min(...corners.map(p => p.y)), width: Math.abs(corners[0].x - corners[1].x), height: Math.abs(corners[0].y - corners[1].y) },
+    { x: 0, y: 0, width: 360, height: 64 }, { x: width - 320, y: 0, width: 320, height: 64 },
     ...symbols.filter(s => JSON.parse(s.operation.id)[1].startsWith('polarity:')).flatMap(({ position: p, labelSide }) => [
       { x: p.x - 20, y: p.y - 20, width: 40, height: 40 },
-      labelSide === 'right' ? { x: p.x + 28, y: p.y - 16, width: 50, height: 32 } : { x: p.x - 30, y: p.y - 60, width: 60, height: 30 },
+      labelSide === 'right' ? { x: p.x + 28, y: p.y - 16, width: 50, height: 32 }
+        : labelSide === 'left' ? { x: p.x - 78, y: p.y - 16, width: 50, height: 32 } : { x: p.x - 30, y: p.y - 60, width: 60, height: 30 },
     ]),
     ...ports.map(port => port.side === 'top' || port.side === 'bottom'
       ? { x: port.position.x + (port.position.x < width / 2 ? -100 : 10), y: port.side === 'top' ? 10 : height - 40, width: 90, height: 30 }
       : { x: port.side === 'left' ? 0 : width - 80, y: port.position.y - 35, width: 80, height: 30 }),
   ];
-  const wires = signalWireGeometry([...routes, ...routeSignalWires(width, height, obstacles, outer, 20, 0)]);
+  const wires = signalWireGeometry([...routes, ...routeSignalWires(width, height, obstacles, outer, 20, 0,
+    { boundaryLead: 160, bendPenalty: 12, trackSpacing: 60 })]);
   return { width, height, compact, symbols, terminals, ports, requests: [...requests, ...outer], wires };
 }

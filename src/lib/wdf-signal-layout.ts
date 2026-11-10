@@ -4,7 +4,7 @@ import { compactAdaptor, type CompactAdaptor, type SignalOperation } from './wdf
 import { routeSignalWires, signalWireGeometry, type Direction, type Point, type Rect, type WireRequest } from './signal-routing';
 import { referenceAdaptorDrawing } from './wdf-signal-template';
 
-export type SignalSymbol = { operation: SignalOperation; position: Point; labelSide?: 'top' | 'right' };
+export type SignalSymbol = { operation: SignalOperation; position: Point; labelSide?: 'top' | 'right' | 'left' };
 export type SignalTerminal = { position: Point; label: string; anchor: 'start' | 'end' };
 export type SignalPort = { id: string; waveId: string; port: number; direction: 'a' | 'b'; side: PortSide; position: Point };
 export type AdaptorDrawing = {
@@ -14,7 +14,13 @@ export type AdaptorDrawing = {
 
 const drawingCache = new Map<string, AdaptorDrawing>();
 // Fixed dimensions keep physical ladder placement stable when the root changes.
-export const COMPACT_ADAPTOR_SIZE = { width: 1400, height: 1120 };
+export const COMPACT_ADAPTOR_SIZE = { width: 1280, height: 1040 };
+export const SIGNAL_WAVE_OFFSET = 160;
+export const LADDER_SIGNAL_ELEMENT_SIZE = { width: 280, height: 600 };
+// Keep the routing grid independent of the displayed size. Labels retain a
+// readable screen size while the circuit and the space between nodes shrink.
+export const SIGNAL_DRAWING_SCALE = .5;
+export const SIGNAL_NODE_GAP = 40;
 
 export function adaptorSignalLayout(adaptor: WdfAdaptor, portSides?: PortSide[]): AdaptorDrawing {
   const compact = compactAdaptor(adaptor);
@@ -48,7 +54,7 @@ export function adaptorSignalLayout(adaptor: WdfAdaptor, portSides?: PortSide[])
       const first = direction === (side === 'left' || side === 'top' ? 'a' : 'b');
       const position = portSides ? side === 'top' || side === 'bottom'
         ? { x: width / 2 + (first ? -40 : 40), y: side === 'top' ? 0 : height }
-        : { x: side === 'left' ? 0 : width, y: height / 2 + (first ? -40 : 40) }
+        : { x: side === 'left' ? 0 : width, y: height / 2 + (first ? -SIGNAL_WAVE_OFFSET : SIGNAL_WAVE_OFFSET) }
         : { x: side === 'left' ? 0 : width, y: aY + (direction === 'a' ? 0 : 60) };
       ports.push({ id: `${direction}-${i}`, waveId: (direction === 'a' ? compact.inputs : compact.outputs)[i], port: i, direction, side, position });
     }

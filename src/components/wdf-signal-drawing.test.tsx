@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { ReactFlowProvider } from '@xyflow/react';
 import type { ComponentProps } from 'react';
 import { SignalNode, signalGraphLayout } from './WdfSignalGraph';
+import { SignalMultiplier } from './WdfSignalDrawing';
 import { PreferencesProvider } from '../lib/preferences';
 import { buildWdf } from '../lib/wdf';
 import { createCircuit, defaultSettings } from '../lib/project';
@@ -26,6 +27,15 @@ it('renders a labelled multiplier for every explicit sign inversion in each adap
     expect(html.match(/data-operation="gain"/g)?.length ?? 0).toBe(drawing.compact.multipliers.length);
     expect(html).not.toContain('wdf-signal-input-sign');
   }
+});
+
+it('uses the reference gamma label with the numerical coefficient available as a tooltip', () => {
+  const html = renderToStaticMarkup(<svg><SignalMultiplier position={{ x: 60, y: 60 }} label="−γ₁" coefficient={-.23456789} value="−0.234568" /></svg>);
+  expect(html).toContain('<title>−γ₁ = −0.234568</title>');
+  expect(html).toContain('aria-label="−γ₁ = −0.234568"');
+  expect(html).toContain('data-gain="-0.23456789"');
+  expect(html).toContain('>−γ₁</text>');
+  expect(html).not.toContain('<tspan');
 });
 
 it('shows z⁻¹ followed by a separate −1 multiplier for inductors in all ladder orientations and in the tree', () => {
