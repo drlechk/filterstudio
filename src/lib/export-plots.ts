@@ -45,7 +45,7 @@ const frequencyLatex = (value: number) => {
 export function exportPlots(project: Project, selection: ExportPlotSelection = {}, analysis?: NetworkAnalysis | null, context: ExportPlotContext = {}): ExportPlot[] {
   if (!Object.values(selection).some(Boolean)) return [];
   if (!analysis) throw new Error("Network analysis is required to export plots.");
-  const { frequencyScale = "log", magnitudeScale = "db", phaseMode = "wrapped", dbRange = 100, tolerance } = context;
+  const { frequencyScale = "log", magnitudeScale = "db", phaseMode = "unwrapped", dbRange = 100, tolerance } = context;
   const t = (de: string, en: string) => context.language === "de" ? de : en;
   const band = isBandResponse(project.settings.response) ? bandEdges(project.settings) : null;
   const circuitMarkers = band ? [band.lower, project.settings.cutoff, band.upper] : [project.settings.cutoff];

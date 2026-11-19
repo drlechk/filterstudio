@@ -17,7 +17,7 @@ export function FrequencyResponsePlot({ analysis, min, max, points, cutoff, band
   onExport: (csv: string) => void;
 } & PlotScaleProps) {
   const { t, number, language, translate } = usePreferences();
-  const { frequencyScale, magnitudeScale, phaseMode = "wrapped" } = scales;
+  const { frequencyScale, magnitudeScale, phaseMode = "unwrapped" } = scales;
   const id = useId();
   const [hover, setHover] = useState<number | null>(null);
   const [dbRange, setDbRange] = useState(100);

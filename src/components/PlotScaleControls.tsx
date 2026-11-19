@@ -11,7 +11,7 @@ export type PlotScaleProps = {
   onPhaseModeChange?: (mode: PhaseMode) => void;
 };
 
-export function PlotScaleControls({ frequencyScale, magnitudeScale, onFrequencyScaleChange, onMagnitudeScaleChange, phaseMode = "wrapped", onPhaseModeChange, quantity }: PlotScaleProps & { quantity: "scattering" | "attenuation" | "transfer" | "phase" }) {
+export function PlotScaleControls({ frequencyScale, magnitudeScale, onFrequencyScaleChange, onMagnitudeScaleChange, phaseMode = "unwrapped", onPhaseModeChange, quantity }: PlotScaleProps & { quantity: "scattering" | "attenuation" | "transfer" | "phase" }) {
   const { t } = usePreferences();
   return <div className="plot-scale-controls">
     <label>

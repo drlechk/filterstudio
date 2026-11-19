@@ -68,7 +68,7 @@ describe("response plot exports", () => {
       const degrees = f < f0 ? 170 : -170;
       return { ...network, s21: f === f0 ? { re: 0, im: 0 } : { re: Math.cos(degrees * Math.PI / 180), im: Math.sin(degrees * Math.PI / 180) } };
     } };
-    const page = exportPlots(project, { transmissionPhase: true }, synthetic)[0];
+    const page = exportPlots(project, { transmissionPhase: true }, synthetic, { phaseMode: "wrapped" })[0];
     expect(traces(page)).toHaveLength(2);
     for (const trace of traces(page)) expect(new Set(trace.points.map(p => p.y)).size).toBe(1);
     const matched = analyzeNetwork([], { fRef: f0, z1: 50 });

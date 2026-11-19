@@ -53,7 +53,7 @@ export function TolerancePlot({
   onShowActualChange: (value: boolean) => void;
 } & PlotScaleProps) {
   const { t, language, number, translate } = usePreferences();
-  const { frequencyScale, magnitudeScale, phaseMode = "wrapped" } = scales;
+  const { frequencyScale, magnitudeScale, phaseMode = "unwrapped" } = scales;
   const [drag, setDrag] = useState<Drag | null>(null),
     [hover, setHover] = useState<number | null>(null);
   const svg = useRef<SVGSVGElement>(null),

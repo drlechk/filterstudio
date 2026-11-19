@@ -10,8 +10,8 @@ import type { PlotScaleProps } from './PlotScaleControls';
 const data: WdfComparisonSample[] = [{ frequency: 1, wdf: { re: .1, im: 0 }, analog: { re: .5, im: 0 } }, { frequency: 10, wdf: { re: .1, im: 0 }, analog: { re: .5, im: 0 } }];
 const plotScales: PlotScaleProps = { frequencyScale: 'linear', magnitudeScale: 'linear', onFrequencyScaleChange() {}, onMagnitudeScaleChange() {} };
 const controls = { plotScales, dbRange: 100, onDbRangeChange() {} };
-function render(magnitudeScale: PlotScaleProps['magnitudeScale'], mode: 'magnitude' | 'phase' = 'magnitude', samples = data) {
-  return renderToStaticMarkup(<PreferencesProvider><WdfComparisonPlot {...controls} plotScales={{ ...plotScales, magnitudeScale }} data={samples} mode={mode} min={1} max={10} sampleRate={100} cutoff={5} /></PreferencesProvider>);
+function render(magnitudeScale: PlotScaleProps['magnitudeScale'], mode: 'magnitude' | 'phase' = 'magnitude', samples = data, phaseMode?: PlotScaleProps['phaseMode']) {
+  return renderToStaticMarkup(<PreferencesProvider><WdfComparisonPlot {...controls} plotScales={{ ...plotScales, magnitudeScale, phaseMode }} data={samples} mode={mode} min={1} max={10} sampleRate={100} cutoff={5} /></PreferencesProvider>);
 }
 const path = (markup: string, trace: string) => markup.match(new RegExp(`data-trace="${trace}" d="([^"]*)"`))![1];
 
@@ -36,7 +36,7 @@ it('leaves independent gaps for phase wraps, zeros and undefined values', () => 
     { frequency: 7, wdf: { re: NaN, im: 0 }, analog: { re: 1, im: 0 } },
     { frequency: 10, wdf: { re: 1, im: 0 }, analog: { re: 1, im: 0 } },
   ];
-  const html = render('db', 'phase', samples);
+  const html = render('db', 'phase', samples, 'wrapped');
   expect((path(html, 'wdf').match(/M/g) ?? []).length).toBe(3);
   expect((path(html, 'analog').match(/M/g) ?? []).length).toBe(2);
   expect(html).toContain('phase in degrees');

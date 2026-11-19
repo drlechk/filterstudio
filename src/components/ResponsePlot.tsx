@@ -43,7 +43,7 @@ export function ResponsePlot({
   dbRange: number;
   onDbRangeChange: (value: number) => void;
 } & PlotScaleProps) {
-  const { frequencyScale, magnitudeScale, phaseMode = "wrapped" } = scales;
+  const { frequencyScale, magnitudeScale, phaseMode = "unwrapped" } = scales;
   const { language, t, translate, number } = usePreferences();
   const id = useId();
   const formatEngineering = (value: number, unit = "") =>

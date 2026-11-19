@@ -56,7 +56,7 @@ export function transferReadout(value: Complex): { amplitude: number | null; db:
   return { amplitude: finite ? amplitude : null, db: finite ? decibels(value) : null, phase: finite && amplitude > 0 ? phaseDegrees(value) : null };
 }
 
-export function wdfComparisonCsv(data: WdfComparisonSample[], sampleRate: number, phaseMode: PhaseMode = "wrapped"): string {
+export function wdfComparisonCsv(data: WdfComparisonSample[], sampleRate: number, phaseMode: PhaseMode = "unwrapped"): string {
   const wdfPhases = phaseValues(data.map(point => transferReadout(point.wdf).phase), phaseMode);
   const analogPhases = phaseValues(data.map(point => transferReadout(point.analog).phase), phaseMode);
   const columns = (value: Complex, phase: number | null) => {

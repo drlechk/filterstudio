@@ -18,7 +18,7 @@ export function WdfComparisonPlot({ data, min, max, cutoff, sampleRate, mode, pl
   data: WdfComparisonSample[]; min: number; max: number; cutoff: number; sampleRate: number; mode: 'magnitude' | 'phase';
 } & PlotControls) {
   const { t, number, language } = usePreferences();
-  const { frequencyScale, magnitudeScale, phaseMode = "wrapped" } = plotScales;
+  const { frequencyScale, magnitudeScale, phaseMode = "unwrapped" } = plotScales;
   const id = useId();
   const plotRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(940);
