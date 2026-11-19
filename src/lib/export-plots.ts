@@ -1,4 +1,5 @@
-import { decibels, magnitude, phaseDegrees, sweepNetwork, type Complex, type NetworkAnalysis } from "./network";
+import { validPhase, phaseValues, phaseAxis, type PhaseMode } from "./phase";
+import { decibels, magnitude, sweepNetwork, type NetworkAnalysis } from "./network";
 import { bandEdges, isBandResponse } from "./frequency";
 import { attenuationPosition, attenuationValue, frequencyAt, frequencyPosition, frequencyTicks, linearTicks, type FrequencyScale, type MagnitudeScale } from "./plot-scales";
 import { toleranceEdges, toleranceRegions } from "./tolerance";
@@ -9,6 +10,7 @@ export type ExportPlotContext = {
   language?: "de" | "en";
   frequencyScale?: FrequencyScale;
   magnitudeScale?: MagnitudeScale;
+  phaseMode?: PhaseMode;
   dbRange?: number;
   tolerance?: { spec: ToleranceSpec; preview: NetworkAnalysis | null; showActual: boolean; normalized: boolean };
 };
@@ -38,13 +40,12 @@ const frequencyLatex = (value: number) => {
   const [scale, symbol] = unit.find(([scale]) => value >= scale) ?? unit[unit.length - 1];
   return `${numericLatex(value / scale)}\\,\\mathrm{${symbol}}`;
 };
-const validPhase = (value: Complex) => magnitude(value) === 0 ? null : phaseDegrees(value);
 
 /** One geometry model feeds both vector PDF and editable TikZ; no screenshots or remote services. */
 export function exportPlots(project: Project, selection: ExportPlotSelection = {}, analysis?: NetworkAnalysis | null, context: ExportPlotContext = {}): ExportPlot[] {
   if (!Object.values(selection).some(Boolean)) return [];
   if (!analysis) throw new Error("Network analysis is required to export plots.");
-  const { frequencyScale = "log", magnitudeScale = "db", dbRange = 100, tolerance } = context;
+  const { frequencyScale = "log", magnitudeScale = "db", phaseMode = "wrapped", dbRange = 100, tolerance } = context;
   const t = (de: string, en: string) => context.language === "de" ? de : en;
   const band = isBandResponse(project.settings.response) ? bandEdges(project.settings) : null;
   const circuitMarkers = band ? [band.lower, project.settings.cutoff, band.upper] : [project.settings.cutoff];
@@ -67,7 +68,28 @@ export function exportPlots(project: Project, selection: ExportPlotSelection = {
     const label = (x: number, y: number, latex: string, anchor?: "west" | "east", size = 10) =>
       decorations.push({ type: "label", x, y, latex, anchor, size });
     const x = (f: number) => frame.x + frequencyPosition(f, min, max, frequencyScale) * frame.width;
-    const y = (value: number) => frame.y + frame.height * (phase ? (180 - value) / 360
+    // Exact reference and mask/band edges retain ideal notches between sweep samples.
+    const frequencies = mask ? Array.from({ length: 701 }, (_, i) => frequencyAt(i / 700, min, max, frequencyScale))
+      : sweepNetwork(analysis, min, max, project.sweep.points, frequencyScale).map(sample => sample.frequency);
+    const extras = [...(mask ? edges.map(edge => edge.frequency) : circuitMarkers), ...(mask?.preview ? [mask.preview.fRef] : [])];
+    const samples = [...new Set([...frequencies, ...extras.filter(f => f >= min && f <= max)])].sort((a, b) => a - b);
+    const sources = !transmission ? keys.map((key, i) => ({ analysis, key, label: labels[i], color: colors[i], dashed: i >= 2 }))
+      : mask ? [
+        ...(mask.preview ? [{ analysis: mask.preview, key: "s21" as const, label: `\\text{${t("Entwurfsvorschau", "Design preview")}}`, color: colors[0], dashed: false }] : []),
+        ...(mask.showActual ? [{ analysis, key: "s21" as const, label: `\\text{${t("Aktuelle Schaltung", "Current circuit")}}`, color: colors[1], dashed: true }] : []),
+      ] : [{ analysis, key: "s21" as const, label: `S_{21}\\quad\\text{${t("Aktuelle Schaltung", "Current circuit")}}`, color: colors[0], dashed: false }];
+    if (!sources.length) throw new Error("No response is available for the selected tolerance plots.");
+    const evaluated = new Map([...new Set(sources.map(source => source.analysis))].map(network => [network, new Map(samples.map(f => [f, network.evaluate(f)]))]));
+    const series = sources.map(source => {
+      const values = samples.map(f => {
+        const complex = evaluated.get(source.analysis)!.get(f)![source.key];
+        if (!Number.isFinite(complex.re) || !Number.isFinite(complex.im)) throw new Error("The frequency response exceeds numeric precision.");
+        return phase ? validPhase(complex) : transmission ? -decibels(complex) : magnitudeScale === "db" ? decibels(complex) : magnitude(complex);
+      });
+      return phase ? phaseValues(values, phaseMode) : values;
+    });
+    const axis = phaseAxis(series.flat(), phaseMode);
+    const y = (value: number) => frame.y + frame.height * (phase ? (axis.upper - value) / (axis.upper - axis.lower)
       : transmission ? 1 - attenuationPosition(value, maxLoss, magnitudeScale)
         : magnitudeScale === "db" ? -value / dbRange : 1 - value);
     const title = key === "sMagnitude" ? t("S-Parameter: Betrag", "S-parameter magnitude")
@@ -79,7 +101,7 @@ export function exportPlots(project: Project, selection: ExportPlotSelection = {
       : magnitudeScale === "db" ? "20\\log_{10}|S_{ij}|\\;/\\;\\mathrm{dB}" : "|S_{ij}|", "west", 9);
     const xCaption = `${mask?.normalized ? `\\Omega=f/f_{\\mathrm{ref}},\\quad f_{\\mathrm{ref}}=${frequencyLatex(reference)}` : "f\\,/\\,\\mathrm{Hz}"}\\quad\\text{${frequencyScale === "log" ? t("logarithmisch", "logarithmic") : "linear"}}`;
     label(frame.x + frame.width / 2, 365, xCaption);
-    const ticks = phase ? [-180, -90, 0, 90, 180]
+    const ticks = phase ? axis.ticks
       : transmission ? magnitudeScale === "db" ? linearTicks(0, maxLoss) : [1, ...linearTicks(1, attenuationValue(maxLoss, "linear"))].filter((v, i, a) => a.indexOf(v) === i)
         : magnitudeScale === "db" ? Array.from({ length: 6 }, (_, i) => -dbRange * i / 5) : [0, .2, .4, .6, .8, 1];
     for (const tick of ticks) {
@@ -103,30 +125,16 @@ export function exportPlots(project: Project, selection: ExportPlotSelection = {
     }
     const markers = mask ? edges.map(edge => edge.frequency) : circuitMarkers;
     for (const f of markers.filter(f => f >= min && f <= max)) line(curves, x(f), frame.y, x(f), frame.y + frame.height, "#a6adb7", true);
-    // Exact reference and mask/band edges retain ideal notches between sweep samples.
-    const frequencies = mask ? Array.from({ length: 701 }, (_, i) => frequencyAt(i / 700, min, max, frequencyScale))
-      : sweepNetwork(analysis, min, max, project.sweep.points, frequencyScale).map(sample => sample.frequency);
-    const extras = [...markers, ...(mask?.preview ? [mask.preview.fRef] : [])];
-    const samples = [...new Set([...frequencies, ...extras.filter(f => f >= min && f <= max)])].sort((a, b) => a - b);
-    const sources = !transmission ? keys.map((key, i) => ({ analysis, key, label: labels[i], color: colors[i], dashed: i >= 2 }))
-      : mask ? [
-        ...(mask.preview ? [{ analysis: mask.preview, key: "s21" as const, label: `\\text{${t("Entwurfsvorschau", "Design preview")}}`, color: colors[0], dashed: false }] : []),
-        ...(mask.showActual ? [{ analysis, key: "s21" as const, label: `\\text{${t("Aktuelle Schaltung", "Current circuit")}}`, color: colors[1], dashed: true }] : []),
-      ] : [{ analysis, key: "s21" as const, label: `S_{21}\\quad\\text{${t("Aktuelle Schaltung", "Current circuit")}}`, color: colors[0], dashed: false }];
-    if (!sources.length) throw new Error("No response is available for the selected tolerance plots.");
-    const evaluated = new Map([...new Set(sources.map(source => source.analysis))].map(network => [network, new Map(samples.map(f => [f, network.evaluate(f)]))]));
     sources.forEach((source, i) => {
       const legendX = 26 + i * (transmission ? 240 : 130);
       line(decorations, legendX, 45, legendX + 23, 45, source.color, source.dashed, 1.6);
       label(legendX + 30, 45, source.label, "west");
       let segment: Point[] = [], previous: number | null = null;
       const finish = () => { if (segment.length > 1) curves.push({ type: "line", points: segment, color: source.color, dashed: source.dashed, width: 1.4 }); segment = []; };
-      for (const f of samples) {
-        const complex = evaluated.get(source.analysis)!.get(f)![source.key];
-        if (!Number.isFinite(complex.re) || !Number.isFinite(complex.im)) throw new Error("The frequency response exceeds numeric precision.");
-        const value = phase ? validPhase(complex) : transmission ? -decibels(complex) : magnitudeScale === "db" ? decibels(complex) : magnitude(complex);
+      for (let j = 0; j < samples.length; j++) {
+        const f = samples[j], value = series[i][j];
         if (value === null || !Number.isFinite(value)) { finish(); previous = null; continue; }
-        if (phase && previous !== null && Math.abs(value - previous) > 180) finish();
+        if (phase && phaseMode === "wrapped" && previous !== null && Math.abs(value - previous) > 180) finish();
         // Bound off-page coordinates before the renderer clips them (TeX has a finite dimension range).
         segment.push({ x: x(f), y: Math.max(frame.y - 500, Math.min(frame.y + frame.height + 500, y(value))) });
         previous = value;

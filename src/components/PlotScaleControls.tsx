@@ -1,14 +1,17 @@
 import type { FrequencyScale, MagnitudeScale } from "../lib/plot-scales";
 import { usePreferences } from "../lib/preferences";
+import type { PhaseMode } from "../lib/phase";
 
 export type PlotScaleProps = {
   frequencyScale: FrequencyScale;
   magnitudeScale: MagnitudeScale;
   onFrequencyScaleChange: (scale: FrequencyScale) => void;
   onMagnitudeScaleChange: (scale: MagnitudeScale) => void;
+  phaseMode?: PhaseMode;
+  onPhaseModeChange?: (mode: PhaseMode) => void;
 };
 
-export function PlotScaleControls({ frequencyScale, magnitudeScale, onFrequencyScaleChange, onMagnitudeScaleChange, quantity }: PlotScaleProps & { quantity: "scattering" | "attenuation" | "transfer" | "phase" }) {
+export function PlotScaleControls({ frequencyScale, magnitudeScale, onFrequencyScaleChange, onMagnitudeScaleChange, phaseMode = "wrapped", onPhaseModeChange, quantity }: PlotScaleProps & { quantity: "scattering" | "attenuation" | "transfer" | "phase" }) {
   const { t } = usePreferences();
   return <div className="plot-scale-controls">
     <label>
@@ -25,6 +28,12 @@ export function PlotScaleControls({ frequencyScale, magnitudeScale, onFrequencyS
         <option value="linear">{quantity === "attenuation" ? "Linear · 1/|S₂₁|" : quantity === "transfer" ? "Linear · |S₂₁|" : "Linear · |S|"}</option>
       </select>
     </label>}
-    {quantity === "phase" && <span className="plot-scale-note">{t("Phase in Grad", "Phase in degrees")}</span>}
+    {quantity === "phase" && <>
+      {onPhaseModeChange && <div className="segmented plot-mode" role="group" aria-label={t("Phasendarstellung", "Phase display")}>
+        <button type="button" className={phaseMode === "wrapped" ? "active" : ""} aria-pressed={phaseMode === "wrapped"} onClick={() => onPhaseModeChange("wrapped")}>{t("Nicht entfaltet", "Wrapped")}</button>
+        <button type="button" className={phaseMode === "unwrapped" ? "active" : ""} aria-pressed={phaseMode === "unwrapped"} onClick={() => onPhaseModeChange("unwrapped")}>{t("Entfaltet", "Unwrapped")}</button>
+      </div>}
+      <span className="plot-scale-note">{t("Phase in Grad", "Phase in degrees")}</span>
+    </>}
   </div>;
 }

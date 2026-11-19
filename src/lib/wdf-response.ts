@@ -1,3 +1,4 @@
+import { phaseValues, type PhaseMode } from "./phase";
 import { decibels, magnitude, phaseDegrees, type Complex, type NetworkAnalysis } from './network';
 import { frequencyAt, type FrequencyScale } from './plot-scales';
 import { MAX_WDF_SAMPLE_RATE } from './wdf';
@@ -55,11 +56,13 @@ export function transferReadout(value: Complex): { amplitude: number | null; db:
   return { amplitude: finite ? amplitude : null, db: finite ? decibels(value) : null, phase: finite && amplitude > 0 ? phaseDegrees(value) : null };
 }
 
-export function wdfComparisonCsv(data: WdfComparisonSample[], sampleRate: number): string {
-  const columns = (value: Complex) => {
+export function wdfComparisonCsv(data: WdfComparisonSample[], sampleRate: number, phaseMode: PhaseMode = "wrapped"): string {
+  const wdfPhases = phaseValues(data.map(point => transferReadout(point.wdf).phase), phaseMode);
+  const analogPhases = phaseValues(data.map(point => transferReadout(point.analog).phase), phaseMode);
+  const columns = (value: Complex, phase: number | null) => {
     const readout = transferReadout(value);
-    return [readout.amplitude === null ? '' : value.re, readout.amplitude === null ? '' : value.im, readout.amplitude ?? '', readout.db ?? '', readout.phase ?? ''];
+    return [readout.amplitude === null ? '' : value.re, readout.amplitude === null ? '' : value.im, readout.amplitude ?? '', readout.db ?? '', phase ?? ''];
   };
   return ['frequency_Hz,sample_rate_Hz,WDF_S21_real,WDF_S21_imag,WDF_S21_magnitude,WDF_S21_dB,WDF_S21_phase_deg,analog_S21_real,analog_S21_imag,analog_S21_magnitude,analog_S21_dB,analog_S21_phase_deg',
-    ...data.map(point => [point.frequency, sampleRate, ...columns(point.wdf), ...columns(point.analog)].join(','))].join('\n');
+    ...data.map((point, i) => [point.frequency, sampleRate, ...columns(point.wdf, wdfPhases[i]), ...columns(point.analog, analogPhases[i])].join(','))].join('\n');
 }

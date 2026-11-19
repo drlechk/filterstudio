@@ -1,3 +1,4 @@
+import { phaseValues, phaseAxis } from "../lib/phase";
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { FrequencyInput } from './FrequencyInput';
 import { PlotScaleControls, type PlotScaleProps } from './PlotScaleControls';
@@ -17,7 +18,7 @@ export function WdfComparisonPlot({ data, min, max, cutoff, sampleRate, mode, pl
   data: WdfComparisonSample[]; min: number; max: number; cutoff: number; sampleRate: number; mode: 'magnitude' | 'phase';
 } & PlotControls) {
   const { t, number, language } = usePreferences();
-  const { frequencyScale, magnitudeScale } = plotScales;
+  const { frequencyScale, magnitudeScale, phaseMode = "wrapped" } = plotScales;
   const id = useId();
   const plotRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(940);
@@ -33,7 +34,7 @@ export function WdfComparisonPlot({ data, min, max, cutoff, sampleRate, mode, pl
   const [hover, setHover] = useState<number | null>(null);
   const label = (key: string) => key === 'wdf' ? 'WDF' : t('Analog · Referenz', 'Analog · reference');
   const engineering = (f: number) => formatEngineering(f, 'Hz', 5, language);
-  const height = 285, left = 51, right = 22, top = width < 520 ? 42 : 24, bottom = 43;
+  const height = 285, left = mode === 'phase' && phaseMode === 'unwrapped' ? 65 : 51, right = 22, top = width < 520 ? 42 : 24, bottom = 43;
   const pw = width - left - right, ph = height - top - bottom;
   const x = (frequency: number) => left + frequencyPosition(frequency, min, max, frequencyScale) * pw;
   let previousTickX = -Infinity;
@@ -42,20 +43,25 @@ export function WdfComparisonPlot({ data, min, max, cutoff, sampleRate, mode, pl
     previousTickX = x(tick);
     return true;
   });
-  const upper = mode === 'phase' ? 180 : magnitudeScale === 'db' ? 0 : 1;
-  const lower = mode === 'phase' ? -180 : magnitudeScale === 'db' ? -dbRange : 0;
-  const y = (value: number) => top + (upper - Math.max(lower, Math.min(upper, value))) / (upper - lower) * ph;
-  const yTicks = mode === 'phase' ? [180, 90, 0, -90, -180] : magnitudeScale === 'db' && dbRange === 3
-    ? [0, -.5, -1, -1.5, -2, -2.5, -3] : Array.from({ length: 6 }, (_, i) => upper + (lower - upper) * i / 5);
-  const curves = traces.map(trace => {
-    const values = data.map(point => {
+  const series = traces.map(trace => {
+    const raw = data.map(point => {
       const readout = transferReadout(point[trace.key]);
       return mode === 'phase' ? readout.phase : magnitudeScale === 'db' ? readout.db : readout.amplitude;
     });
+    return { ...trace, values: mode === 'phase' ? phaseValues(raw, phaseMode) : raw };
+  });
+  const axis = phaseAxis(series.filter(trace => enabled.includes(trace.key)).flatMap(trace => trace.values), phaseMode);
+  const upper = mode === 'phase' ? axis.upper : magnitudeScale === 'db' ? 0 : 1;
+  const lower = mode === 'phase' ? axis.lower : magnitudeScale === 'db' ? -dbRange : 0;
+  const y = (value: number) => top + (upper - Math.max(lower, Math.min(upper, value))) / (upper - lower) * ph;
+  const yTicks = mode === 'phase' ? axis.ticks : magnitudeScale === 'db' && dbRange === 3
+    ? [0, -.5, -1, -1.5, -2, -2.5, -3] : Array.from({ length: 6 }, (_, i) => upper + (lower - upper) * i / 5);
+  const curves = series.map(trace => {
+    const { values } = trace;
     const path = values.map((value, i) => {
       if (value === null) return '';
       const previous = values[i - 1];
-      const move = i === 0 || previous === null || (mode === 'phase' && Math.abs(value - previous) > 180);
+      const move = i === 0 || previous === null || (mode === 'phase' && phaseMode === 'wrapped' && Math.abs(value - previous) > 180);
       return `${move ? 'M' : 'L'}${x(data[i].frequency).toFixed(2)},${y(value).toFixed(2)}`;
     }).join(' ');
     return { ...trace, values, path };
@@ -78,7 +84,7 @@ export function WdfComparisonPlot({ data, min, max, cutoff, sampleRate, mode, pl
           onClick={() => setEnabled(previous => previous.includes(curve.key) ? previous.filter(key => key !== curve.key) : [...previous, curve.key])}>
           <span className={curve.key === 'analog' ? 'wdf-reference-swatch' : ''} style={{ color: curve.color, background: curve.key === 'analog' ? 'none' : curve.color }} />{label(curve.key)}
         </button>)}</div>
-        <button className="csv-button" onClick={() => downloadFile('filterstudio-wdf-comparison.csv', wdfComparisonCsv(data, sampleRate), 'text/csv')}>{t('CSV exportieren ↗', 'Export CSV ↗')}</button>
+        <button className="csv-button" onClick={() => downloadFile('filterstudio-wdf-comparison.csv', wdfComparisonCsv(data, sampleRate, phaseMode), 'text/csv')}>{t('CSV exportieren ↗', 'Export CSV ↗')}</button>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t(
         `WDF und analoge Referenz: ${mode === 'phase' ? 'Phase in Grad' : magnitudeScale === 'db' ? 'Betrag in dB' : 'linearer Betrag'} über ${frequencyScale === 'log' ? 'logarithmischer' : 'linearer'} Frequenz`,

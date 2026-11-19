@@ -61,6 +61,7 @@ import { ComponentRoundingControls } from "./components/ComponentRoundingControl
 import { DEFAULT_COMPONENT_PRECISION } from "./lib/component-rounding";
 import { formatComponentLabel } from "./lib/component-units";
 import { ResponsePlot } from "./components/ResponsePlot";
+import type { PhaseMode } from "./lib/phase";
 import type { FrequencyScale, MagnitudeScale } from "./lib/plot-scales";
 import { Formula, MathView } from "./components/MathView";
 import { SectionMatrixView } from "./components/SectionMatrixView";
@@ -552,10 +553,11 @@ const FilterWorkspace = memo(function FilterWorkspace({
   const [frequencyUnit, setFrequencyUnit] = useState<FrequencyUnit>("MHz");
   const frequencyInputUnit = { unit: frequencyUnit, onUnitChange: setFrequencyUnit };
   const [magnitudeScale, setMagnitudeScale] = useState<MagnitudeScale>("db");
+  const [phaseMode, setPhaseMode] = useState<PhaseMode>("wrapped");
   const [sParameterDbRange, setSParameterDbRange] = useState(100);
   const [toleranceNormalized, setToleranceNormalized] = useState(false);
   const [toleranceShowActual, setToleranceShowActual] = useState(false);
-  const plotScales = { frequencyScale, magnitudeScale, onFrequencyScaleChange: setFrequencyScale, onMagnitudeScaleChange: setMagnitudeScale };
+  const plotScales = { frequencyScale, magnitudeScale, phaseMode, onPhaseModeChange: setPhaseMode, onFrequencyScaleChange: setFrequencyScale, onMagnitudeScaleChange: setMagnitudeScale };
   const scatteringReadout = (value?: Complex) => !value ? "—" : magnitudeScale === "db"
     ? `${dbReadout(decibels(value), language)} dB` : number(magnitude(value), 6);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -2801,7 +2803,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
       {active && showCircuitExport && analysis && (
         <Suspense fallback={<div className="toast" role="status">{t("Schaltungsexport wird geladen …", "Loading circuit export …")}</div>}>
           <CircuitExportDialog project={project} analysis={analysis}
-            plotContext={{ language, frequencyScale, magnitudeScale, dbRange: sParameterDbRange,
+            plotContext={{ language, frequencyScale, magnitudeScale, phaseMode, dbRange: sParameterDbRange,
               ...(designMode === "tolerance" ? { tolerance: { spec: toleranceDraft, preview: tolerancePreview.analysis,
                 normalized: toleranceNormalized, showActual: toleranceShowActual } } : {}),
             }} onClose={() => setShowCircuitExport(false)} />

@@ -1,10 +1,10 @@
+import { validPhase, phaseValues, phaseAxis } from "../lib/phase";
 import { useId, useMemo, useState } from "react";
 import type { NetworkAnalysis } from "../lib/network";
 import {
   sweepNetwork,
   decibels,
   magnitude,
-  phaseDegrees,
   formatEngineering as engineering,
 } from "../lib/network";
 
@@ -43,7 +43,7 @@ export function ResponsePlot({
   dbRange: number;
   onDbRangeChange: (value: number) => void;
 } & PlotScaleProps) {
-  const { frequencyScale, magnitudeScale } = scales;
+  const { frequencyScale, magnitudeScale, phaseMode = "wrapped" } = scales;
   const { language, t, translate, number } = usePreferences();
   const id = useId();
   const formatEngineering = (value: number, unit = "") =>
@@ -97,35 +97,39 @@ export function ResponsePlot({
     );
   const width = 940,
     height = 285,
-    margin = { left: 51, right: 22, top: 24, bottom: 43 };
+    margin = { left: mode === "phase" && phaseMode === "unwrapped" ? 65 : 51, right: 22, top: 24, bottom: 43 };
   const pw = width - margin.left - margin.right,
     ph = height - margin.top - margin.bottom;
   const x = (f: number) =>
     margin.left + frequencyPosition(f, min, max, frequencyScale) * pw;
+  const phases = Object.fromEntries(traces.map(trace => [trace.key, phaseValues(data.map(point => validPhase(point[trace.key])), phaseMode)])) as Record<Key, (number | null)[]>;
+  const axis = phaseAxis(enabled.flatMap(key => phases[key]), phaseMode);
   const value = (i: number, key: Key) =>
-    mode === "phase" ? phaseDegrees(data[i][key])
+    mode === "phase" ? phases[key][i] ?? NaN
       : magnitudeScale === "db" ? decibels(data[i][key]) : magnitude(data[i][key]);
   const y = (v: number) =>
     margin.top +
     (mode === "magnitude"
       ? magnitudeScale === "db" ? -Math.min(0, Math.max(-dbRange, v)) / dbRange : 1 - Math.max(0, Math.min(1, v))
-      : (180 - v) / 360) *
+      : (axis.upper - v) / (axis.upper - axis.lower)) *
       ph;
   const yTicks =
     mode === "magnitude"
       ? magnitudeScale === "linear" ? [1, .8, .6, .4, .2, 0] : dbRange === 3
         ? [0, -0.5, -1, -1.5, -2, -2.5, -3]
         : Array.from({ length: 6 }, (_, i) => (-dbRange * i) / 5)
-      : [180, 90, 0, -90, -180];
+      : axis.ticks;
   const xticks = frequencyTicks(min, max, frequencyScale);
   const paths = Object.fromEntries(
     traces.map((t) => [
       t.key,
       data
-        .map(
-          (d, i) =>
-            `${i === 0 || (mode === "phase" && i > 0 && Math.abs(value(i, t.key) - value(i - 1, t.key)) > 180) ? "M" : "L"}${x(d.frequency).toFixed(2)},${y(value(i, t.key)).toFixed(2)}`,
-        )
+        .map((d, i) => {
+          const current = value(i, t.key), previous = i > 0 ? value(i - 1, t.key) : NaN;
+          if (!Number.isFinite(current)) return "";
+          const move = !Number.isFinite(previous) || (mode === "phase" && phaseMode === "wrapped" && Math.abs(current - previous) > 180);
+          return `${move ? "M" : "L"}${x(d.frequency).toFixed(2)},${y(current).toFixed(2)}`;
+        })
         .join(" "),
     ]),
   );
@@ -377,7 +381,7 @@ export function ResponsePlot({
               strokeDasharray="3 3"
             />
             {traces
-              .filter((t) => enabled.includes(t.key))
+              .filter((t) => enabled.includes(t.key) && Number.isFinite(value(hi, t.key)))
               .map((t) => (
                 <circle
                   key={t.key}
@@ -410,7 +414,7 @@ export function ResponsePlot({
                 <span key={t.key} style={{ color: t.color }}>
                   {t.label}{" "}
                   <b>
-                    {mode === "magnitude" && magnitudeScale === "linear" ? number(value(hi, t.key), 6) : mode === "magnitude" && value(hi, t.key) <= -160
+                    {!Number.isFinite(value(hi, t.key)) ? "—" : mode === "magnitude" && magnitudeScale === "linear" ? number(value(hi, t.key), 6) : mode === "magnitude" && value(hi, t.key) <= -160
                       ? "≤ −160"
                       : value(hi, t.key).toLocaleString(
                           language === "de" ? "de-DE" : "en-US",

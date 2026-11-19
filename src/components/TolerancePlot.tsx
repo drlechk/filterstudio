@@ -1,10 +1,9 @@
+import { validPhase, phaseValues, phaseAxis } from "../lib/phase";
 import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import {
   decibels,
   magnitude,
-  phaseDegrees,
   formatEngineering,
-  type Complex,
   type NetworkAnalysis,
 } from "../lib/network";
 import { usePreferences } from "../lib/preferences";
@@ -28,9 +27,6 @@ type Drag = {
   max: number;
   maximumLoss: number;
 };
-const phase = (value: Complex | undefined) =>
-  value && Number.isFinite(value.re) && Number.isFinite(value.im) && magnitude(value) > 0
-    ? phaseDegrees(value) : null;
 
 export function TolerancePlot({
   spec,
@@ -57,7 +53,7 @@ export function TolerancePlot({
   onShowActualChange: (value: boolean) => void;
 } & PlotScaleProps) {
   const { t, language, number, translate } = usePreferences();
-  const { frequencyScale, magnitudeScale } = scales;
+  const { frequencyScale, magnitudeScale, phaseMode = "wrapped" } = scales;
   const [drag, setDrag] = useState<Drag | null>(null),
     [hover, setHover] = useState<number | null>(null);
   const svg = useRef<SVGSVGElement>(null),
@@ -81,14 +77,13 @@ export function TolerancePlot({
   const x = (f: number) =>
     left + frequencyPosition(f, min, max, frequencyScale) * plotW;
   const y = (loss: number) => top + plotH * (1 - attenuationPosition(loss, maximumLoss, magnitudeScale));
-  const phaseY = (value: number) => top + plotH * (180 - value) / 360;
   const yTicks = magnitudeScale === "db" ? Array.from({ length: maximumLoss / 10 + 1 }, (_, i) => i * 10)
     : [...new Set([1, ...linearTicks(1, attenuationValue(maximumLoss, "linear"))])];
   const lossText = (loss: number) => magnitudeScale === "db" ? `${number(loss)} dB` : `${number(attenuationValue(loss, "linear"), 5)}×`;
   const engineering = (v: number) =>
     formatEngineering(v, "Hz", 4, language === "de" ? "de-DE" : "en-US");
   const regions = toleranceRegions(spec, min, max);
-  const samples = useMemo(() => {
+  const rawSamples = useMemo(() => {
     const frequencies = Array.from(
       { length: 701 },
       (_, i) => frequencyAt(i / 700, min, max, frequencyScale),
@@ -104,18 +99,23 @@ export function TolerancePlot({
         f,
         proposed: proposed ? -decibels(proposed) : null,
         actual: current ? -decibels(current) : null,
-        proposedPhase: phase(proposed),
-        actualPhase: phase(current),
+        proposedPhase: validPhase(proposed),
+        actualPhase: validPhase(current),
       };
     });
   }, [min, max, preview, actual, showActual, spec.passband, spec.stopband, frequencyScale]);
+  const proposedPhases = phaseValues(rawSamples.map(sample => sample.proposedPhase), phaseMode);
+  const actualPhases = phaseValues(rawSamples.map(sample => sample.actualPhase), phaseMode);
+  const samples = rawSamples.map((sample, i) => ({ ...sample, proposedPhase: proposedPhases[i], actualPhase: actualPhases[i] }));
+  const axis = phaseAxis([...proposedPhases, ...actualPhases], phaseMode);
+  const phaseY = (value: number) => top + plotH * (axis.upper - value) / (axis.upper - axis.lower);
   const path = (key: "proposed" | "actual" | "proposedPhase" | "actualPhase", ordinate = y, wrapPhase = false) =>
     samples
       .map((sample, i) => {
         const value = sample[key], previous = samples[i - 1]?.[key];
         if (value === null || !Number.isFinite(value)) return "";
         const move = previous == null || !Number.isFinite(previous)
-          || (wrapPhase && Math.abs(value - previous) > 180);
+          || (wrapPhase && phaseMode === "wrapped" && Math.abs(value - previous) > 180);
         return `${move ? "M" : "L"}${x(sample.f).toFixed(2)},${ordinate(value).toFixed(2)}`;
       })
       .join(" ");
@@ -583,6 +583,7 @@ export function TolerancePlot({
             )}</p>
           </div>
         </div>
+        <PlotScaleControls {...scales} quantity="phase" />
         <div className="tolerance-legend">
           <span><i className="preview-swatch" />{t("Vorschau des Entwurfs", "Design preview")}</span>
           {showActual && actual && <span><i className="actual-swatch" />{t("Aktuelle Schaltung", "Current circuit")}</span>}
@@ -599,7 +600,7 @@ export function TolerancePlot({
           onPointerLeave={() => setHover(null)}
         >
           <defs><clipPath id={`${id}-phase-clip`}><rect x={left} y={top - 1} width={plotW} height={plotH + 2} /></clipPath></defs>
-          {[180, 90, 0, -90, -180].map(tick => <g key={tick}>
+          {axis.ticks.map(tick => <g key={tick}>
             <line x1={left} x2={width - right} y1={phaseY(tick)} y2={phaseY(tick)} stroke="var(--plot-grid)" strokeDasharray={tick === 0 ? undefined : "3 5"} />
             <text x={left - 16} y={phaseY(tick) + 4} textAnchor="end" className="mask-tick">{number(tick)}</text>
           </g>)}
@@ -628,7 +629,10 @@ export function TolerancePlot({
             {showActual && actual && <> · {t("Aktuelle Schaltung", "Current circuit")}: {hoveredSample.actualPhase === null ? "—" : `${number(hoveredSample.actualPhase, 6)}°`}</>}
           </span> : <span>{t("Bewege den Mauszeiger über das Diagramm, um Messwerte abzulesen.", "Hover over the plot to read exact values.")}</span>}
         </div>
-        <p className="mask-footnote">{t(
+        <p className="mask-footnote">{phaseMode === "unwrapped" ? t(
+          "Bei S₂₁ = 0 ist die Phase unbestimmt. Nach einer Lücke beginnt die Entfaltung neu.",
+          "The phase is undefined at S₂₁ = 0. Unwrapping restarts after a gap.",
+        ) : t(
           "Bei S₂₁ = 0 ist die Phase unbestimmt. Unbestimmte Werte und Phasensprünge werden als Lücken dargestellt.",
           "The phase is undefined at S₂₁ = 0. Undefined values and phase wraps are shown as gaps.",
         )}</p>

@@ -1,3 +1,4 @@
+import { phaseValues, phaseAxis } from "../lib/phase";
 import { useId, useMemo, useState } from "react";
 import { decibels, formatEngineering, magnitude, phaseDegrees, sweepNetwork, type NetworkAnalysis } from "../lib/network";
 import { frequencyPosition, frequencyTicks, linearTicks } from "../lib/plot-scales";
@@ -16,7 +17,7 @@ export function FrequencyResponsePlot({ analysis, min, max, points, cutoff, band
   onExport: (csv: string) => void;
 } & PlotScaleProps) {
   const { t, number, language, translate } = usePreferences();
-  const { frequencyScale, magnitudeScale } = scales;
+  const { frequencyScale, magnitudeScale, phaseMode = "wrapped" } = scales;
   const id = useId();
   const [hover, setHover] = useState<number | null>(null);
   const [dbRange, setDbRange] = useState(100);
@@ -41,20 +42,22 @@ export function FrequencyResponsePlot({ analysis, min, max, points, cutoff, band
       return { error: error instanceof Error ? error.message : "Frequenzgang nicht berechenbar.", data: [] };
     }
   }, [analysis, min, max, points, cutoff, band?.lower, band?.upper, frequencyScale]);
-  const { data } = samples;
+  const phases = phaseValues(samples.data.map(point => point.phase), phaseMode);
+  const data = samples.data.map((point, i) => ({ ...point, phase: phases[i] }));
+  const axis = phaseAxis(phases, phaseMode);
   const values = data.map(point => mode === "phase" ? point.phase : magnitudeScale === "db" ? point.db : point.amplitude);
   const finiteValues = values.filter((value): value is number => value !== null);
-  const upper = mode === "phase" ? 180 : magnitudeScale === "db" ? 0 : 1;
-  const lower = mode === "phase" ? -180 : magnitudeScale === "db" ? -dbRange : 0;
+  const upper = mode === "phase" ? axis.upper : magnitudeScale === "db" ? 0 : 1;
+  const lower = mode === "phase" ? axis.lower : magnitudeScale === "db" ? -dbRange : 0;
   const width = 940, height = 285, left = 65, right = 22, top = 24, bottom = 43;
   const plotWidth = width - left - right, plotHeight = height - top - bottom;
   const x = (frequency: number) => left + frequencyPosition(frequency, min, max, frequencyScale) * plotWidth;
   const y = (value: number) => top + (1 - (Math.min(upper, Math.max(lower, value)) - lower) / (upper - lower)) * plotHeight;
-  const yTicks = mode === "phase" ? [-180, -90, 0, 90, 180] : linearTicks(lower, upper);
+  const yTicks = mode === "phase" ? axis.ticks : linearTicks(lower, upper);
   const path = values.map((value, i) => {
     if (value === null) return "";
     const previous = values[i - 1];
-    const move = i === 0 || previous === null || (mode === "phase" && Math.abs(value - previous) > 180);
+    const move = i === 0 || previous === null || (mode === "phase" && phaseMode === "wrapped" && Math.abs(value - previous) > 180);
     return `${move ? "M" : "L"}${x(data[i].frequency).toFixed(2)},${y(value).toFixed(2)}`;
   }).join(" ");
   const hi = hover === null || data.length === 0 ? null : data.reduce((best, point, i) =>
