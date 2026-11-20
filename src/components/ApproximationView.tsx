@@ -63,8 +63,8 @@ export function ApproximationView({
             "Quadrierte Butterworth-Übertragungsfunktion der Ordnung n/2. Gerade Grade 2–100; bei |Ω| = 1 liegt jeder Zweig bei −6,0206 dB. Dargestellt ist Fₙ² = 2Ωⁿ + Ω²ⁿ. Bandfilter entstehen durch Transformation dieses Prototyps.",
             "Squared Butterworth transfer function of order n/2. Even orders 2–100; each branch is at −6.0206 dB for |Ω| = 1. Fₙ² = 2Ωⁿ + Ω²ⁿ is shown. Band filters are transformations of this prototype.",
           ) : t(
-            `Elliptische rationale Funktion: Welligkeit in Durchlass- und Sperrbereich. Rₙ(1) = 1; normierte Sperrbandgrenze Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
-            `Elliptic rational function: ripple in the passband and stopband. Rₙ(1) = 1; normalized stopband edge Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
+            `${order % 2 ? 'Elliptische rationale Funktion' : settings.cauerVariant === 'b' ? 'Elliptische Funktion Typ B: ungleiche Prototypabschlüsse, doppelte Übertragungsnullstelle im Unendlichen' : 'Modifizierte elliptische Funktion Typ C: gleiche Prototypabschlüsse, doppelte Übertragungsnullstelle im Unendlichen'}. Rₙ(1) = 1; normierte Sperrbandgrenze Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
+            `${order % 2 ? 'Elliptic rational function' : settings.cauerVariant === 'b' ? 'Elliptic class B: unequal prototype terminations, double transmission zero at infinity' : 'Modified elliptic class C: equal prototype terminations, double transmission zero at infinity'}. Rₙ(1) = 1; normalized stopband edge Ωₛ ≈ ${number(approximation.stopbandRatio!, 6)}.`,
           );
   return (
     <section

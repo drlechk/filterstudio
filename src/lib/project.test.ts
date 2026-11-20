@@ -33,7 +33,7 @@ describe('JSON import boundary', () => {
     }
   });
   it('rejects unsupported Cauer settings and accepts supported boundary settings', () => {
-    for (const patch of [{ order: 2 }, { order: 20 }, { order: 7, attenuation: 30 }, { order: 19, attenuation: 39 }, { ripple: .01 }, { ripple: 99 }, { attenuation: .01 }, { attenuation: 81 }]) {
+    for (const patch of [{ order: 1 }, { order: 20 }, { order: 7, attenuation: 30 }, { order: 19, attenuation: 39 }, { ripple: .01 }, { ripple: 99 }, { attenuation: .01 }, { attenuation: 81 }]) {
       expect(() => parseProject({ ...project, settings: { ...project.settings, family: 'cauer', ...patch } })).toThrow();
     }
     expect(parseProject({ ...project, settings: { ...project.settings, family: 'cauer', order: 7, ripple: .1, attenuation: 40 } }).settings.order).toBe(7);

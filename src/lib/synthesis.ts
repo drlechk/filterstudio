@@ -1,8 +1,8 @@
-import type { FilterSettings, Section } from './types';
+import type { CauerVariant, FilterSettings, Section } from './types';
 import { MIN_RELATIVE_BANDWIDTH } from './frequency';
 import { hasHalfPowerCutoff, isMonotonicFamily, monotonicPrototype } from './monotonic';
 import { linkwitzRileyPrototype } from './linkwitz-riley';
-import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation, defaultLadderStart } from './filter-limits';
+import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, MIN_LOAD_IMPEDANCE, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation, defaultLadderStart } from './filter-limits';
 
 /** Normalized LC ladder synthesis. Frequencies are angular internally.
  * Elliptic prototype: Orfanidis, Introduction to Signal Processing, 2e, ch. 13,
@@ -22,6 +22,13 @@ function chebyshev(n: number, ripple: number): { g: number[]; load: number } {
     g.push(4 * a[i - 1] * a[i] / (b * g[i - 1]));
   }
   return { g, load: n % 2 ? 1 : 1 / Math.tanh(beta / 4) ** 2 };
+}
+
+/** Required load of the unmodified prototype, including dual Chebyshev ladders. */
+export function prototypeLoadImpedance(settings: FilterSettings): number {
+  const load = settings.family === 'chebyshev' ? chebyshev(settings.order, settings.ripple).load
+    : settings.family === 'cauer' && settings.cauerVariant === 'b' ? 1 / chebyshev(settings.order, settings.ripple).load : 1;
+  return settings.impedance * ((settings.ladderStart ?? defaultLadderStart(settings.family)) === defaultLadderStart(settings.family) ? load : 1 / load);
 }
 
 const add = (a: number[], b: number[]) => Array.from({ length: Math.max(a.length, b.length) }, (_, i) => (a[i] || 0) + (b[i] || 0));
@@ -77,8 +84,8 @@ export function ellipticModulus(n: number, ripple: number, attenuation: number) 
   return 16 * q * (top / bottom) ** 4;
 }
 
-/** Real polynomial and finite positive transmission zeros of an odd elliptic prototype. */
-export function ellipticPrototype(n: number, ripple: number, attenuation: number) {
+/** Odd classical / even class B or C elliptic prototype. Load is for shunt-first ladders. */
+export function ellipticPrototype(n: number, ripple: number, attenuation: number, variant: CauerVariant = 'c') {
   const eps2 = Math.expm1(ripple * Math.LN10 / 10);
   const m1 = eps2 / Math.expm1(attenuation * Math.LN10 / 10);
   const k1 = ellipticK(m1);
@@ -86,42 +93,64 @@ export function ellipticPrototype(n: number, ripple: number, attenuation: number
   const capK = ellipticK(m);
   const v0 = capK * inverseSc(1 / Math.sqrt(eps2), m1) / (n * k1);
   const v = jacobi(v0, 1 - m);
-  let denominator = [1];
-  const poles: { re: number; im: number }[] = [];
-  const zeros: number[] = [];
-  for (let j = 0; j < n; j += 2) {
+  const even = n % 2 === 0;
+  const originalRoots: number[] = [];
+  let poles: { re: number; im: number }[] = [];
+  let zeros: number[] = [];
+  for (let j = even ? 1 : 0; j < n; j += 2) {
     const x = jacobi(j * capK / n, m);
     const den = 1 - (x.dn * v.sn) ** 2;
-    const re = -x.cn * x.dn * v.sn * v.cn / den;
-    const im = -x.sn * v.dn / den;
-    poles.push({ re, im });
-    if (!j) denominator = mul(denominator, [-re, 1]);
-    else {
-      denominator = mul(denominator, [re * re + im * im, -2 * re, 1]);
-      zeros.push(1 / (Math.sqrt(m) * x.sn));
-    }
+    poles.push({ re: -x.cn * x.dn * v.sn * v.cn / den, im: -x.sn * v.dn / den });
+    if (j) { zeros.push(1 / (Math.sqrt(m) * x.sn)); originalRoots.push(x.sn); }
   }
-  const scale = 2 / denominator[0];
-  return {
-    denominator: denominator.map(v => v * scale), zeros, stopbandRatio: 1 / Math.sqrt(m), poles,
-    // Cluster samples near the passband edge where high-order elliptic extrema accumulate.
-    passbandFrequencies: Array.from({ length: 4 * n + 1 }, (_, i) => jacobi(i * capK / (4 * n), m).sn),
-  };
+  let reflectionZeros = originalRoots, stopbandRatio = 1 / Math.sqrt(m);
+  let passbandFrequencies = Array.from({ length: 4 * n + 1 }, (_, i) => jacobi(i * capK / (4 * n), m).sn);
+  if (even) {
+    // Class B preserves DC; class C maps the first reflection zero to DC. Map the highest
+    // transmission zero to infinity. Normalize the passband edge to one.
+    // Ωold² = (a² + b Ω²)/(1 + c Ω²); a*zmax = 1/sqrt(m).
+    // See Cameron/Kudsia/Mansour, Microwave Filters, §3.6.5.2–3.
+    const a2 = variant === 'b' ? 0 : originalRoots[0] ** 2, z2 = zeros[0] ** 2;
+    const c = (1 - a2) / (z2 - 1), b = z2 * c;
+    const mapFrequency = (frequency: number) => Math.sqrt(Math.max(0, (frequency ** 2 - a2) / (b - c * frequency ** 2)));
+    reflectionZeros = originalRoots.map(mapFrequency);
+    zeros = zeros.slice(1).map(mapFrequency);
+    stopbandRatio = mapFrequency(stopbandRatio);
+    const start = variant === 'b' ? 0 : capK / n;
+    passbandFrequencies = Array.from({ length: 4 * n + 1 }, (_, i) =>
+      mapFrequency(jacobi(start + (capK - start) * i / (4 * n), m).sn));
+    poles = poles.map(({ re, im }) => {
+      const pr = re * re - im * im, pi = 2 * re * im;
+      const dr = b + c * pr, di = c * pi, d2 = dr * dr + di * di;
+      const qr = ((pr + a2) * dr + pi * di) / d2;
+      const qi = (pi * dr - (pr + a2) * di) / d2;
+      const magnitude = Math.hypot(qr, qi);
+      // Stable complex square root, selecting the left half-plane root.
+      const real = qr < 0 ? -Math.abs(qi) / Math.sqrt(2 * (magnitude - qr)) : -Math.sqrt((magnitude + qr) / 2);
+      return { re: real, im: qi / (2 * real) };
+    });
+  }
+  let denominator = [1];
+  for (const { re, im } of poles)
+    denominator = mul(denominator, im === 0 ? [-re, 1] : [re * re + im * im, -2 * re, 1]);
+  const load = even && variant === 'b' ? 1 / chebyshev(n, ripple).load : 1;
+  return { load, denominator: denominator.map(value => value * (1 + load) / denominator[0]), zeros, stopbandRatio, poles,
+    reflectionZeros, passbandFrequencies };
 }
 
-function ladderDenominator(values: number[], zeros: number[]) {
+function ladderDenominator(values: number[], zeros: number[], load = 1) {
   let A = [1], B = [0], C = [0], D = [1];
   values.forEach((value, i) => {
     if (i % 2 === 0) {
       const y = [0, value];
       A = add(A, mul(B, y)); C = add(C, mul(D, y));
     } else {
-      const z = zeros[(i - 1) / 2], d = [1, 0, 1 / (z * z)], b = [0, value];
+      const z = zeros[(i - 1) / 2], d = z === undefined ? [1] : [1, 0, 1 / (z * z)], b = [0, value];
       B = add(mul(A, b), mul(B, d)); D = add(mul(C, b), mul(D, d));
       A = mul(A, d); C = mul(C, d);
     }
   });
-  return add(add(A, B), add(C, D));
+  return add(add(A.map(v => v * load), B), add(C.map(v => v * load), D));
 }
 
 function solveLinear(matrix: number[][], vector: number[]) {
@@ -146,10 +175,10 @@ function solveLinear(matrix: number[][], vector: number[]) {
 }
 
 // Low-order positive component synthesis by matching ALL denominator coefficients.
-function fitLadder(initial: number[], target: number[], zeros: number[]) {
+function fitLadder(initial: number[], target: number[], zeros: number[], load = 1) {
   const n = initial.length;
   const residual = (x: number[]) => {
-    const d = ladderDenominator(x.map(Math.exp), zeros);
+    const d = ladderDenominator(x.map(Math.exp), zeros, load);
     return target.slice(1).map((v, i) => ((d[i + 1] || 0) - v) / v);
   };
   const norm = (v: number[]) => v.reduce((s, x) => s + x * x, 0);
@@ -185,7 +214,7 @@ const complexAdd = (a: ComplexPair, b: ComplexPair): ComplexPair => [a[0] + b[0]
 const complexScale = (a: ComplexPair, b: number): ComplexPair => [a[0] * b, a[1] * b];
 
 /** Evaluate the cleared ladder denominator directly, without expanded polynomials. */
-function ladderDenominatorAt(values: number[], zeros: number[], omega: number): ComplexPair {
+function ladderDenominatorAt(values: number[], zeros: number[], omega: number, load = 1): ComplexPair {
   let A: ComplexPair = [1, 0], B: ComplexPair = [0, 0], C: ComplexPair = [0, 0], D: ComplexPair = [1, 0];
   values.forEach((value, i) => {
     const branch: ComplexPair = [0, omega * value];
@@ -193,17 +222,17 @@ function ladderDenominatorAt(values: number[], zeros: number[], omega: number): 
       A = complexAdd(A, complexMultiply(B, branch));
       C = complexAdd(C, complexMultiply(D, branch));
     } else {
-      const ratio = omega / zeros[(i - 1) / 2], d = (1 - ratio) * (1 + ratio);
+      const zero = zeros[(i - 1) / 2], ratio = zero === undefined ? 0 : omega / zero, d = (1 - ratio) * (1 + ratio);
       B = complexAdd(complexMultiply(A, branch), complexScale(B, d));
       D = complexAdd(complexMultiply(C, branch), complexScale(D, d));
       A = complexScale(A, d); C = complexScale(C, d);
     }
   });
-  return complexAdd(complexAdd(A, B), complexAdd(C, D));
+  return complexAdd(complexAdd(complexScale(A, load), B), complexAdd(complexScale(C, load), D));
 }
 
 function prototypeDenominatorAt(prototype: EllipticPrototype, omega: number): ComplexPair {
-  let result: ComplexPair = [2, 0];
+  let result: ComplexPair = [1 + prototype.load, 0];
   for (const { re, im } of prototype.poles) {
     const factor: ComplexPair = im === 0 ? [1, omega / -re]
       : complexScale(complexMultiply([-re, omega - im], [-re, omega + im]), 1 / (re * re + im * im));
@@ -227,7 +256,7 @@ function fitLadderResponse(initial: number[], prototype: EllipticPrototype, zero
     .map(omega => ({ omega, target: prototypeDenominatorAt(prototype, omega) }));
   const residual = (x: number[]) => {
     const values = x.map(Math.exp);
-    return samples.flatMap(({ omega, target }) => relativeDenominatorError(ladderDenominatorAt(values, zeros, omega), target));
+    return samples.flatMap(({ omega, target }) => relativeDenominatorError(ladderDenominatorAt(values, zeros, omega, prototype.load), target));
   };
   const norm = (r: number[]) => r.reduce((sum, value) => sum + value * value, 0);
   const n = initial.length;
@@ -251,8 +280,8 @@ function fitLadderResponse(initial: number[], prototype: EllipticPrototype, zero
   return { values: x.map(Math.exp), error: Math.sqrt(score) };
 }
 
-function highOrderEllipticLadder(n: number, ripple: number, attenuation: number) {
-  const target = ellipticPrototype(n, ripple, attenuation);
+function highOrderEllipticLadder(n: number, ripple: number, attenuation: number, variant: CauerVariant) {
+  const target = ellipticPrototype(n, ripple, attenuation, variant);
   // Interleaving the resonances gives a better initial path for high orders.
   const orders = [
     (zeros: number[]) => zeros.filter((_, i) => i % 2).concat(zeros.filter((_, i) => i % 2 === 0).reverse()),
@@ -264,7 +293,7 @@ function highOrderEllipticLadder(n: number, ripple: number, attenuation: number)
     let values = chebyshev(n, ripple).g, converged = true;
     // Continue from a near-all-pole prototype; never return an intermediate design.
     for (let rs = 160; ; rs = Math.max(attenuation, rs - 5)) {
-      const prototype = rs === attenuation ? target : ellipticPrototype(n, ripple, rs);
+      const prototype = rs === attenuation ? target : ellipticPrototype(n, ripple, rs, variant);
       const fit = fitLadderResponse(values, prototype, orderZeros(prototype.zeros));
       if (!Number.isFinite(fit.error) || fit.error > 1e-7) { converged = false; break; }
       values = fit.values;
@@ -275,33 +304,33 @@ function highOrderEllipticLadder(n: number, ripple: number, attenuation: number)
     // Validate also at interleaved points not used in fitting and across the stopband.
     const verification = [...target.passbandFrequencies, ...Array.from({ length: 41 }, (_, i) => target.stopbandRatio * 10 ** (i / 40))];
     if (verification.every(omega => {
-      const error = relativeDenominatorError(ladderDenominatorAt(values, zeros, omega), prototypeDenominatorAt(target, omega));
+      const error = relativeDenominatorError(ladderDenominatorAt(values, zeros, omega, target.load), prototypeDenominatorAt(target, omega));
       return Math.hypot(...error) < 2e-6;
-    })) return { values, zeros, stopbandRatio: target.stopbandRatio };
+    })) return { values, zeros, stopbandRatio: target.stopbandRatio, load: target.load };
   }
   throw new Error('Diese Cauer-Spezifikation konnte nicht zuverlässig synthetisiert werden. Bitte die Sperrdämpfung erhöhen oder den Grad verringern.');
 }
 
-const ellipticCache = new Map<string, { values: number[]; zeros: number[]; stopbandRatio: number }>();
-function ellipticLadder(n: number, ripple: number, attenuation: number) {
-  const key = `${n}/${ripple}/${attenuation}`;
+const ellipticCache = new Map<string, { values: number[]; zeros: number[]; stopbandRatio: number; load: number }>();
+function ellipticLadder(n: number, ripple: number, attenuation: number, variant: CauerVariant = 'c') {
+  const key = `${n}/${ripple}/${attenuation}/${variant}`;
   const cached = ellipticCache.get(key);
   if (cached) return cached;
   if (n > 7) {
-    const result = highOrderEllipticLadder(n, ripple, attenuation);
+    const result = highOrderEllipticLadder(n, ripple, attenuation, variant);
     ellipticCache.set(key, result);
     return result;
   }
-  const prototype = ellipticPrototype(n, ripple, attenuation);
+  const prototype = ellipticPrototype(n, ripple, attenuation, variant);
   const base = chebyshev(n, ripple).g;
-  let best = fitLadder(base, prototype.denominator, prototype.zeros);
+  let best = fitLadder(base, prototype.denominator, prototype.zeros, prototype.load);
   for (let attempt = 0; best.error > 1e-8 && attempt < 8; attempt++) {
     const start = base.map((v, i) => v * Math.exp(.65 * Math.sin((i + 1) * (attempt + 1) * 1.7)));
-    const candidate = fitLadder(start, prototype.denominator, prototype.zeros);
+    const candidate = fitLadder(start, prototype.denominator, prototype.zeros, prototype.load);
     if (candidate.error < best.error) best = candidate;
   }
   if (best.error > 1e-7) throw new Error('Diese Cauer-Spezifikation konnte nicht zuverlässig synthetisiert werden. Bitte die Sperrdämpfung erhöhen oder den Grad verringern.');
-  const result = { values: best.values, zeros: prototype.zeros, stopbandRatio: prototype.stopbandRatio };
+  const result = { values: best.values, zeros: prototype.zeros, stopbandRatio: prototype.stopbandRatio, load: prototype.load };
   ellipticCache.set(key, result);
   return result;
 }
@@ -324,8 +353,8 @@ function inverseChebyshevPrototype(n: number, attenuation: number): EllipticProt
     denominator = mul(denominator, j ? [re * re + im * im, -2 * re, 1] : [-re, 1]);
     if (j) zeros.push(stopbandRatio / Math.sin(theta));
   }
-  return { poles, zeros, denominator: denominator.map(v => 2 * v / denominator[0]), stopbandRatio,
-    passbandFrequencies: Array.from({ length: 4 * n + 1 }, (_, i) => i / (4 * n)) };
+  return { load: 1, poles, zeros, denominator: denominator.map(v => 2 * v / denominator[0]), stopbandRatio,
+    reflectionZeros: [], passbandFrequencies: Array.from({ length: 4 * n + 1 }, (_, i) => i / (4 * n)) };
 }
 
 const polynomialAt = (p: number[], omega: number) => p.reduceRight<ComplexPair>(
@@ -433,6 +462,8 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
   const dual = (settings.ladderStart ?? defaultLadderStart(family)) !== defaultLadderStart(family);
   if (!Number.isInteger(n) || n < 1 || n > MAX_PROTOTYPE_ORDER) throw new Error('Der Filtergrad muss zwischen 1 und 100 liegen.');
   if (!(cutoff > 0) || !Number.isFinite(cutoff) || !(z > 0) || !Number.isFinite(z)) throw new Error('Frequenz und Impedanz müssen positiv sein.');
+  if (settings.loadImpedance !== undefined && (!Number.isFinite(settings.loadImpedance) || settings.loadImpedance < MIN_LOAD_IMPEDANCE || settings.loadImpedance > 1e9))
+    throw new Error('Die Lastimpedanz muss zwischen 0,001 Ω und 1 GΩ liegen.');
   if ((family === 'chebyshev' || family === 'cauer') && (!(ripple >= .01 && ripple <= 3) || !Number.isFinite(ripple))) throw new Error('Die Welligkeit muss zwischen 0,01 und 3 dB liegen.');
   const isBand = response === 'bandpass' || response === 'bandstop';
   const bandwidth = settings.bandwidth;
@@ -451,13 +482,20 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
     notes.push('Inverser Chebyshev: monotoner Durchlassbereich und gleichmäßige Sperrbandwelligkeit.');
     if (n > 1) notes.push('LC-Resonatoren erzeugen endliche Übertragungsnullstellen.');
   } else if (family === 'cauer') {
-    if (!CAUER_ORDERS.includes(n)) throw new Error('Die Cauer-Synthese unterstützt ungerade Grade von 3 bis 19.');
+    if (!CAUER_ORDERS.includes(n)) throw new Error('Die Cauer-Synthese unterstützt Grade von 2 bis 19.');
     if (!(attenuation >= 20 && attenuation <= 80)) throw new Error('Die Cauer-Sperrdämpfung muss zwischen 20 und 80 dB liegen.');
     if (attenuation < cauerMinimumAttenuation(n)) throw new Error('Cauer-Leiterstrukturen ab Grad 7 benötigen eine Sperrdämpfung zwischen 40 und 80 dB.');
-    const ell = ellipticLadder(n, ripple, attenuation);
+    if (settings.cauerVariant !== undefined && !['b', 'c'].includes(settings.cauerVariant)) throw new Error('Unbekannte Cauer-Variante.');
+    const ell = ellipticLadder(n, ripple, attenuation, settings.cauerVariant);
+    load = ell.load;
     sections = ell.values.map((v, i): Section => i % 2 === 0
       ? { id: `section-${i + 1}`, kind: 'C', connection: 'shunt', value: v }
+      : ell.zeros[(i - 1) / 2] === undefined ? { id: `section-${i + 1}`, kind: 'L', connection: 'series', value: v }
       : { id: `section-${i + 1}`, kind: 'LC', connection: 'series', value: v, value2: 1 / (ell.zeros[(i - 1) / 2] ** 2 * v), resonator: 'parallel' });
+    if (n % 2 === 0) notes.push(settings.cauerVariant === 'b'
+      ? 'Cauer gerader Ordnung: Typ B mit ungleichen Prototypabschlüssen und doppelter Übertragungsnullstelle im Unendlichen.'
+      : 'Cauer gerader Ordnung: modifizierter elliptischer Typ C mit gleichen Prototypabschlüssen und doppelter Übertragungsnullstelle im Unendlichen.');
+    if (n === 2) notes.push('Cauer mit Grad 2 besitzt keine endlichen Übertragungsnullstellen. Die Sperrdämpfung bestimmt hier die ausgewiesene Sperrbandgrenze, nicht die Bauteilwerte.');
     if (isBand) {
       const width = relativeBandwidth * (response === 'bandpass' ? ell.stopbandRatio : 1 / ell.stopbandRatio);
       const upper = (Math.hypot(width, 2) + width) / 2;
@@ -518,6 +556,9 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
   else if (isBand) notes.push(hasHalfPowerCutoff(family) ? 'Die beiden Bandgrenzen liegen bei −3,0103 dB.' : 'Die beiden Bandgrenzen liegen bei −Rp dB; die Sperrdämpfung wird innerhalb des Sperrbereichs erreicht.');
   else if (hasHalfPowerCutoff(family)) notes.push('Die Grenzfrequenz bezeichnet den −3,0103-dB-Punkt.');
   else notes.push('Die Grenzfrequenz bezeichnet die Durchlassbandgrenze bei −Rp dB.');
-  if (load !== 1) notes.push('Gerader Chebyshev-Grad: Der Ausgangsabschluss wird für die spezifizierte Welligkeit angepasst.');
-  return { sections, z2: z * (dual ? 1 / load : load), notes };
+  const prototypeLoad = z * (dual ? 1 / load : load);
+  if (family === 'chebyshev' && load !== 1 && settings.loadImpedance === undefined) notes.push('Gerader Chebyshev-Grad: Der Ausgangsabschluss wird für die spezifizierte Welligkeit angepasst.');
+  if (settings.loadImpedance !== undefined && settings.loadImpedance !== prototypeLoad)
+    notes.push('Freie Lastimpedanz: Der tatsächliche Frequenzgang weicht vom idealen Prototyp ab. Welligkeit, Reflexionsgrenze und Toleranzmaske sind damit nicht garantiert; es wird kein Anpassungsnetzwerk ergänzt.');
+  return { sections, z2: settings.loadImpedance ?? prototypeLoad, notes };
 }

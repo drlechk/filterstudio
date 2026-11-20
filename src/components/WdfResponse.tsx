@@ -14,8 +14,8 @@ import { analogToDigitalFrequency, sweepWdfComparison, transferReadout, wdfCompa
 type PlotControls = { plotScales: PlotScaleProps; dbRange: number; onDbRangeChange: (range: number) => void };
 const traces = [{ key: 'wdf', color: 'var(--trace-s21)' }, { key: 'analog', color: 'var(--trace-s11)' }] as const;
 
-export function WdfComparisonPlot({ data, min, max, cutoff, sampleRate, mode, plotScales, dbRange, onDbRangeChange }: {
-  data: WdfComparisonSample[]; min: number; max: number; cutoff: number; sampleRate: number; mode: 'magnitude' | 'phase';
+export function WdfComparisonPlot({ data, min, max, cutoff, sampleRate, prewarpFrequency, mode, plotScales, dbRange, onDbRangeChange }: {
+  data: WdfComparisonSample[]; min: number; max: number; cutoff: number; sampleRate: number; prewarpFrequency?: number; mode: 'magnitude' | 'phase';
 } & PlotControls) {
   const { t, number, language } = usePreferences();
   const { frequencyScale, magnitudeScale, phaseMode = "unwrapped" } = plotScales;
@@ -68,7 +68,7 @@ export function WdfComparisonPlot({ data, min, max, cutoff, sampleRate, mode, pl
   });
   const hi = hover === null || !data.length ? null : data.reduce((best, point, i) =>
     Math.abs(frequencyPosition(point.frequency, min, max, frequencyScale) - hover) < Math.abs(frequencyPosition(data[best].frequency, min, max, frequencyScale) - hover) ? i : best, 0);
-  const markers = [{ frequency: analogToDigitalFrequency(cutoff, sampleRate), label: 'f₀,WDF', color: traces[0].color },
+  const markers = [{ frequency: analogToDigitalFrequency(cutoff, sampleRate, prewarpFrequency), label: 'f₀,WDF', color: traces[0].color },
     { frequency: cutoff, label: 'f₀,analog', color: traces[1].color }].filter(marker => marker.frequency >= min && marker.frequency <= max);
   const hasGaps = curves.some(curve => enabled.includes(curve.key) && curve.values.some(value => value === null));
   return <section className="wdf-response-plot" aria-label={mode === 'phase' ? t('WDF-Phasengang', 'WDF phase response') : t('WDF-Betragsgang', 'WDF magnitude response')}>
@@ -84,7 +84,7 @@ export function WdfComparisonPlot({ data, min, max, cutoff, sampleRate, mode, pl
           onClick={() => setEnabled(previous => previous.includes(curve.key) ? previous.filter(key => key !== curve.key) : [...previous, curve.key])}>
           <span className={curve.key === 'analog' ? 'wdf-reference-swatch' : ''} style={{ color: curve.color, background: curve.key === 'analog' ? 'none' : curve.color }} />{label(curve.key)}
         </button>)}</div>
-        <button className="csv-button" onClick={() => downloadFile('filterstudio-wdf-comparison.csv', wdfComparisonCsv(data, sampleRate, phaseMode), 'text/csv')}>{t('CSV exportieren ↗', 'Export CSV ↗')}</button>
+        <button className="csv-button" onClick={() => downloadFile('filterstudio-wdf-comparison.csv', wdfComparisonCsv(data, sampleRate, phaseMode, prewarpFrequency), 'text/csv')}>{t('CSV exportieren ↗', 'Export CSV ↗')}</button>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t(
         `WDF und analoge Referenz: ${mode === 'phase' ? 'Phase in Grad' : magnitudeScale === 'db' ? 'Betrag in dB' : 'linearer Betrag'} über ${frequencyScale === 'log' ? 'logarithmischer' : 'linearer'} Frequenz`,
@@ -123,6 +123,7 @@ export function WdfResponse({ project, analysis, sampleRate, ...controls }: {
   const { t, translate, language } = usePreferences();
   const [requested, setRequested] = useState<{ min: number; max: number } | null>(null);
   const [unit, setUnit] = useState<FrequencyUnit>(() => sampleRate >= 1e9 ? 'GHz' : sampleRate >= 1e6 ? 'MHz' : sampleRate >= 1e3 ? 'kHz' : 'Hz');
+  const prewarpFrequency = project.wdf?.prewarpFrequency;
   const nyquist = sampleRate / 2;
   const range = wdfPlotRange(requested ?? project.sweep, sampleRate, controls.plotScales.frequencyScale);
   const sampled = useMemo(() => {
@@ -132,13 +133,14 @@ export function WdfResponse({ project, analysis, sampleRate, ...controls }: {
       for (const section of orderedSections(project.nodes, project.wires)) {
         if (section.kind === 'LC') landmarks.push(1 / (2 * Math.PI * Math.sqrt(section.value) * Math.sqrt(section.value2!)));
       }
-      return { data: sweepWdfComparison(analysis, sampleRate, { ...range, points: project.sweep.points }, controls.plotScales.frequencyScale, landmarks), error: null };
+      return { data: sweepWdfComparison(analysis, sampleRate, { ...range, points: project.sweep.points }, controls.plotScales.frequencyScale, landmarks, prewarpFrequency), error: null };
     } catch (e) { return { data: [], error: e instanceof Error ? e.message : String(e) }; }
-  }, [analysis, sampleRate, range.min, range.max, project.sweep.points, controls.plotScales.frequencyScale, project.settings, project.nodes, project.wires]);
+  }, [analysis, sampleRate, prewarpFrequency, range.min, range.max, project.sweep.points, controls.plotScales.frequencyScale, project.settings, project.nodes, project.wires]);
   return <section className="wdf-response" aria-label={t('WDF-Übertragungsfunktion und analoge Referenz', 'WDF transfer function and analog reference')}>
     <div className="response-heading"><div><h2>{t('WDF-Übertragungsfunktion und analoge Referenz', 'WDF transfer function and analog reference')}</h2>
       <p>{t('S₂₁ mit derselben Normierung wie in der analogen Analyse. Beide Kurven werden bei derselben Frequenz verglichen; die bilineare Frequenzverzerrung bleibt sichtbar.',
-        'S₂₁ uses the same normalization as the analog analysis. Both curves are compared at the same frequency, revealing the bilinear frequency warping.')}</p></div></div>
+        'S₂₁ uses the same normalization as the analog analysis. Both curves are compared at the same frequency, revealing the bilinear frequency warping.')}</p>
+      {prewarpFrequency !== undefined && <p>{t('Vorverzerrung aktiv: Übereinstimmung bei', 'Prewarping enabled: responses match at')} {formatEngineering(prewarpFrequency, 'Hz', 6, language)}. {t('Andere Frequenzen bleiben nichtlinear verzerrt.', 'Other frequencies remain nonlinearly warped.')}</p>}</div></div>
     <div className="wdf-response-range">
       <label><span>{t('Startfrequenz', 'Start frequency')}</span><FrequencyInput label={t('WDF-Startfrequenz', 'WDF start frequency')} value={range.min} unit={unit} onUnitChange={setUnit}
         min={controls.plotScales.frequencyScale === 'linear' ? 0 : Math.min(.001, range.max / 1000)} max={range.max * .999} onChange={min => setRequested({ ...range, min })} /></label>
@@ -148,8 +150,8 @@ export function WdfResponse({ project, analysis, sampleRate, ...controls }: {
         <button className="button" onClick={() => setRequested({ min: controls.plotScales.frequencyScale === 'linear' ? 0 : nyquist / 1000, max: nyquist })}>{t('Bis Nyquist', 'Up to Nyquist')}</button></div>
     </div>
     {sampled.error ? <p className="empty-analysis" role="status">{translate(sampled.error)}</p> : <>
-      <WdfComparisonPlot {...controls} {...range} data={sampled.data} sampleRate={sampleRate} cutoff={project.settings.cutoff} mode="magnitude" />
-      <WdfComparisonPlot {...controls} {...range} data={sampled.data} sampleRate={sampleRate} cutoff={project.settings.cutoff} mode="phase" />
+      <WdfComparisonPlot {...controls} {...range} data={sampled.data} sampleRate={sampleRate} prewarpFrequency={prewarpFrequency} cutoff={project.settings.cutoff} mode="magnitude" />
+      <WdfComparisonPlot {...controls} {...range} data={sampled.data} sampleRate={sampleRate} prewarpFrequency={prewarpFrequency} cutoff={project.settings.cutoff} mode="phase" />
     </>}
   </section>;
 }

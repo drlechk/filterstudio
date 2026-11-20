@@ -29,9 +29,21 @@ it('renders standalone magnitude and phase comparisons without circuit controls 
 });
 
 it('shows no stale comparison when the circuit or WDF parameters are invalid', () => {
-  for (const p of [{ ...project, wires: [] }, { ...project, wdf: { sampleRate: 0 } }]) {
+  for (const p of [{ ...project, wires: [] }, { ...project, wdf: { sampleRate: 0 } }, { ...project, wdf: { sampleRate: 48000, prewarpFrequency: 24000 } }]) {
     const html = render(p);
     expect(html).toContain('The analog circuit is not ready yet.');
     expect(html).not.toContain('data-trace=');
   }
+});
+
+it('uses prewarping in both standalone plots and keeps the match information in detached plots', () => {
+  const p = { ...project, wdf: { sampleRate: 8e6, prewarpFrequency: 1e6 } };
+  const warped = render(p, true), plain = render({ ...p, wdf: { sampleRate: 8e6 } }, true);
+  expect(warped).toContain('Prewarping enabled: responses match at');
+  expect(warped).not.toMatch(/NaN|Infinity/);
+  const paths = (html: string, trace: string) => [...html.matchAll(new RegExp(`data-trace="${trace}" d="([^"]*)"`, 'g'))].map(match => match[1]);
+  expect(paths(warped, 'wdf')).not.toEqual(paths(plain, 'wdf'));
+  // f0 is already a landmark with and without prewarping, so match-frequency
+  // metadata cannot cause the analog reference to be transformed itself.
+  expect(paths(warped, 'analog')).toHaveLength(2);
 });

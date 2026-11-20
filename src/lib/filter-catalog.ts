@@ -84,7 +84,7 @@ export function catalogReference(settings: FilterSettings): CatalogReference | n
     return candidates.find(entry => Math.abs(entry.ripple! - settings.ripple) <= 1e-10) ?? null;
   if (!Number.isFinite(settings.attenuation) || settings.attenuation <= settings.ripple) return null;
   const reflectionPercent = reflectionPercentFromRipple(settings.ripple);
-  const modularAngle = modularAngleFromAttenuation(settings.order, settings.ripple, settings.attenuation);
+  const modularAngle = modularAngleFromAttenuation(settings.order, settings.ripple, settings.attenuation, settings.cauerVariant);
   if (!Number.isFinite(modularAngle)) return null;
   return candidates.find(entry => Math.abs(entry.reflectionPercent! - reflectionPercent) <= 1e-8 &&
     Math.abs(entry.modularAngle! - modularAngle) <= 1e-8) ?? null;

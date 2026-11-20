@@ -9,7 +9,10 @@ export type Section = {
 };
 export type FilterFamily = "butterworth" | "chebyshev" | "chebyshev2" | "cauer" | "bessel" | "legendre" | "linkwitz-riley";
 export type FilterResponse = "lowpass" | "highpass" | "bandpass" | "bandstop";
+export type CauerVariant = 'b' | 'c';
 export type FilterSettings = {
+  /** Even-order elliptic class; absent selects equal-termination class C. */
+  cauerVariant?: CauerVariant;
   family: FilterFamily;
   response: FilterResponse;
   /** First ladder branch; omitted in legacy files to retain the family's original topology. */
@@ -18,6 +21,8 @@ export type FilterSettings = {
   cutoff: number;
   bandwidth?: number;
   impedance: number;
+  /** Actual resistive load in ohms; omitted uses the prototype termination. */
+  loadImpedance?: number;
   ripple: number;
   attenuation: number;
 };
@@ -37,6 +42,12 @@ export type ToleranceSpec = {
   stopbandLoss: number;
 };
 export type ComponentPrecision = number | "full";
+export type WdfSettings = {
+  sampleRate: number;
+  rootId?: string;
+  /** Single match frequency in Hz, strictly below Nyquist; omitted disables prewarping. */
+  prewarpFrequency?: number;
+};
 export type Project = {
   version: 1;
   name: string;
@@ -48,6 +59,6 @@ export type Project = {
   /** Significant digits for component labels; omitted in legacy projects (4). */
   componentPrecision?: ComponentPrecision;
   /** WDF discretization and preferred root adaptor; absent in analog-only files. */
-  wdf?: { sampleRate: number; rootId?: string };
+  wdf?: WdfSettings;
   sweep: { min: number; max: number; points: number };
 };

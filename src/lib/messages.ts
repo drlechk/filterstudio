@@ -2,6 +2,18 @@ import type { Language } from "./preference-storage";
 
 /** Engine messages stay canonical German so open diagnostics can change language. */
 const english: Record<string, string> = {
+  "Unbekannte Cauer-Variante.": "Unknown elliptic class.",
+  "Cauer gerader Ordnung: Typ B mit ungleichen Prototypabschlüssen und doppelter Übertragungsnullstelle im Unendlichen.":
+    "Even-order Cauer: class B with unequal prototype terminations and a double transmission zero at infinity.",
+  "Cauer mit Grad 2 besitzt keine endlichen Übertragungsnullstellen. Die Sperrdämpfung bestimmt hier die ausgewiesene Sperrbandgrenze, nicht die Bauteilwerte.":
+    "Cauer of order 2 has no finite transmission zeros. Stopband attenuation determines the reported stopband edge here, not the component values.",
+  "Die Lastimpedanz muss zwischen 0,001 Ω und 1 GΩ liegen.": "Load impedance must be between 0.001 Ω and 1 GΩ.",
+  "Cauer gerader Ordnung: modifizierter elliptischer Typ C mit gleichen Prototypabschlüssen und doppelter Übertragungsnullstelle im Unendlichen.":
+    "Even-order Cauer: modified elliptic class C with equal prototype terminations and a double transmission zero at infinity.",
+  "Freie Lastimpedanz: Der tatsächliche Frequenzgang weicht vom idealen Prototyp ab. Welligkeit, Reflexionsgrenze und Toleranzmaske sind damit nicht garantiert; es wird kein Anpassungsnetzwerk ergänzt.":
+    "Custom load: the actual response differs from the ideal prototype. Ripple, reflection limit and tolerance mask are no longer guaranteed; no matching network is added.",
+  "WDF: Die Vorverzerrungsfrequenz muss positiv und kleiner als die Nyquist-Frequenz sein.":
+    "WDF: the prewarping frequency must be positive and below the Nyquist frequency.",
   "Der Leiterbeginn muss series oder shunt sein.": "Ladder start must be series or shunt.",
   "WDF: Ungültige Verbindung im Signalflussgraphen.": "WDF: invalid connection in the signal-flow graph.",
   "WDF: Der Signalflussgraph enthält eine verzögerungsfreie Schleife.": "WDF: the signal-flow graph contains a delay-free loop.",
@@ -73,8 +85,8 @@ const english: Record<string, string> = {
     "The file contains an invalid tolerance mask.",
   "Ungültige Anzeigegenauigkeit für Bauteilwerte.":
     "The file contains an invalid component display precision.",
-  "Cauer benötigt einen ungeraden Grad von 3 bis 19; ab Grad 7 mindestens 40 dB Sperrdämpfung.":
-    "Cauer requires an odd order from 3 to 19; orders 7 and above require at least 40 dB of stopband attenuation.",
+  "Cauer benötigt einen Grad von 2 bis 19; ab Grad 7 mindestens 40 dB Sperrdämpfung.":
+    "Cauer requires an order from 2 to 19; orders 7 and above require at least 40 dB of stopband attenuation.",
   "Die Bandbreite muss positiv, endlich und höchstens 1 THz sein.":
     "Bandwidth must be positive, finite, and at most 1 THz.",
   "Beide Bandgrenzen müssen zwischen 1 Hz und 1 THz liegen.":
@@ -108,8 +120,8 @@ const english: Record<string, string> = {
     "Ripple must be between 0.01 and 3 dB.",
   "Für Bandfilter muss eine endliche, positive Bandbreite in Hz angegeben werden.":
     "Band filters require a finite, positive bandwidth in Hz.",
-  "Die Cauer-Synthese unterstützt ungerade Grade von 3 bis 19.":
-    "Cauer synthesis supports odd orders from 3 to 19.",
+  "Die Cauer-Synthese unterstützt Grade von 2 bis 19.":
+    "Cauer synthesis supports orders from 2 to 19.",
   "Die Cauer-Sperrdämpfung muss zwischen 20 und 80 dB liegen.":
     "Cauer stopband attenuation must be between 20 and 80 dB.",
   "Cauer-Leiterstrukturen ab Grad 7 benötigen eine Sperrdämpfung zwischen 40 und 80 dB.":

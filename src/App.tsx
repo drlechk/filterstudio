@@ -1,3 +1,4 @@
+import { CauerVariantControl } from "./components/CauerVariantControl";
 import {
   memo,
   lazy,
@@ -70,6 +71,7 @@ import { SectionMatrixView } from "./components/SectionMatrixView";
 import { ApproximationView } from "./components/ApproximationView";
 import { ToleranceControls } from "./components/ToleranceControls";
 import { LadderStartControl } from "./components/LadderStartControl";
+import { LoadImpedanceControl } from "./components/LoadImpedanceControl";
 import { FilterCatalog } from "./components/FilterCatalog";
 import { TolerancePlot } from "./components/TolerancePlot";
 import {
@@ -649,7 +651,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
       MIN_RELATIVE_BANDWIDTH * (1 - 1e-12);
   const reference = useMemo(() => {
     try {
-      return synthesize(project.settings);
+      return synthesize({ ...project.settings, loadImpedance: undefined });
     } catch {
       return null;
     }
@@ -675,8 +677,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
     [reference, project.settings],
   );
   const toleranceDesign = useMemo(
-    () => designTolerance(toleranceDraft, settings.family, settings.impedance, settings.ladderStart),
-    [toleranceDraft, settings.family, settings.impedance, settings.ladderStart],
+    () => designTolerance(toleranceDraft, settings.family, settings.impedance, settings.ladderStart, settings.loadImpedance, settings.cauerVariant),
+    [toleranceDraft, settings.family, settings.impedance, settings.ladderStart, settings.loadImpedance, settings.cauerVariant],
   );
   const tolerancePreview = useMemo(() => {
     if (!toleranceDesign.settings || (designMode !== "tolerance" && resultTab !== "tolerance"))
@@ -1359,14 +1361,12 @@ const FilterWorkspace = memo(function FilterWorkspace({
                           unit="Ω"
                           min={selected.port === "input" ? 0.01 : MIN_LOAD_IMPEDANCE}
                           max={selected.port === "input" ? 1e6 : 1e9}
-                          onChange={(n) =>
-                            selected.port === "input"
-                              ? commit({
-                                  ...project,
-                                  settings: { ...project.settings, impedance: n },
-                                })
-                              : commit({ ...project, z2: n })
-                          }
+                          onChange={(n) => {
+                            const patch = selected.port === "input" ? { impedance: n } : { loadImpedance: n };
+                            setSettings(previous => ({ ...previous, ...patch }));
+                            commit({ ...project, settings: { ...project.settings, ...patch },
+                              z2: selected.port === "input" ? project.z2 : n });
+                          }}
                         />
                       </div>
                       <p className="inspector-note">
@@ -2526,14 +2526,15 @@ const FilterWorkspace = memo(function FilterWorkspace({
                   </>
                 )}
                 <LadderStartControl settings={settings} onChange={ladderStart => updateSettings({ ladderStart })} />
+                <CauerVariantControl settings={settings} onChange={updateSettings} />
                 <div className="parameter-field">
                   <label className="field-label">
-                    {t("Bezugsimpedanz", "Reference impedance")} <span>Z₀</span>
+                    {t("Quellenimpedanz", "Source impedance")} <span>Rₛ</span>
                   </label>
                   <PositiveInput
                     label={t(
-                      "Bezugsimpedanz in Ohm",
-                      "Reference impedance in ohms",
+                      "Quellenimpedanz in Ohm",
+                      "Source impedance in ohms",
                     )}
                     value={settings.impedance}
                     unit="Ω"
@@ -2542,6 +2543,7 @@ const FilterWorkspace = memo(function FilterWorkspace({
                     onChange={(n) => updateSettings({ impedance: n })}
                   />
                 </div>
+                <LoadImpedanceControl settings={designMode === "tolerance" ? toleranceDesign.settings ?? settings : settings} onChange={updateSettings} />
                 {designMode === "parameters" &&
                   (settings.family === "chebyshev" || settings.family === "cauer") && (
                     <div className="parameter-field">
@@ -2813,8 +2815,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
               </p>
               <p>
                 {t(
-                  "Beim Tief- und Hochpass ist f₀ bei Butterworth/Bessel/Legendre die −3,01-dB-Grenze, bei Chebyshev I/Cauer die Durchlassgrenze und bei Chebyshev II die Sperrbandgrenze bei −Rₛ dB. Chebyshev I gerader Ordnung erhält automatisch die erforderliche Ausgangsimpedanz. Butterworth/Chebyshev I unterstützen n = 1–100, Bessel/Legendre n = 1–20, Chebyshev II ungerade Grade 1–11 und Cauer ungerade Grade 3–19. Die Mindest-Sperrdämpfung der jeweiligen LC-Leiter wird im Generator angezeigt. Die LC-Werte werden numerisch synthetisiert und geprüft.",
-                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth/Bessel/Legendre, the passband edge for Chebyshev I/elliptic, and the stopband edge at −Rₛ dB for Chebyshev II. Even-order Chebyshev I automatically receives the required output impedance. Butterworth/Chebyshev I support n = 1–100, Bessel/Legendre n = 1–20, Chebyshev II odd orders 1–11, and elliptic odd orders 3–19. The generator shows each ladder's minimum stopband attenuation. LC values are numerically synthesized and verified.",
+                  "Beim Tief- und Hochpass ist f₀ bei Butterworth/Bessel/Legendre die −3,01-dB-Grenze, bei Chebyshev I/Cauer die Durchlassgrenze und bei Chebyshev II die Sperrbandgrenze bei −Rₛ dB. Chebyshev I gerader Ordnung erhält automatisch die erforderliche Ausgangsimpedanz. Butterworth/Chebyshev I unterstützen n = 1–100, Bessel/Legendre n = 1–20, Chebyshev II ungerade Grade 1–11 und Cauer Grade 2–19 (gerade Grade als Typ B oder C). Die Mindest-Sperrdämpfung der jeweiligen LC-Leiter wird im Generator angezeigt. Die LC-Werte werden numerisch synthetisiert und geprüft.",
+                  "For low-pass and high-pass filters, f₀ is the −3.01 dB cutoff for Butterworth/Bessel/Legendre, the passband edge for Chebyshev I/elliptic, and the stopband edge at −Rₛ dB for Chebyshev II. Even-order Chebyshev I automatically receives the required output impedance. Butterworth/Chebyshev I support n = 1–100, Bessel/Legendre n = 1–20, Chebyshev II odd orders 1–11, and elliptic orders 2–19 (even orders use class B or C). The generator shows each ladder's minimum stopband attenuation. LC values are numerically synthesized and verified.",
                 )}
               </p>
               <p>

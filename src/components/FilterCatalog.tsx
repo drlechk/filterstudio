@@ -1,3 +1,4 @@
+import { CauerVariantControl } from "./CauerVariantControl";
 import { useMemo } from "react";
 import { ArrowRight, Check, ExternalLink, Sparkles } from "lucide-react";
 import { usePreferences } from "../lib/preferences";
@@ -7,6 +8,7 @@ import { filterDegree } from "../lib/frequency";
 import { formatEngineering } from "../lib/network";
 import { SpecSlider, ToleranceControls, toleranceIssueLabels } from "./ToleranceControls";
 import { LadderStartControl } from "./LadderStartControl";
+import { LoadImpedanceControl } from "./LoadImpedanceControl";
 import { catalogReference, catalogSources, catalogTableSource } from "../lib/filter-catalog";
 import type { FrequencyUnit } from "../lib/frequency-units";
 import type { FilterFamily, FilterSettings, ToleranceSpec } from "../lib/types";
@@ -36,14 +38,14 @@ export function FilterCatalog({ spec, settings, onSelect, onGenerate, onShowMask
   const engineering = (value: number, unit: string) =>
     formatEngineering(value, unit, 4, language === "de" ? "de-DE" : "en-US");
   const candidates = useMemo(() => families.map(([family, name]) => {
-    const design = designTolerance(spec, family, settings.impedance, settings.ladderStart);
+    const design = designTolerance(spec, family, settings.impedance, settings.ladderStart, settings.loadImpedance, settings.cauerVariant);
     return { family, name, design, reference: design.settings ? catalogReference(design.settings) : null };
-  }), [spec, settings.impedance, settings.ladderStart]);
+  }), [spec, settings.impedance, settings.ladderStart, settings.loadImpedance, settings.cauerVariant]);
   const selected = candidates.find(candidate => candidate.family === settings.family)!;
   const prototype = useMemo(() => {
     if (!selected.design.settings) return null;
     try {
-      return synthesize({ ...selected.design.settings, response: "lowpass", cutoff: 1 / (2 * Math.PI), bandwidth: undefined, impedance: 1 });
+      return synthesize({ ...selected.design.settings, response: "lowpass", cutoff: 1 / (2 * Math.PI), bandwidth: undefined, impedance: 1, loadImpedance: undefined });
     } catch {
       return null;
     }
@@ -91,11 +93,13 @@ export function FilterCatalog({ spec, settings, onSelect, onGenerate, onShowMask
             <option value="bandstop">{t("Bandsperre", "Band-stop")}</option>
           </select>
         </label>
-        <SpecSlider label={t("Bezugsimpedanz", "Reference impedance")} symbol="Z₀" unit="Ω"
+        <SpecSlider label={t("Quellenimpedanz", "Source impedance")} symbol="Rₛ" unit="Ω"
           value={settings.impedance} min={0.01} max={1e6} step={0.001} logarithmic
           onChange={impedance => onSettingsChange({ impedance })} />
       </div>
       <LadderStartControl settings={settings} onChange={ladderStart => onSettingsChange({ ladderStart })} />
+      <CauerVariantControl settings={settings} onChange={onSettingsChange} />
+      <LoadImpedanceControl settings={selected.design.settings ?? settings} onChange={onSettingsChange} />
       <ToleranceControls spec={spec} design={selected.design} family={settings.family}
         frequencyUnit={frequencyUnit} onFrequencyUnitChange={onFrequencyUnitChange}
         onChange={onSpecChange} showSummary={false} />

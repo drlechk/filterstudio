@@ -8,7 +8,7 @@ export const defaultLadderStart = (family: FilterFamily): 'series' | 'shunt' =>
 // These spectral-factor tables are independently validated through order 20.
 export const MAX_MONOTONIC_ORDER = 20;
 export const LINKWITZ_RILEY_ORDERS: readonly number[] = Array.from({ length: MAX_PROTOTYPE_ORDER / 2 }, (_, i) => 2 * (i + 1));
-export const CAUER_ORDERS: readonly number[] = [3, 5, 7, 9, 11, 13, 15, 17, 19];
+export const CAUER_ORDERS: readonly number[] = Array.from({ length: 18 }, (_, i) => i + 2);
 export const MAX_CAUER_ORDER = CAUER_ORDERS[CAUER_ORDERS.length - 1];
 // Validated positive-element, transformer-free inverse-Chebyshev ladders.
 export const CHEBYSHEV_II_ORDERS: readonly number[] = [1, 3, 5, 7, 9, 11];
@@ -16,7 +16,7 @@ export const chebyshevIIMinimumAttenuation = (order: number) => order >= 11 ? 80
 export const minimumStopbandAttenuation = (family: FilterFamily, order: number) =>
   family === "chebyshev2" ? chebyshevIIMinimumAttenuation(order) : family === "cauer" ? cauerMinimumAttenuation(order) : 20;
 export function filterOrderLimits(family: FilterFamily) {
-  return family === "cauer" ? { min: 3, max: MAX_CAUER_ORDER, step: 2 }
+  return family === "cauer" ? { min: 2, max: MAX_CAUER_ORDER, step: 1 }
     : family === "chebyshev2" ? { min: 1, max: 11, step: 2 }
     : family === "linkwitz-riley" ? { min: 2, max: MAX_PROTOTYPE_ORDER, step: 2 }
     : family === "bessel" || family === "legendre" ? { min: 1, max: MAX_MONOTONIC_ORDER, step: 1 }

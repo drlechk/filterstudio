@@ -41,7 +41,8 @@ const scalarLatex = (value: number) => polynomialLatex([value]);
 /**
  * Classical characteristic functions: |S21,ref|² = 1 / (1 + ε² F_n(Ω)²).
  * This is the design reference, independent of edits to the actual circuit.
- * Cauer uses the odd elliptic rational function normalized to R_n(1)=1:
+ * Cauer uses the classical odd or modified class-C even rational function,
+ * normalized to R_n(1)=1. For odd orders:
  * reflection roots sn(2jK/n,m), poles 1/(sqrt(m) sn(2jK/n,m)).
  * The existing prototype provides the poles and 1/sqrt(m), avoiding a second
  * elliptic-function implementation. See Wolfram's EllipticRationalR reference:
@@ -83,17 +84,19 @@ export function filterApproximation(
     stopbandRatio = 1;
     symbol = `F_{${order}}(\\Omega)=\\frac{1}{T_{${order}}(1/\\Omega)}`;
   } else {
-    const prototype = ellipticPrototype(order, ripple, attenuation);
+    const prototype = ellipticPrototype(order, ripple, attenuation, settings.cauerVariant);
     stopbandRatio = prototype.stopbandRatio;
-    numerator = [0, 1];
+    numerator = order % 2 ? [0, 1] : [1];
     let normalization = 1;
-    for (const pole of prototype.zeros) {
-      const root = stopbandRatio / pole;
+    for (const root of prototype.reflectionZeros) {
       numerator = polyMultiply(numerator, [-root * root, 0, 1]);
+      normalization /= (1 - root) * (1 + root);
+    }
+    for (const pole of prototype.zeros) {
       denominator = polyMultiply(denominator, [1, 0, -1 / (pole * pole)]);
       // Evaluate the normalization in factored form: expanded high-order
       // polynomials lose precision when their alternating terms nearly cancel.
-      normalization *= ((1 - 1 / pole) * (1 + 1 / pole)) / ((1 - root) * (1 + root));
+      normalization *= (1 - 1 / pole) * (1 + 1 / pole);
     }
     numerator = polyScale(numerator, normalization);
     symbol = `F_{${order}}(\\Omega)=R_{${order}}(\\Omega)`;

@@ -145,6 +145,8 @@ export function designTolerance(
   family: FilterFamily,
   impedance: number,
   ladderStart?: FilterSettings['ladderStart'],
+  loadImpedance?: number,
+  cauerVariant?: FilterSettings['cauerVariant'],
 ): ToleranceDesign {
   const { max: maximumOrder } = filterOrderLimits(family);
   const issue = validateTolerance(spec);
@@ -197,12 +199,13 @@ export function designTolerance(
     // Only the supported range is searched; do not invent a minimum beyond it.
     minimumOrder = order || maximumOrder + 1;
   } else if (family === "cauer") {
-    // Choose the smallest supported odd prototype satisfying the mask.
+    // Choose the smallest supported prototype satisfying the mask; even classes B/C
+    // have a wider transition than the classical elliptic order estimate.
     order =
       CAUER_ORDERS.find((n) => {
         const rs = Math.max(cauerMinimumAttenuation(n), as);
         return (
-          ellipticPrototype(n, ap, rs).stopbandRatio <=
+          ellipticPrototype(n, ap, rs, cauerVariant).stopbandRatio <=
           stopbandRatio * (1 + 1e-12)
         );
       }) ?? 0;
@@ -239,6 +242,8 @@ export function designTolerance(
     order,
     cutoff,
     impedance,
+    ...(cauerVariant !== undefined ? { cauerVariant } : {}),
+    ...(loadImpedance !== undefined ? { loadImpedance } : {}),
     ripple: ap,
     attenuation,
     ...(band ? { bandwidth } : {}),

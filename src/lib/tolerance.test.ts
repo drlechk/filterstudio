@@ -58,6 +58,25 @@ const masks: Record<FilterResponse, ToleranceSpec> = {
 };
 
 describe("analog tolerance-mask design", () => {
+  it.each(responses)('uses the class-B stopband edge and terminations for the %s mask', response => {
+    const spec = masks[response];
+    for (const ladderStart of ['series', 'shunt'] as const) {
+      const design = designTolerance(spec, 'cauer', 75, ladderStart, undefined, 'b');
+      expect(design.issue).toBeNull();
+      expect(design.settings?.cauerVariant).toBe('b');
+      const result = synthesize(design.settings!);
+      const network = analyzeNetwork(result.sections, { fRef: design.settings!.cutoff, z1: 75, z2: result.z2 });
+      const regions = toleranceRegions(spec, 100, 1e10);
+      for (const [region, intervals] of Object.entries(regions)) for (const [lo, hi] of intervals) {
+        for (let i = 0; i <= 200; i++) {
+          const db = decibels(network.evaluate(lo * (hi / lo) ** (i / 200)).s21);
+          if (region === 'passband') expect(db).toBeGreaterThanOrEqual(-spec.passbandLoss - 1e-6);
+          else if (region === 'stopband') expect(db).toBeLessThanOrEqual(-spec.stopbandLoss + 1e-6);
+        }
+      }
+    }
+  });
+
   it("chooses known analog prototype orders and respects the supported Cauer ladders", () => {
     const butterworth = designTolerance(masks.lowpass, "butterworth", 50);
     const chebyshev = designTolerance(masks.lowpass, "chebyshev", 50);
@@ -67,7 +86,7 @@ describe("analog tolerance-mask design", () => {
     expect(chebyshev.minimumOrder).toBe(5);
     expect(chebyshev.settings?.order).toBe(5);
     expect(cauer.minimumOrder).toBe(4);
-    expect(cauer.settings?.order).toBe(5);
+    expect(cauer.settings?.order).toBe(4);
   });
 
   for (const family of families)
@@ -209,7 +228,7 @@ describe("analog tolerance-mask design", () => {
     for (const family of families) {
       const stopRatio = family === 'butterworth' ? Math.exp(Math.log(ratio) / (2 * 19.5))
         : family === 'chebyshev' ? Math.cosh(Math.acosh(Math.sqrt(ratio)) / 19.5)
-        : (ellipticPrototype(17, passbandLoss, stopbandLoss).stopbandRatio + ellipticPrototype(19, passbandLoss, stopbandLoss).stopbandRatio) / 2;
+        : (ellipticPrototype(18, passbandLoss, stopbandLoss).stopbandRatio + ellipticPrototype(19, passbandLoss, stopbandLoss).stopbandRatio) / 2;
       const spec = { ...masks.lowpass, passbandLoss, stopbandLoss, stopband: [1e6 * stopRatio] };
       const design = designTolerance(spec, family, 50);
       expect(design.issue).toBeNull();

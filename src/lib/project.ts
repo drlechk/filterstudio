@@ -3,6 +3,7 @@ import { bandEdges, isBandResponse, MIN_RELATIVE_BANDWIDTH } from './frequency';
 import { parseTolerance } from './tolerance';
 import { CIRCUIT_INITIAL_Y, CIRCUIT_PORT_SPACING, CIRCUIT_SPACING } from './circuit-layout';
 import { isComponentPrecision } from './component-rounding';
+import { wdfComponentScale } from './wdf-prewarp';
 import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, LINKWITZ_RILEY_ORDERS, MAX_MONOTONIC_ORDER, MAX_PROTOTYPE_ORDER, MAX_CIRCUIT_NODES, MIN_LOAD_IMPEDANCE, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from './filter-limits';
 
 export const defaultSettings: FilterSettings = { family: 'butterworth', response: 'lowpass', order: 5, cutoff: 1e6, impedance: 50, ripple: 0.5, attenuation: 40 };
@@ -48,11 +49,19 @@ export function parseProject(raw: unknown): Project {
   if (!object(raw) || raw.version !== 1 || typeof raw.name !== 'string' || raw.name.length > 120) throw new Error('Keine gültige Filterstudio-Datei (Version 1).');
   const s = raw.settings;
   if (!object(s) || !oneOf(s.family, ['butterworth', 'chebyshev', 'chebyshev2', 'cauer', 'bessel', 'legendre', 'linkwitz-riley'] as const) || !oneOf(s.response, ['lowpass', 'highpass', 'bandpass', 'bandstop'] as const) || !range(s.order, 1, MAX_PROTOTYPE_ORDER) || !Number.isInteger(s.order) || !range(s.cutoff, 1, 1e12) || !range(s.impedance, .01, 1e6) || !range(s.ripple, .1, 3) || !range(s.attenuation, 20, 80) || !range(raw.z2, MIN_LOAD_IMPEDANCE, 1e9)) throw new Error('Ungültige Filterparameter in der Datei.');
-  if (s.family === 'cauer' && (!CAUER_ORDERS.includes(s.order) || s.attenuation < cauerMinimumAttenuation(s.order))) throw new Error('Cauer benötigt einen ungeraden Grad von 3 bis 19; ab Grad 7 mindestens 40 dB Sperrdämpfung.');
+  if (s.family === 'cauer' && (!CAUER_ORDERS.includes(s.order) || s.attenuation < cauerMinimumAttenuation(s.order))) throw new Error('Cauer benötigt einen Grad von 2 bis 19; ab Grad 7 mindestens 40 dB Sperrdämpfung.');
   if (s.family === 'chebyshev2' && (!CHEBYSHEV_II_ORDERS.includes(s.order) || s.attenuation < chebyshevIIMinimumAttenuation(s.order))) throw new Error('Chebyshev II benötigt ungerade Grade von 1 bis 11 und die für den Grad unterstützte Sperrdämpfung.');
   if (s.family === 'linkwitz-riley' && !LINKWITZ_RILEY_ORDERS.includes(s.order)) throw new Error('Linkwitz–Riley unterstützt gerade Grade von 2 bis 100.');
   if ((s.family === 'bessel' || s.family === 'legendre') && s.order > MAX_MONOTONIC_ORDER) throw new Error('Bessel und Legendre unterstützen Grade von 1 bis 20.');
   const settings: FilterSettings = { family: s.family, response: s.response, order: s.order, cutoff: s.cutoff, impedance: s.impedance, ripple: s.ripple, attenuation: s.attenuation };
+  if (s.cauerVariant !== undefined) {
+    if (!oneOf(s.cauerVariant, ['b', 'c'] as const)) throw new Error('Unbekannte Cauer-Variante.');
+    settings.cauerVariant = s.cauerVariant;
+  }
+  if (s.loadImpedance !== undefined) {
+    if (!range(s.loadImpedance, MIN_LOAD_IMPEDANCE, 1e9)) throw new Error('Die Lastimpedanz muss zwischen 0,001 Ω und 1 GΩ liegen.');
+    settings.loadImpedance = s.loadImpedance;
+  }
   if (s.ladderStart !== undefined) {
     if (!oneOf(s.ladderStart, ['series', 'shunt'] as const)) throw new Error('Der Leiterbeginn muss series oder shunt sein.');
     settings.ladderStart = s.ladderStart;
@@ -109,6 +118,11 @@ export function parseProject(raw: unknown): Project {
   if (raw.wdf !== undefined) {
     if (!object(raw.wdf) || !range(raw.wdf.sampleRate, 1, 1e15) || (raw.wdf.rootId !== undefined && (typeof raw.wdf.rootId !== 'string' || !raw.wdf.rootId.length || raw.wdf.rootId.length > 256))) throw new Error('Ungültige WDF-Einstellungen in der Datei.');
     wdf = { sampleRate: raw.wdf.sampleRate, ...(typeof raw.wdf.rootId === 'string' ? { rootId: raw.wdf.rootId } : {}) };
+    if (raw.wdf.prewarpFrequency !== undefined) {
+      if (typeof raw.wdf.prewarpFrequency !== 'number') throw new Error('Ungültige WDF-Einstellungen in der Datei.');
+      wdfComponentScale(wdf.sampleRate, raw.wdf.prewarpFrequency);
+      wdf.prewarpFrequency = raw.wdf.prewarpFrequency;
+    }
   }
   return { version: 1, name: raw.name, settings, nodes, wires, z2: raw.z2, ...(tolerance ? { tolerance } : {}), ...(raw.componentPrecision !== undefined ? { componentPrecision: raw.componentPrecision } : {}), ...(wdf ? { wdf } : {}), sweep: { min: sweep.min, max: sweep.max, points: sweep.points } };
 }

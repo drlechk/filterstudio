@@ -11,6 +11,7 @@ import type { FrequencyUnit } from '../lib/frequency-units';
 import { formatEngineering } from '../lib/network';
 import { downloadFile } from '../lib/project';
 import type { Project } from '../lib/types';
+import { analogToDigitalFrequency } from '../lib/wdf-response';
 import { buildWdf, defaultWdfSampleRate, exportWdf, MAX_WDF_SAMPLE_RATE, type WdfAdaptor, type WdfElement, type WdfModel, type WdfSettings } from '../lib/wdf';
 import { wdfLadderLayout, type PortSide, type WdfLayoutMode } from '../lib/wdf-layout';
 import './WdfView.css';
@@ -204,22 +205,32 @@ export function WdfView({ project, onChange, representation = 'adaptors' }: {
 }) {
   const { t, translate, language, theme } = usePreferences();
   const sampleRate = project.wdf?.sampleRate ?? defaultWdfSampleRate(project.settings);
+  const prewarpFrequency = project.wdf?.prewarpFrequency;
   const [unit, setUnit] = useState<FrequencyUnit>(() => sampleRate >= 1e9 ? 'GHz' : sampleRate >= 1e6 ? 'MHz' : sampleRate >= 1e3 ? 'kHz' : 'Hz');
   const [selectedId, setSelectedId] = useState('');
   const [layoutMode, setLayoutMode] = useState<WdfLayoutMode>('ladder');
   const result = useMemo(() => {
     try { return { model: buildWdf(project, sampleRate, project.wdf?.rootId), error: null }; }
     catch (e) { return { model: null, error: e instanceof Error ? e.message : String(e) }; }
-  }, [project.nodes, project.wires, project.settings, project.z2, sampleRate, project.wdf?.rootId]);
+  }, [project.nodes, project.wires, project.settings, project.z2, sampleRate, project.wdf?.rootId, prewarpFrequency]);
   const model = result.model;
   const selected = model?.adaptors.find(a => a.id === selectedId) ?? model?.adaptors.find(a => a.id === model.rootId);
   const flow = useMemo(() => model ? wdfDiagram(model, selected?.id ?? '', layoutMode) : null, [model, selected?.id, layoutMode]);
   const eng = (n: number, unit: string) => formatEngineering(n, unit, 5, language);
-  const chooseRoot = (rootId: string) => { setSelectedId(rootId); onChange({ sampleRate, rootId }); };
+  const chooseRoot = (rootId: string) => { setSelectedId(rootId); onChange({ ...project.wdf, sampleRate, rootId }); };
   return <div className="wdf-view">
     <div className="wdf-controls">
-      <div className="wdf-sample-rate"><span>{t('Abtastrate', 'Sample rate')} fₛ</span><FrequencyInput value={sampleRate} onChange={sampleRate => onChange({ sampleRate, rootId: model?.rootId ?? project.wdf?.rootId })}
-        label={t('WDF-Abtastrate', 'WDF sample rate')} unit={unit} onUnitChange={setUnit} min={1} max={MAX_WDF_SAMPLE_RATE} /></div>
+      <div className="wdf-sample-rate"><span>{t('Abtastrate', 'Sample rate')} fₛ</span><FrequencyInput value={sampleRate} onChange={sampleRate => onChange({ ...project.wdf, sampleRate, rootId: model?.rootId ?? project.wdf?.rootId })}
+        label={t('WDF-Abtastrate', 'WDF sample rate')} unit={unit} onUnitChange={setUnit} min={prewarpFrequency === undefined ? 1 : Math.max(1, 2 * prewarpFrequency * (1 + Number.EPSILON))} max={MAX_WDF_SAMPLE_RATE} /></div>
+      <label className="wdf-prewarp-toggle"><input type="checkbox" checked={prewarpFrequency !== undefined}
+        aria-label={t('Bauelemente vorverzerren', 'Prewarp component values')}
+        onChange={e => onChange({ ...project.wdf, sampleRate,
+          prewarpFrequency: e.target.checked ? (project.settings.cutoff < sampleRate / 2 ? project.settings.cutoff : sampleRate / 4) : undefined })} />
+        {t('Vorverzerrung', 'Prewarping')}</label>
+      {prewarpFrequency !== undefined && <div className="wdf-sample-rate"><span>{t('Referenzfrequenz', 'Match frequency')} fₚ</span>
+        <FrequencyInput value={prewarpFrequency} onChange={prewarpFrequency => onChange({ ...project.wdf, sampleRate, prewarpFrequency })}
+          label={t('WDF-Vorverzerrungsfrequenz', 'WDF prewarping frequency')} unit={unit} onUnitChange={setUnit}
+          min={Number.MIN_VALUE} max={sampleRate / 2 * (1 - Number.EPSILON)} /></div>}
       <label>{t('Wurzelelement', 'Root element')}<select aria-label={t('WDF-Wurzelelement', 'WDF root element')} value={model?.rootId ?? ''} disabled={!model} onChange={e => chooseRoot(e.target.value)}>
         {!model && <option value="">—</option>}{model?.adaptors.map(a => <option key={a.id} value={a.id}>{a.label} · {a.kind === 'series' ? t('Serie', 'Series') : t('Parallel', 'Parallel')}</option>)}
       </select></label>
@@ -247,7 +258,18 @@ export function WdfView({ project, onChange, representation = 'adaptors' }: {
         <AdaptorDetails adaptor={selected} model={model} onRoot={chooseRoot} />
       </div>
       <div className="wdf-legend"><span><b>S —</b> {t('Serie', 'Series')}</span><span><b>P ∥</b> Parallel</span><span><b>⊢ / *</b> ρ = 0</span><span><b>z⁻¹</b> C</span><span><b>−z⁻¹</b> L</span><span>{model.adaptors.length} {t('Adaptoren', 'adaptors')} · {model.elements.filter(e => e.kind === 'L' || e.kind === 'C').length} {t('Speicher', 'delays')}</span>
-        <span>{t('Bilinear ohne Vorverzerrung · Ergebnis-Tabs: analoge Schaltung', 'Bilinear without prewarping · result tabs: analog circuit')}</span></div>
+        <span>{prewarpFrequency === undefined ? t('Bilinear ohne Vorverzerrung · Ergebnis-Tabs: analoge Schaltung', 'Bilinear without prewarping · result tabs: analog circuit') : t('Bilinear mit Vorverzerrung · Ergebnis-Tabs: analoge Schaltung', 'Bilinear with prewarping · result tabs: analog circuit')}</span></div>
+      {prewarpFrequency !== undefined && <details className="wdf-method wdf-prewarp-values">
+        <summary>{t('Vorverzerrte Bauelementwerte', 'Prewarped component values')} · k = {eng(model.componentScale, '')}</summary>
+        <p>{t('Alle Induktivitäten und Kapazitäten werden für die WDF-Realisierung mit k multipliziert. Widerstände und die analoge Schaltung bleiben unverändert. Der Abgleich gilt an einer Referenzfrequenz, bei Bandfiltern nicht gleichzeitig an beiden Bandgrenzen.',
+          'All inductances and capacitances are multiplied by k for the WDF realization. Resistors and the analog circuit remain unchanged. Matching applies at one reference frequency, not simultaneously at both edges of a band filter.')}</p>
+        <div className="wdf-table-scroll"><table><caption>{t('Analog → WDF bei', 'Analog → WDF at')} {eng(prewarpFrequency, 'Hz')}</caption>
+          <thead><tr><th>{t('Bauelement', 'Component')}</th><th>Analog</th><th>WDF</th><th>{t('Torwiderstand', 'Port resistance')}</th></tr></thead>
+          <tbody>{model.elements.filter(e => e.kind === 'L' || e.kind === 'C').map(element => <tr key={element.id}>
+            <th>{element.label}</th><td title={String(element.analogValue)}>{eng(element.analogValue!, element.kind === 'L' ? 'H' : 'F')}</td>
+            <td title={String(element.value)}>{eng(element.value, element.kind === 'L' ? 'H' : 'F')}</td><td>{eng(element.resistance, 'Ω')}</td>
+          </tr>)}</tbody></table></div>
+      </details>}
       <WdfEquation model={model} precision={project.componentPrecision} />
     </>}
     <details className="wdf-method"><summary>{t('Wellenvariablen, Anpassung und Frequenzabbildung', 'Wave variables, adaptation and frequency mapping')}</summary>
@@ -257,21 +279,22 @@ export function WdfView({ project, onChange, representation = 'adaptors' }: {
         'The T mark at the b connection identifies the reflection-free port (ρ = 0). Dots mark actual branches. Wire bridges mark crossings without a connection. Incident and reflected waves use separate routes. C becomes z⁻¹; L becomes z⁻¹ followed by a sign change of −1. Matched resistors reflect 0. At the load, Vout = aR₂ / 2.')}</p>
       <p>{t('Spannungswellen: a = v + Ri, b = v − Ri. Die Doppellinien führen die beiden Wellenrichtungen. An jedem verbundenen Tor gilt a₁ = b₂ und a₂ = b₁. Die Quelle enthält R₁; die Ausgangsspannung wird an R₂ abgegriffen.',
         'Voltage waves: a = v + Ri, b = v − Ri. The double lines carry the two wave directions. At connected ports a₁ = b₂ and a₂ = b₁. The source includes R₁; output voltage is measured across R₂.')}</p>
-      <Formula latex={String.raw`R_C=\frac{1}{2f_sC},\quad R_L=2f_sL,\quad R_R=R`} />
+      <Formula latex={String.raw`R_C=\frac{1}{2f_sC_{\mathrm{WDF}}},\quad R_L=2f_sL_{\mathrm{WDF}},\quad R_R=R`} />
       <p>{t('Die Adaptor-Koeffizienten werden für Serien- und Paralleladaptoren einheitlich mit γᵢ bezeichnet, sowohl bei reflexionsfreien als auch bei nicht-reflexionsfreien Toren. Der Torreflexionsfaktor ist ρᵢ = Sᵢᵢ.',
         'Adaptor coefficients are denoted by γᵢ for both series and parallel adaptors, at both reflection-free and reflective ports. The port reflection coefficient is ρᵢ = Sᵢᵢ.')}</p>
       <Formula latex={String.raw`\gamma_i=\frac{2R_i}{\sum_kR_k},\qquad S^{\mathrm{series}}_{ij}=\delta_{ij}-\gamma_i\sigma_i\sigma_j`} />
       <Formula latex={String.raw`\gamma_i=\frac{2/R_i}{\sum_k1/R_k},\qquad S^{\mathrm{parallel}}_{ij}=\gamma_j-\delta_{ij}`} />
       <p>{t('Beim Serienadaptor kennzeichnet − das Tor mit σ = −1; alle anderen Tore haben σ = +1. Diese Spannungspolarität bleibt beim Wechsel der Wurzel erhalten. Das angepasste Tor hat Rₚ = Σ Rₖ (Serie) bzw. Rₚ = 1 / Σ(1/Rₖ) (Parallel), jeweils über die übrigen Tore. Somit gilt γₚ = 1 und ρₚ = Sₚₚ = 0.',
         'For series adaptors, − marks the port with σ = −1; all other ports have σ = +1. This voltage polarity is preserved when changing the root. The adapted port has Rₚ = Σ Rₖ (series) or Rₚ = 1 / Σ(1/Rₖ) (parallel), summing over the other ports. Thus γₚ = 1 and ρₚ = Sₚₚ = 0.')}</p>
-      <p>{t('Bilineare Transformation ohne Vorverzerrung: Die analogen Bauteilwerte bleiben erhalten. Analoge Frequenzen werden nicht linear auf die digitale Frequenzachse abgebildet. Die Ergebnis-Tabs unterhalb zeigen weiterhin die analoge Schaltung.',
-        'Bilinear transform without prewarping: analog component values are retained. Analog frequencies map nonlinearly to the digital frequency axis. The result tabs below continue to show the analog circuit.')}</p>
-      <Formula latex={String.raw`s=2f_s\frac{1-z^{-1}}{1+z^{-1}},\qquad f_d=\frac{f_s}{\pi}\arctan\!\left(\frac{\pi f_a}{f_s}\right)`} />
+      <p>{t('Die optionale Vorverzerrung skaliert die WDF-Bauelemente so, dass der Frequenzgang bei fₚ mit der analogen Referenz übereinstimmt. Es gilt 0 < fₚ < fₛ/2. Ohne Vorverzerrung ist k = 1. Beim Einschalten wird die analoge Bezugsfrequenz verwendet, sofern sie unter Nyquist liegt; andernfalls fₛ/4. Die analoge Schaltung bleibt unverändert.',
+        'Optional prewarping scales the WDF components so that the frequency response matches the analog reference at fₚ. Requires 0 < fₚ < fₛ/2. Without prewarping, k = 1. Enabling uses the analog reference frequency when below Nyquist, otherwise fₛ/4. The analog circuit remains unchanged.')}</p>
+      <Formula latex={String.raw`k=\frac{\pi f_p/f_s}{\tan(\pi f_p/f_s)},\qquad L_{\mathrm{WDF}}=kL,\quad C_{\mathrm{WDF}}=kC`} />
+      <Formula latex={String.raw`s=2f_sk\frac{1-z^{-1}}{1+z^{-1}},\qquad f_d=\frac{f_s}{\pi}\arctan\!\left(\frac{\pi f_a}{kf_s}\right)`} />
       <p>{t('Die Vergleichsdiagramme verwenden dieselbe S₂₁-Normierung wie die analoge Analyse. Der WDF-Frequenzgang wird über die bilineare Abbildung ausgewertet; die analoge Referenz bleibt auf der ursprünglichen Frequenzachse.',
         'The comparison plots use the same S₂₁ normalization as the analog analysis. The WDF frequency response is evaluated via the bilinear mapping; the analog reference remains on the original frequency axis.')}</p>
       <Formula latex={String.raw`S_{21}=2\sqrt{\frac{R_1}{R_2}}\,\frac{V_{\mathrm{out}}}{V_s}`} />
-      <p>{t('Abbildung der analogen Bezugsfrequenz:', 'Mapping of the analog reference frequency:')} {eng(project.settings.cutoff, 'Hz')} → {eng(sampleRate / Math.PI * Math.atan(Math.PI * project.settings.cutoff / sampleRate), 'Hz')}.</p>
-      <div className="wdf-source-links"><a href="https://www.dsprelated.com/freebooks/pasp/Adaptors_Wave_Digital_Elements.html" target="_blank" rel="noopener noreferrer">J. O. Smith · {t('WDF-Adaptoren', 'WDF adaptors')}</a>
+      <p>{t('Abbildung der analogen Bezugsfrequenz:', 'Mapping of the analog reference frequency:')} {eng(project.settings.cutoff, 'Hz')} → {model ? eng(analogToDigitalFrequency(project.settings.cutoff, sampleRate, prewarpFrequency), 'Hz') : '—'}.</p>
+      <div className="wdf-source-links"><a href="https://www.dsprelated.com/freebooks/filters/Frequency_Warping.html" target="_blank" rel="noopener noreferrer">J. O. Smith · {t('Vorverzerrung', 'Prewarping')}</a><a href="https://www.dsprelated.com/freebooks/pasp/Adaptors_Wave_Digital_Elements.html" target="_blank" rel="noopener noreferrer">J. O. Smith · {t('WDF-Adaptoren', 'WDF adaptors')}</a>
         <a href="https://dafx.de/paper-archive/2015/DAFx-15_submission_53.pdf" target="_blank" rel="noopener noreferrer">Werner, Smith &amp; Abel · DAFx-15</a></div>
     </details>
   </div>;

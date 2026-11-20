@@ -251,8 +251,8 @@ export function ToleranceControls({
         <small>
           {family === "cauer"
             ? t(
-                "Verfügbare Cauer-Prototypgrade: ungerade 3–19; ab n = 7 mindestens 40 dB.",
-                "Available Cauer prototype orders: odd 3–19; at least 40 dB for n ≥ 7.",
+                "Verfügbare Cauer-Prototypgrade: 2–19; gerade Grade als Typ C; ab n = 7 mindestens 40 dB.",
+                "Available Cauer prototype orders: 2–19; even orders use class C; at least 40 dB for n ≥ 7.",
               )
             : family === "chebyshev2" ? t(
                 "Chebyshev-II-Leiter: ungerade Grade 1–11. Mindest-Sperrdämpfung: 20 dB (n = 1/3), 30 dB (5), 60 dB (7/9), 80 dB (11).",

@@ -20,7 +20,7 @@ export function WdfPlotPanel({ id, project, analysis, onDetach, ...controls }: {
   const error = useMemo(() => {
     try { buildWdf(project, sampleRate, project.wdf?.rootId); return null; }
     catch (error) { return error instanceof Error ? error.message : String(error); }
-  }, [project.nodes, project.wires, project.settings, project.z2, sampleRate, project.wdf?.rootId]);
+  }, [project.nodes, project.wires, project.settings, project.z2, sampleRate, project.wdf?.rootId, project.wdf?.prewarpFrequency]);
   return <section id={id} className="results-panel wdf-plot-panel" aria-label={t('WDF-Plots', 'WDF plots')}>
     <div className="panel-toolbar">
       <div className="panel-title"><Activity size={15} /><h2>{t('WDF · Frequenzgang', 'WDF · Frequency response')}</h2></div>

@@ -11,10 +11,12 @@ export const settingsSchema = z.object({
   family: z.enum(["butterworth", "chebyshev", "chebyshev2", "cauer", "bessel", "legendre", "linkwitz-riley"]),
   response: z.enum(["lowpass", "highpass", "bandpass", "bandstop"]),
   ladderStart: z.enum(["series", "shunt"]).optional().describe("First ladder branch. Both topologies are supported for every family/response. Defaults to shunt for Cauer/Chebyshev II and series otherwise. Even-order Chebyshev I adjusts the load for the selected topology."),
-  order: z.number().int().min(1).max(MAX_PROTOTYPE_ORDER).describe("Prototype order: even 2–100 for Linkwitz–Riley; 1–100 for Butterworth/Chebyshev I; 1–20 for Bessel/Legendre; odd 3–19 for Cauer (>= 40 dB at n >= 7); odd 1–11 for Chebyshev II (>= 30 dB at n=5, >= 60 dB at n=7/9, 80 dB at n=11). Band filters have order 2n."),
+  order: z.number().int().min(1).max(MAX_PROTOTYPE_ORDER).describe("Prototype order: even 2–100 for Linkwitz–Riley; 1–100 for Butterworth/Chebyshev I; 1–20 for Bessel/Legendre; 2–19 for Cauer (even orders: class B or C) (>= 40 dB at n >= 7); odd 1–11 for Chebyshev II (>= 30 dB at n=5, >= 60 dB at n=7/9, 80 dB at n=11). Band filters have order 2n."),
   cutoff: frequency.describe("Reference/center frequency in Hz. Linkwitz–Riley uses the crossover at -6.0206 dB (band edges for band filters). Butterworth/Bessel/Legendre use the half-power cutoff (-3.0103 dB). Chebyshev II uses the stopband edge at -attenuation dB; its bandwidth is measured between stopband edges."),
   bandwidth: z.number().positive().max(1e12).optional().describe("Required for band filters; at least 0.1% of cutoff. Band edges must be in 1 Hz–1 THz."),
-  impedance: z.number().min(0.01).max(1e6).describe("Input reference impedance in ohms."),
+  impedance: z.number().min(0.01).max(1e6).describe("Source/input reference impedance in ohms; scales the synthesized components."),
+  cauerVariant: z.enum(["b", "c"]).optional().describe("Even-order Cauer variant: b uses unequal prototype terminations; c (default) uses equal terminations. Both have a double transmission zero at infinity. Ignored for odd orders and other families."),
+  loadImpedance: z.number().min(MIN_LOAD_IMPEDANCE).max(1e9).optional().describe("Actual load in ohms. Omit for the prototype termination. A different load changes the actual response; no matching network is synthesized and the ideal ripple/mask is not guaranteed."),
   ripple: z.number().min(0.1).max(3).describe("Passband ripple in dB for Chebyshev I/Cauer; unused by other families in parameter synthesis."),
   attenuation: z.number().min(20).max(80).describe("Stopband attenuation in dB for Chebyshev II/Cauer; unused by other families in parameter synthesis."),
 });
@@ -43,7 +45,8 @@ export const projectSchema = z.object({
   wires: z.array(z.object({ id: idSchema, source: idSchema, target: idSchema })).max(MAX_CIRCUIT_NODES),
   z2: z.number().min(MIN_LOAD_IMPEDANCE).max(1e9), tolerance: toleranceSchema.optional(),
   componentPrecision: precisionSchema.optional(), sweep: sweepSchema,
-  wdf: z.object({ sampleRate: z.number().min(1).max(1e15), rootId: z.string().min(1).max(256).optional() }).optional(),
+  wdf: z.object({ sampleRate: z.number().min(1).max(1e15), rootId: z.string().min(1).max(256).optional(),
+    prewarpFrequency: z.number().positive().optional().describe("Single prewarping match frequency in Hz, strictly below sampleRate/2. Scales all WDF L/C values; omitted disables prewarping.") }).optional(),
 }).superRefine((project, context) => {
   try { parseProject(project); }
   catch (error) { context.addIssue({ code: "custom", message: error instanceof Error ? error.message : "Invalid project" }); }

@@ -9,6 +9,7 @@
 .wdf-controls select { background: var(--input-bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: 5px; padding: 7px 9px; font: inherit; }
 .wdf-controls > label > select, .wdf-controls .number-field, .wdf-controls > button { height: 35px; }
 .wdf-controls .frequency-unit-select { border: 0; }
+.wdf-prewarp-toggle input { accent-color: var(--accent); margin: 0; }
 .wdf-controls > button { padding: 7px 10px; }
 .wdf-timing { display: flex; align-items: center; gap: 16px; color: var(--text-muted); margin-right: auto; white-space: nowrap; }
 .wdf-main { display: grid; grid-template-columns: minmax(0, 1fr); }

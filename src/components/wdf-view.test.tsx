@@ -67,3 +67,15 @@ it('uses the project precision setting for the numerical difference equation', (
 it('explains a missing stored root instead of silently retaining stale parameters', () => {
   expect(render({ ...project, wdf: { sampleRate: 48000, rootId: 'removed' } })).toContain('The saved adaptor no longer exists.');
 });
+
+it('offers optional prewarping with corrected component values and a valid equation', () => {
+  expect(render(project)).toContain('aria-label="Prewarp component values"');
+  expect(render(project)).not.toContain('aria-label="WDF prewarping frequency');
+  const html = render({ ...project, wdf: { sampleRate: 8e6, prewarpFrequency: 1e6 } });
+  expect(html).toContain('aria-label="Prewarp component values" checked=""');
+  expect(html).toContain('aria-label="WDF prewarping frequency (MHz)"');
+  expect(html).toContain('Prewarped component values');
+  expect(html).toContain('Bilinear with prewarping');
+  expect(html).toContain('not simultaneously at both edges of a band filter');
+  expect(html).not.toContain('katex-error');
+});

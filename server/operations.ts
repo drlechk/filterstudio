@@ -54,7 +54,7 @@ function generateProject({ name, settings: overrides, componentPrecision, tolera
   let settings = { ...defaultSettings, ...overrides };
   if (overrides.order === undefined) settings.order = nearestFilterOrder(settings.family, settings.order);
   if (tolerance) {
-    const design = designTolerance(tolerance, settings.family, settings.impedance, settings.ladderStart);
+    const design = designTolerance(tolerance, settings.family, settings.impedance, settings.ladderStart, settings.loadImpedance, settings.cauerVariant);
     if (!design.settings) throw new Error(`Tolerance design is not realizable (${design.issue}; required order: ${design.minimumOrder ?? "unknown"}).`);
     settings = design.settings;
   }

@@ -96,11 +96,51 @@ describe("REST/OpenAPI", () => {
     expect(project.nodes[1].section!.value).toBe(originalValue);
   });
 
-  it("preserves and validates WDF sample rate and root through project API round-trips", async () => {
-    const wdf = { sampleRate: 48e6, rootId: 'adaptor:section-3' };
+  it("preserves and validates WDF sample rate, root and prewarping through project API round-trips", async () => {
+    const wdf = { sampleRate: 48e6, rootId: 'adaptor:section-3', prewarpFrequency: 1e6 };
     const result = await request(server.httpServer).post("/api/filters/validate").send({ project: { ...project, wdf } }).expect(200);
     expect(result.body.project.wdf).toEqual(wdf);
     await request(server.httpServer).post("/api/filters/validate").send({ project: { ...project, wdf: { ...wdf, sampleRate: 0 } } }).expect(400);
+    for (const prewarpFrequency of [0, -1, 24e6, 48e6, '1000000', null])
+      await request(server.httpServer).post("/api/filters/validate").send({ project: { ...project, wdf: { ...wdf, prewarpFrequency } } }).expect(400);
+  });
+
+  it('round-trips Cauer B, automatic terminations and tolerance settings and rejects unknown classes', async () => {
+    for (const ladderStart of ['shunt', 'series']) {
+      const generated = await request(server.httpServer).post('/api/filters/synthesize')
+        .send({ settings: { family: 'cauer', cauerVariant: 'b', order: 4, ladderStart, ripple: 0.5 } }).expect(200);
+      expect(generated.body.project.settings.cauerVariant).toBe('b');
+      expect(generated.body.project.z2).toBeCloseTo(ladderStart === 'shunt' ? 25.2009052405 : 99.2027856199, 6);
+      expect(generated.body.notes.some((note: string) => note.includes('Typ B'))).toBe(true);
+      const validated = await request(server.httpServer).post('/api/filters/validate').send({ project: generated.body.project }).expect(200);
+      expect(validated.body.project).toEqual(generated.body.project);
+      await request(server.httpServer).post('/api/filters/validate')
+        .send({ project: { ...generated.body.project, settings: { ...generated.body.project.settings, cauerVariant: 'a' } } }).expect(400);
+    }
+    const masked = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'cauer', cauerVariant: 'b' },
+      tolerance: { response: 'lowpass', passband: [1e6], stopband: [2e6], passbandLoss: 1, stopbandLoss: 40 } }).expect(200);
+    expect(masked.body.project.settings.cauerVariant).toBe('b');
+    for (const cauerVariant of ['a', 'B', 0, null])
+      await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'cauer', cauerVariant } }).expect(400);
+  });
+
+  it('supports even Cauer synthesis and independent source/load impedances in API and tolerance designs', async () => {
+    for (const response of ['lowpass', 'highpass', 'bandpass', 'bandstop']) {
+      const generated = await request(server.httpServer).post('/api/filters/synthesize')
+        .send({ settings: { family: 'cauer', order: 4, response, bandwidth: 5e5, impedance: 75, loadImpedance: 600 } }).expect(200);
+      expect(generated.body.project.settings).toMatchObject({ order: 4, impedance: 75, loadImpedance: 600 });
+      expect(generated.body.project.z2).toBe(600);
+      expect(generated.body.notes.some((note: string) => note.includes('Typ C'))).toBe(true);
+      expect(generated.body.notes.some((note: string) => note.includes('Freie Lastimpedanz'))).toBe(true);
+      const validated = await request(server.httpServer).post('/api/filters/validate').send({ project: generated.body.project }).expect(200);
+      expect(validated.body.project).toEqual(generated.body.project);
+    }
+    const masked = await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'cauer', loadImpedance: 100 },
+      tolerance: { response: 'lowpass', passband: [1e6], stopband: [2e6], passbandLoss: 1, stopbandLoss: 40 } }).expect(200);
+    expect(masked.body.project.z2).toBe(100);
+    expect(masked.body.project.settings.loadImpedance).toBe(100);
+    for (const loadImpedance of [0, -1, .0001, 1e10, '50'])
+      await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { loadImpedance } }).expect(400);
   });
 
   it('synthesizes and round-trips both ladder starts, including tolerance designs and small dual loads', async () => {
@@ -202,7 +242,7 @@ describe("REST/OpenAPI", () => {
     await request(server.httpServer).post("/api/filters/synthesize").set("Content-Type", "application/json").send("{").expect(400);
     await request(server.httpServer).post("/api/filters/synthesize").send({ typo: true }).expect(400);
     await request(server.httpServer).post("/api/filters/synthesize").send({ settings: { cutoff: null } }).expect(400);
-    await request(server.httpServer).post("/api/filters/synthesize").send({ settings: { family: "cauer", order: 4 } }).expect(422);
+    await request(server.httpServer).post("/api/filters/synthesize").send({ settings: { family: "cauer", order: 1 } }).expect(422);
     await request(server.httpServer).post("/api/filters/synthesize").send({ settings: { response: "bandpass", bandwidth: 1 } }).expect(422);
     await request(server.httpServer).post("/api/filters/round").send({ project, digits: 0 }).expect(400);
     await request(server.httpServer).post("/api/filters/analyze").send({ project, frequencies: [1], sweep: project.sweep }).expect(400);
@@ -354,7 +394,7 @@ describe("MCP", () => {
       const result = await client.callTool({ name: "synthesize_filter", arguments: { name: "MCP filter" } });
       expect(result.isError).toBeFalsy();
       expect((result.structuredContent as { project: Project }).project.name).toBe("MCP filter");
-      const invalid = await client.callTool({ name: "synthesize_filter", arguments: { settings: { family: "cauer", order: 4 } } });
+      const invalid = await client.callTool({ name: "synthesize_filter", arguments: { settings: { family: "cauer", order: 1 } } });
       expect(invalid.isError).toBe(true);
       const resource = await client.readResource({ uri: "filterstudio://openapi" });
       expect(JSON.parse((resource.contents[0] as { text: string }).text).openapi).toBe("3.1.0");

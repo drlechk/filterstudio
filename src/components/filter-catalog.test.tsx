@@ -21,7 +21,7 @@ it("compares independently calculated orders and exposes the normalized selected
   expect(html).toContain('aria-pressed="true"');
   expect(html).toContain('aria-label="Catalog parameters"');
   expect(html).toContain('aria-label="Passband edge (MHz)"');
-  expect(html).toContain('aria-label="Reference impedance (Ω)"');
+  expect(html).toContain('aria-label="Source impedance (Ω)"');
   expect(html).not.toContain('B 08');
   expect(html).not.toContain('Alternative P/T/C notation:');
   expect(html).toContain('Table 1, column n = 8');

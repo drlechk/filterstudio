@@ -12,7 +12,7 @@ export function PrototypeParameterControls({ settings, onChange }: {
 }) {
   const { t, number } = usePreferences();
   if (settings.family !== "chebyshev" && settings.family !== "cauer") return null;
-  const limits = settings.family === "cauer" ? modularAngleLimits(settings.order, settings.ripple) : null;
+  const limits = settings.family === "cauer" ? modularAngleLimits(settings.order, settings.ripple, settings.cauerVariant) : null;
   return <>
     <div className="parameter-field">
       <label className="field-label">
@@ -33,9 +33,9 @@ export function PrototypeParameterControls({ settings, onChange }: {
       <label className="field-label">{t("Modulwinkel", "Modular angle")} <span>θ</span></label>
       <PositiveInput
         label={t("Modulwinkel in Grad", "Modular angle in degrees")}
-        value={modularAngleFromAttenuation(settings.order, settings.ripple, settings.attenuation)} unit="°"
+        value={modularAngleFromAttenuation(settings.order, settings.ripple, settings.attenuation, settings.cauerVariant)} unit="°"
         min={limits.min} max={limits.max}
-        onChange={angle => onChange({ attenuation: attenuationFromModularAngle(settings.order, settings.ripple, angle) })}
+        onChange={angle => onChange({ attenuation: attenuationFromModularAngle(settings.order, settings.ripple, angle, settings.cauerVariant) })}
       />
       <small className="field-help">{t(
         `θ = asin(1/Ωₛ) des Tiefpassprototyps. Ändern passt Rₛ bei gleichem n und Rₚ an. Bereich ${number(limits.min, 7)}–${number(limits.max, 7)}° für ${cauerMinimumAttenuation(settings.order)}–80 dB; gilt auch für Hochpass und Bandfilter.`,

@@ -1,9 +1,10 @@
 import { bandEdges, isBandResponse } from './frequency';
 import { orderedSections } from './project';
 import type { FilterSettings, Project, Section } from './types';
+import { MAX_WDF_SAMPLE_RATE, wdfComponentScale } from './wdf-prewarp';
 
-export const MAX_WDF_SAMPLE_RATE = 1e15;
-export type WdfSettings = { sampleRate: number; rootId?: string };
+export { MAX_WDF_SAMPLE_RATE } from './wdf-prewarp';
+export type { WdfSettings } from './types';
 export type WdfPort = {
   neighborId: string;
   resistance: number;
@@ -21,9 +22,13 @@ export type WdfAdaptor = {
 export type WdfElement = {
   type: 'element'; id: string; label: string; kind: 'R' | 'L' | 'C' | 'source';
   value: number; resistance: number; parentId: string; sectionId?: string;
+  /** Original analog value when the reactive element has been prewarped. */
+  analogValue?: number;
 };
 export type WdfModel = {
   sampleRate: number; rootId: string; rootChanged: boolean;
+  prewarpFrequency?: number;
+  componentScale: number;
   adaptors: WdfAdaptor[]; elements: WdfElement[];
 };
 
@@ -49,14 +54,17 @@ function positive(value: number): number {
  * The signs on series ports belong to the physical circuit, NOT to its root.
  * Keeping these signs when rerooting is essential to preserve source polarity.
  */
-export function buildWdf(project: Pick<Project, 'nodes' | 'wires' | 'settings' | 'z2'>, sampleRate: number, requestedRoot?: string): WdfModel {
-  if (!Number.isFinite(sampleRate) || sampleRate < 1 || sampleRate > MAX_WDF_SAMPLE_RATE) throw new Error('WDF: Die Abtastrate muss zwischen 1 Hz und 1 PHz liegen.');
+export function buildWdf(project: Pick<Project, 'nodes' | 'wires' | 'settings' | 'z2' | 'wdf'>, sampleRate: number, requestedRoot?: string): WdfModel {
+  const prewarpFrequency = project.wdf?.prewarpFrequency;
+  const componentScale = wdfComponentScale(sampleRate, prewarpFrequency);
   const sections = orderedSections(project.nodes, project.wires);
   const raw = new Map<string, RawAdaptor | RawElement>();
   const addElement = (id: string, label: string, kind: WdfElement['kind'], value: number, sectionId?: string) => {
     positive(value);
+    const analogValue = prewarpFrequency !== undefined && (kind === 'L' || kind === 'C') ? value : undefined;
+    if (analogValue !== undefined) value = positive(value * componentScale);
     const resistance = positive(kind === 'C' ? 1 / (2 * sampleRate * value) : kind === 'L' ? 2 * sampleRate * value : value);
-    raw.set(id, { type: 'element', id, label, kind, value, resistance, sectionId });
+    raw.set(id, { type: 'element', id, label, kind, value, resistance, sectionId, ...(analogValue !== undefined ? { analogValue } : {}) });
     return id;
   };
   const connectParent = (id: string, parent: string) => {
@@ -134,7 +142,8 @@ export function buildWdf(project: Pick<Project, 'nodes' | 'wires' | 'settings' |
   }
   // Display ordering follows the analog ladder; stable IDs survive value edits.
   adaptors.sort((a, b) => adaptorOrder.get(a.id)! - adaptorOrder.get(b.id)!);
-  return { sampleRate, rootId, rootChanged: !!requestedRoot && requestedRoot !== rootId, adaptors, elements };
+  return { sampleRate, rootId, rootChanged: !!requestedRoot && requestedRoot !== rootId, componentScale,
+    ...(prewarpFrequency !== undefined ? { prewarpFrequency } : {}), adaptors, elements };
 }
 
 /** Two tree passes per sample, with no delay-free loop. Input: source voltage;
