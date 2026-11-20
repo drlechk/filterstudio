@@ -213,8 +213,8 @@ const complexMultiply = (a: ComplexPair, b: ComplexPair): ComplexPair => [a[0] *
 const complexAdd = (a: ComplexPair, b: ComplexPair): ComplexPair => [a[0] + b[0], a[1] + b[1]];
 const complexScale = (a: ComplexPair, b: number): ComplexPair => [a[0] * b, a[1] * b];
 
-/** Evaluate the cleared denominator, or reflection numerator, directly from ABCD. */
-function ladderDenominatorAt(values: number[], zeros: number[], omega: number, load = 1, reflection = false): ComplexPair {
+/** Compute both cleared polynomials in one ABCD traversal. */
+function ladderPolynomialsAt(values: number[], zeros: number[], omega: number, load: number) {
   let A: ComplexPair = [1, 0], B: ComplexPair = [0, 0], C: ComplexPair = [0, 0], D: ComplexPair = [1, 0];
   values.forEach((value, i) => {
     const branch: ComplexPair = [0, omega * value];
@@ -228,7 +228,12 @@ function ladderDenominatorAt(values: number[], zeros: number[], omega: number, l
       A = complexScale(A, d); C = complexScale(C, d);
     }
   });
-  return complexAdd(complexAdd(complexScale(A, load), B), complexScale(complexAdd(complexScale(C, load), D), reflection ? -1 : 1));
+  const forward = complexAdd(complexScale(A, load), B), backward = complexAdd(complexScale(C, load), D);
+  return { denominator: complexAdd(forward, backward), reflection: complexAdd(forward, complexScale(backward, -1)) };
+}
+
+function ladderDenominatorAt(values: number[], zeros: number[], omega: number, load = 1): ComplexPair {
+  return ladderPolynomialsAt(values, zeros, omega, load).denominator;
 }
 
 function prototypeDenominatorAt(prototype: EllipticPrototype, omega: number): ComplexPair {
@@ -255,18 +260,21 @@ function relativeDenominatorError(actual: ComplexPair, target: ComplexPair): Com
  * Values are positive by log parametrization.
  */
 function fitLadderResponse(initial: number[], prototype: EllipticPrototype, zeros: number[]) {
+  // Targets depend only on the prototype, not on the thousands of trial ladders.
   const samples = prototype.passbandFrequencies.filter((_, i) => i % 2 === 0)
-    .map(omega => ({ omega, target: prototypeDenominatorAt(prototype, omega) }));
+    .map(omega => {
+      const target = prototypeDenominatorAt(prototype, omega);
+      let reflection: ComplexPair = initial.length % 2 ? [0, omega] : [1, 0];
+      for (const zero of prototype.reflectionZeros) reflection = complexScale(reflection, (zero - omega) * (zero + omega));
+      reflection = complexScale(reflection, -prototype.denominator.at(-1)!);
+      return { omega, target, reflection, scale: Math.hypot(...target) };
+    });
   const residual = (x: number[]) => {
     const values = x.map(Math.exp);
-    return samples.flatMap(({ omega, target }) => {
-      const transmission = relativeDenominatorError(ladderDenominatorAt(values, zeros, omega, prototype.load), target);
-      let expected: ComplexPair = initial.length % 2 ? [0, omega] : [1, 0];
-      for (const zero of prototype.reflectionZeros) expected = complexScale(expected, (zero - omega) * (zero + omega));
-      expected = complexScale(expected, -prototype.denominator.at(-1)!);
-      const actual = ladderDenominatorAt(values, zeros, omega, prototype.load, true);
-      const scale = Math.hypot(...target);
-      return [...transmission, (actual[0] - expected[0]) / scale, (actual[1] - expected[1]) / scale];
+    return samples.flatMap(({ omega, target, reflection, scale }) => {
+      const actual = ladderPolynomialsAt(values, zeros, omega, prototype.load);
+      const transmission = relativeDenominatorError(actual.denominator, target);
+      return [...transmission, (actual.reflection[0] - reflection[0]) / scale, (actual.reflection[1] - reflection[1]) / scale];
     });
   };
   const norm = (r: number[]) => r.reduce((sum, value) => sum + value * value, 0);

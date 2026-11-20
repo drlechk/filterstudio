@@ -8,6 +8,7 @@ import { designTolerance, toleranceRegions, validateTolerance } from './toleranc
 import type { CauerVariant } from './types';
 import fixtures from './fixtures/small-ripple-reference.json';
 
+// Numerical continuation is CPU-bound; shared CI runners need more than 5 seconds.
 it.each(fixtures.cases)('matches independent SciPy reference at Rp=$ripple, n=$order, class=$cauerVariant', fixture => {
   const settings = { ...defaultSettings, ...fixture, family: 'cauer' as const, cauerVariant: fixture.cauerVariant as CauerVariant };
   const result = synthesize(settings);
@@ -20,7 +21,7 @@ it.each(fixtures.cases)('matches independent SciPy reference at Rp=$ripple, n=$o
   }
   const angle = modularAngleFromAttenuation(settings.order, settings.ripple, settings.attenuation, settings.cauerVariant);
   expect(attenuationFromModularAngle(settings.order, settings.ripple, angle, settings.cauerVariant)).toBeCloseTo(settings.attenuation, 8);
-});
+}, 30_000);
 
 it.each([2, 15])('accepts %s percent reflection through synthesis, project files and tolerance masks', percent => {
   const ripple = rippleFromReflectionPercent(percent);

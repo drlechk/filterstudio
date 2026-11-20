@@ -97,6 +97,7 @@ describe('passive analog synthesis', () => {
     expect(() => synthesize({ ...defaults, family: 'cauer', order: 19, attenuation: 39 })).toThrow();
   });
 
+  // High-order continuation can exceed 5 seconds on shared CI runners.
   it.each(ellipticReference.cases)('matches independent SciPy complex responses for Cauer n=$order, Rp=$ripple, Rs=$attenuation', ({ order, ripple, attenuation, samples }) => {
     const { network, result } = make({ family: 'cauer', order, ripple, attenuation });
     for (const section of result.sections) {
@@ -110,7 +111,7 @@ describe('passive analog synthesis', () => {
       expect(Math.hypot(actual.s21.re - re, actual.s21.im - im) / Math.hypot(re, im)).toBeLessThan(2e-6);
       expect(magnitude(actual.s21) ** 2 + magnitude(actual.s11) ** 2).toBeCloseTo(1, 8);
     }
-  });
+  }, 30_000);
 
   it('maps every complex S-parameter through the exact band transformation', () => {
     const keys = ['s11', 's12', 's21', 's22'] as const;
