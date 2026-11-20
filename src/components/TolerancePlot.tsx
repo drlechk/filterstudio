@@ -1,3 +1,4 @@
+import { MIN_PASSBAND_RIPPLE, MAX_PASSBAND_RIPPLE } from "../lib/filter-limits";
 import { validPhase, phaseValues, phaseAxis } from "../lib/phase";
 import { useId, useMemo, useRef, useState, type PointerEvent } from "react";
 import {
@@ -225,15 +226,11 @@ export function TolerancePlot({
               ),
             );
           else if (drag?.loss) {
-            const low = drag.loss === "passbandLoss" ? 0.1 : 20,
-              high = drag.loss === "passbandLoss" ? 3 : 80;
-            const loss =
-              Math.round(
-                Math.max(
-                  low,
-                  Math.min(high, attenuationAt((top + plotH - p.y) / plotH, maximumLoss, magnitudeScale)),
-                ) * 100,
-              ) / 100;
+            const low = drag.loss === "passbandLoss" ? MIN_PASSBAND_RIPPLE : 20,
+              high = drag.loss === "passbandLoss" ? MAX_PASSBAND_RIPPLE : 80;
+            const raw = attenuationAt((top + plotH - p.y) / plotH, maximumLoss, magnitudeScale);
+            const precision = drag.loss === "passbandLoss" ? 1e7 : 100;
+            const loss = Math.max(low, Math.min(high, Math.round(raw * precision) / precision));
             onChange({ ...spec, [drag.loss]: loss });
           } else setHover(frequency);
         }}

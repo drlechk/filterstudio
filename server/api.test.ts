@@ -105,6 +105,22 @@ describe("REST/OpenAPI", () => {
       await request(server.httpServer).post("/api/filters/validate").send({ project: { ...project, wdf: { ...wdf, prewarpFrequency } } }).expect(400);
   });
 
+  it('accepts small ripple in parameter and tolerance synthesis and preserves it in projects', async () => {
+    for (const [order, ripple] of [[3, 0.0017375], [5, 0.0988338]]) {
+      const generated = await request(server.httpServer).post('/api/filters/synthesize')
+        .send({ settings: { family: 'cauer', order, ripple } }).expect(200);
+      expect(generated.body.project.settings.ripple).toBe(ripple);
+      const validated = await request(server.httpServer).post('/api/filters/validate')
+        .send({ project: generated.body.project }).expect(200);
+      expect(validated.body.project.settings.ripple).toBe(ripple);
+      const masked = await request(server.httpServer).post('/api/filters/synthesize')
+        .send({ settings: { family: 'cauer' }, tolerance: { response: 'lowpass', passband: [1e6], stopband: [3e6], passbandLoss: ripple, stopbandLoss: 40 } }).expect(200);
+      expect(masked.body.project.settings.ripple).toBe(ripple);
+    }
+    for (const ripple of [0, -1, 0.00001])
+      await request(server.httpServer).post('/api/filters/synthesize').send({ settings: { family: 'cauer', ripple } }).expect(400);
+  });
+
   it('round-trips Cauer B, automatic terminations and tolerance settings and rejects unknown classes', async () => {
     for (const ladderStart of ['shunt', 'series']) {
       const generated = await request(server.httpServer).post('/api/filters/synthesize')

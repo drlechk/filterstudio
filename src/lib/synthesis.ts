@@ -2,7 +2,7 @@ import type { CauerVariant, FilterSettings, Section } from './types';
 import { MIN_RELATIVE_BANDWIDTH } from './frequency';
 import { hasHalfPowerCutoff, isMonotonicFamily, monotonicPrototype } from './monotonic';
 import { linkwitzRileyPrototype } from './linkwitz-riley';
-import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, MIN_LOAD_IMPEDANCE, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation, defaultLadderStart } from './filter-limits';
+import { MIN_PASSBAND_RIPPLE, MAX_PASSBAND_RIPPLE, CAUER_ORDERS, CHEBYSHEV_II_ORDERS, MAX_PROTOTYPE_ORDER, MIN_LOAD_IMPEDANCE, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation, defaultLadderStart } from './filter-limits';
 
 /** Normalized LC ladder synthesis. Frequencies are angular internally.
  * Elliptic prototype: Orfanidis, Introduction to Signal Processing, 2e, ch. 13,
@@ -213,8 +213,8 @@ const complexMultiply = (a: ComplexPair, b: ComplexPair): ComplexPair => [a[0] *
 const complexAdd = (a: ComplexPair, b: ComplexPair): ComplexPair => [a[0] + b[0], a[1] + b[1]];
 const complexScale = (a: ComplexPair, b: number): ComplexPair => [a[0] * b, a[1] * b];
 
-/** Evaluate the cleared ladder denominator directly, without expanded polynomials. */
-function ladderDenominatorAt(values: number[], zeros: number[], omega: number, load = 1): ComplexPair {
+/** Evaluate the cleared denominator, or reflection numerator, directly from ABCD. */
+function ladderDenominatorAt(values: number[], zeros: number[], omega: number, load = 1, reflection = false): ComplexPair {
   let A: ComplexPair = [1, 0], B: ComplexPair = [0, 0], C: ComplexPair = [0, 0], D: ComplexPair = [1, 0];
   values.forEach((value, i) => {
     const branch: ComplexPair = [0, omega * value];
@@ -228,7 +228,7 @@ function ladderDenominatorAt(values: number[], zeros: number[], omega: number, l
       A = complexScale(A, d); C = complexScale(C, d);
     }
   });
-  return complexAdd(complexAdd(complexScale(A, load), B), complexAdd(complexScale(C, load), D));
+  return complexAdd(complexAdd(complexScale(A, load), B), complexScale(complexAdd(complexScale(C, load), D), reflection ? -1 : 1));
 }
 
 function prototypeDenominatorAt(prototype: EllipticPrototype, omega: number): ComplexPair {
@@ -249,23 +249,35 @@ function relativeDenominatorError(actual: ComplexPair, target: ComplexPair): Com
 /** Match the complex denominator (magnitude AND phase) at more than n points.
  * Both denominators have degree n, so this is the same polynomial identity in
  * a better conditioned representation. Pole factors avoid cancellation near
- * the high-order passband extrema. Values are positive by log parametrization.
+ * the high-order passband extrema. Also constrain the reflection numerator:
+ * near unity transmission, matching the denominator alone poorly constrains
+ * the small reflection. Its leading coefficient is −D[n] for shunt-first ladders.
+ * Values are positive by log parametrization.
  */
 function fitLadderResponse(initial: number[], prototype: EllipticPrototype, zeros: number[]) {
   const samples = prototype.passbandFrequencies.filter((_, i) => i % 2 === 0)
     .map(omega => ({ omega, target: prototypeDenominatorAt(prototype, omega) }));
   const residual = (x: number[]) => {
     const values = x.map(Math.exp);
-    return samples.flatMap(({ omega, target }) => relativeDenominatorError(ladderDenominatorAt(values, zeros, omega, prototype.load), target));
+    return samples.flatMap(({ omega, target }) => {
+      const transmission = relativeDenominatorError(ladderDenominatorAt(values, zeros, omega, prototype.load), target);
+      let expected: ComplexPair = initial.length % 2 ? [0, omega] : [1, 0];
+      for (const zero of prototype.reflectionZeros) expected = complexScale(expected, (zero - omega) * (zero + omega));
+      expected = complexScale(expected, -prototype.denominator.at(-1)!);
+      const actual = ladderDenominatorAt(values, zeros, omega, prototype.load, true);
+      const scale = Math.hypot(...target);
+      return [...transmission, (actual[0] - expected[0]) / scale, (actual[1] - expected[1]) / scale];
+    });
   };
   const norm = (r: number[]) => r.reduce((sum, value) => sum + value * value, 0);
   const n = initial.length;
   let x = initial.map(Math.log), r = residual(x), score = norm(r), lambda = 1e-3;
   for (let iteration = 0; iteration < 600 && score > 1e-20; iteration++) {
+    // Central differences resolve the small-ripple Jacobian without first-order bias.
     const columns = x.map((_, j) => {
-      const next = [...x]; next[j] += 1e-5;
-      const rn = residual(next);
-      return r.map((value, i) => (rn[i] - value) / 1e-5);
+      const plus = [...x], minus = [...x]; plus[j] += 1e-5; minus[j] -= 1e-5;
+      const rp = residual(plus), rm = residual(minus);
+      return r.map((_, i) => (rp[i] - rm[i]) / 2e-5);
     });
     const h = x.map((_, j) => x.map((_, k) => columns[j].reduce((sum, value, i) => sum + value * columns[k][i], 0) + (j === k ? lambda : 0)));
     const g = x.map((_, j) => -columns[j].reduce((sum, value, i) => sum + value * r[i], 0));
@@ -316,7 +328,7 @@ function ellipticLadder(n: number, ripple: number, attenuation: number, variant:
   const key = `${n}/${ripple}/${attenuation}/${variant}`;
   const cached = ellipticCache.get(key);
   if (cached) return cached;
-  if (n > 7) {
+  if (n > 7 || ripple < .1) {
     const result = highOrderEllipticLadder(n, ripple, attenuation, variant);
     ellipticCache.set(key, result);
     return result;
@@ -464,7 +476,7 @@ export function synthesize(settings: FilterSettings): SynthesisResult {
   if (!(cutoff > 0) || !Number.isFinite(cutoff) || !(z > 0) || !Number.isFinite(z)) throw new Error('Frequenz und Impedanz müssen positiv sein.');
   if (settings.loadImpedance !== undefined && (!Number.isFinite(settings.loadImpedance) || settings.loadImpedance < MIN_LOAD_IMPEDANCE || settings.loadImpedance > 1e9))
     throw new Error('Die Lastimpedanz muss zwischen 0,001 Ω und 1 GΩ liegen.');
-  if ((family === 'chebyshev' || family === 'cauer') && (!(ripple >= .01 && ripple <= 3) || !Number.isFinite(ripple))) throw new Error('Die Welligkeit muss zwischen 0,01 und 3 dB liegen.');
+  if ((family === 'chebyshev' || family === 'cauer') && (!(ripple >= MIN_PASSBAND_RIPPLE && ripple <= MAX_PASSBAND_RIPPLE) || !Number.isFinite(ripple))) throw new Error('Die Welligkeit muss zwischen 0,001 und 3 dB liegen.');
   const isBand = response === 'bandpass' || response === 'bandstop';
   const bandwidth = settings.bandwidth;
   if (isBand && (!(bandwidth! > 0) || !Number.isFinite(bandwidth))) throw new Error('Für Bandfilter muss eine endliche, positive Bandbreite in Hz angegeben werden.');

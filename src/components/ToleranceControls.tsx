@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { usePreferences } from "../lib/preferences";
 import { formatEngineering } from "../lib/network";
 import { filterDegree, isBandResponse } from "../lib/frequency";
-import { filterOrderLimits } from "../lib/filter-limits";
+import { MIN_PASSBAND_RIPPLE, MAX_PASSBAND_RIPPLE, filterOrderLimits } from "../lib/filter-limits";
 import { hasHalfPowerCutoff } from "../lib/monotonic";
 import {
   moveToleranceEdge,
@@ -20,8 +20,8 @@ export const toleranceIssueLabels: Record<ToleranceIssue, [string, string]> = {
     "Frequency edges must be ordered for the selected response type and lie between 1 Hz and 1 THz.",
   ],
   attenuation: [
-    "Unterstützt: Durchlassdämpfung 0,1–3 dB und Sperrdämpfung 20–80 dB.",
-    "Supported: passband loss 0.1–3 dB and stopband attenuation 20–80 dB.",
+    "Unterstützt: Durchlassdämpfung 0,001–3 dB und Sperrdämpfung 20–80 dB.",
+    "Supported: passband loss 0.001–3 dB and stopband attenuation 20–80 dB.",
   ],
   order: [
     "Mit den verfügbaren Filterordnungen ist dieses Toleranzschema nicht realisierbar. Übergangsbereich verbreitern, Sperrdämpfung verringern oder die Filterfamilie wechseln.",
@@ -212,9 +212,10 @@ export function ToleranceControls({
         label={t("Max. Durchlassdämpfung", "Max. passband loss")}
         symbol="Aₚ"
         value={spec.passbandLoss}
-        min={0.1}
-        max={3}
-        step={0.05}
+        min={MIN_PASSBAND_RIPPLE}
+        max={MAX_PASSBAND_RIPPLE}
+        step={0.001}
+        logarithmic
         unit="dB"
         onChange={(passbandLoss) => onChange({ ...spec, passbandLoss })}
       />

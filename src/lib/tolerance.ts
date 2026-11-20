@@ -1,7 +1,7 @@
 import { bandEdges, isBandResponse, MIN_RELATIVE_BANDWIDTH } from "./frequency";
 import { ellipticK, ellipticPrototype } from "./synthesis";
 import { isMonotonicFamily, monotonicAttenuation, monotonicFrequency } from "./monotonic";
-import { CAUER_ORDERS, CHEBYSHEV_II_ORDERS, filterOrderLimits, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from "./filter-limits";
+import { MIN_PASSBAND_RIPPLE, MAX_PASSBAND_RIPPLE, CAUER_ORDERS, CHEBYSHEV_II_ORDERS, filterOrderLimits, cauerMinimumAttenuation, chebyshevIIMinimumAttenuation } from "./filter-limits";
 import type { FilterFamily, FilterSettings, ToleranceSpec } from "./types";
 
 export const MIN_MASK_FREQUENCY = 1;
@@ -59,8 +59,8 @@ export function validateTolerance(spec: ToleranceSpec): ToleranceIssue | null {
   if (!ordered) return "frequencies";
   if (
     !Number.isFinite(spec.passbandLoss) ||
-    spec.passbandLoss < 0.1 ||
-    spec.passbandLoss > 3 ||
+    spec.passbandLoss < MIN_PASSBAND_RIPPLE ||
+    spec.passbandLoss > MAX_PASSBAND_RIPPLE ||
     !Number.isFinite(spec.stopbandLoss) ||
     spec.stopbandLoss < 20 ||
     spec.stopbandLoss > 80

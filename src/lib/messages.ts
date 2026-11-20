@@ -116,8 +116,8 @@ const english: Record<string, string> = {
     "The filter order must be between 1 and 100.",
   "Frequenz und Impedanz müssen positiv sein.":
     "Frequency and impedance must be positive.",
-  "Die Welligkeit muss zwischen 0,01 und 3 dB liegen.":
-    "Ripple must be between 0.01 and 3 dB.",
+  "Die Welligkeit muss zwischen 0,001 und 3 dB liegen.":
+    "Ripple must be between 0.001 and 3 dB.",
   "Für Bandfilter muss eine endliche, positive Bandbreite in Hz angegeben werden.":
     "Band filters require a finite, positive bandwidth in Hz.",
   "Die Cauer-Synthese unterstützt Grade von 2 bis 19.":

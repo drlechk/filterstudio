@@ -132,7 +132,7 @@ describe("Bessel and Legendre tolerance design", () => {
   });
   it.each(families)("rejects unsupported %s masks and frequency ranges without weakening requirements", family => {
     expect(designTolerance({ ...masks.lowpass, stopband: [1.001e6] }, family, 50)).toMatchObject({ settings: null, minimumOrder: 21, issue: "order" });
-    expect(designTolerance({ ...masks.highpass, passband: [1.1], stopband: [1], passbandLoss: .01 }, family, 50).issue).toBe("attenuation");
+    expect(designTolerance({ ...masks.highpass, passband: [1.1], stopband: [1], passbandLoss: .00001 }, family, 50).issue).toBe("attenuation");
     expect(designTolerance({ ...masks.bandpass, passband: [999950, 1000050], stopband: [1e5, 1e7] }, family, 50)).toMatchObject({ settings: null, issue: "range" });
   });
 });

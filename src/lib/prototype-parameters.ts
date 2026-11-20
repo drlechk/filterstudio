@@ -1,5 +1,5 @@
 import type { CauerVariant } from "./types";
-import { CAUER_ORDERS, cauerMinimumAttenuation } from "./filter-limits";
+import { MIN_PASSBAND_RIPPLE, MAX_PASSBAND_RIPPLE, CAUER_ORDERS, cauerMinimumAttenuation } from "./filter-limits";
 import { ellipticModulus, ellipticPrototype } from "./synthesis";
 
 // Lossless prototype conventions: ADI, Op Amp Applications, §5-4, p. 5.24,
@@ -23,7 +23,7 @@ export function modularAngleFromAttenuation(order: number, ripple: number, atten
 
 /** Feasible angles for the existing, validated Cauer synthesis range. */
 export function modularAngleLimits(order: number, ripple: number, variant?: CauerVariant) {
-  if (!CAUER_ORDERS.includes(order) || !Number.isFinite(ripple) || ripple < .1 || ripple > 3)
+  if (!CAUER_ORDERS.includes(order) || !Number.isFinite(ripple) || ripple < MIN_PASSBAND_RIPPLE || ripple > MAX_PASSBAND_RIPPLE)
     throw new RangeError("Unsupported Cauer order or passband ripple.");
   return {
     min: modularAngleFromAttenuation(order, ripple, 80, variant),

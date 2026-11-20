@@ -1,5 +1,5 @@
 import { usePreferences } from "../lib/preferences";
-import { cauerMinimumAttenuation } from "../lib/filter-limits";
+import { MIN_PASSBAND_RIPPLE, MAX_PASSBAND_RIPPLE, cauerMinimumAttenuation } from "../lib/filter-limits";
 import { attenuationFromModularAngle, modularAngleFromAttenuation, modularAngleLimits,
   reflectionPercentFromRipple, rippleFromReflectionPercent } from "../lib/prototype-parameters";
 import type { FilterSettings } from "../lib/types";
@@ -21,12 +21,12 @@ export function PrototypeParameterControls({ settings, onChange }: {
       <PositiveInput
         label={t("Maximaler Reflexionsfaktor in Prozent", "Maximum reflection coefficient in percent")}
         value={reflectionPercentFromRipple(settings.ripple)} unit="%"
-        min={reflectionPercentFromRipple(.1)} max={reflectionPercentFromRipple(3)}
-        onChange={percent => onChange({ ripple: Math.max(.1, Math.min(3, rippleFromReflectionPercent(percent))) })}
+        min={reflectionPercentFromRipple(MIN_PASSBAND_RIPPLE)} max={reflectionPercentFromRipple(MAX_PASSBAND_RIPPLE)}
+        onChange={percent => onChange({ ripple: Math.max(MIN_PASSBAND_RIPPLE, Math.min(MAX_PASSBAND_RIPPLE, rippleFromReflectionPercent(percent))) })}
       />
       <small className="field-help">{t(
-        "Max. |S₁₁| im Durchlassbereich des verlustlosen Prototyps; gekoppelt an Rₚ (0,1–3 dB). Amplitudenanteil, kein Leistungsanteil.",
-        "Max. |S₁₁| in the lossless prototype passband; linked to Rₚ (0.1–3 dB). Amplitude ratio, not power ratio.",
+        "Max. |S₁₁| im Durchlassbereich des verlustlosen Prototyps; gekoppelt an Rₚ (0,001–3 dB). Amplitudenanteil, kein Leistungsanteil.",
+        "Max. |S₁₁| in the lossless prototype passband; linked to Rₚ (0.001–3 dB). Amplitude ratio, not power ratio.",
       )}</small>
     </div>
     {limits && <div className="parameter-field">

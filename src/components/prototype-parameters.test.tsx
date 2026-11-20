@@ -20,3 +20,14 @@ it("offers reflection for Chebyshev I and Cauer and modular angle only for Cauer
   for (const family of ["butterworth", "chebyshev2", "bessel", "legendre", "linkwitz-riley"] as const)
     expect(render(family)).toBe("");
 });
+
+it("renders small reflection limits without rejecting or clamping their modular-angle controls", () => {
+  for (const [order, ripple, percent] of [[3, 0.0017375254558758232, 2], [5, 0.09883233932095582, 15]]) {
+    const html = renderToStaticMarkup(<PreferencesProvider>
+      <PrototypeParameterControls settings={{ ...defaultSettings, family: 'cauer', order, ripple }} onChange={() => {}} />
+    </PreferencesProvider>);
+    expect(html).toContain(`value="${percent}"`);
+    expect(html).toContain('0.001–3 dB');
+    expect(html).toContain('Modular angle in degrees');
+  }
+});

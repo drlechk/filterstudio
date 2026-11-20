@@ -51,7 +51,7 @@ import "./components/DetachedCanvas.css";
 import { ProjectTabs } from "./components/ProjectTabs";
 import { SiteFooter } from "./components/SiteFooter";
 import { createFilterTab, workspaceReducer, type Workspace } from "./lib/workspace";
-import { MAX_CIRCUIT_NODES, MAX_CIRCUIT_SECTIONS, MIN_LOAD_IMPEDANCE, nearestFilterOrder, filterOrderLimits, minimumStopbandAttenuation } from "./lib/filter-limits";
+import { MIN_PASSBAND_RIPPLE, MAX_PASSBAND_RIPPLE, MAX_CIRCUIT_NODES, MAX_CIRCUIT_SECTIONS, MIN_LOAD_IMPEDANCE, nearestFilterOrder, filterOrderLimits, minimumStopbandAttenuation } from "./lib/filter-limits";
 import { useRemoteWorkspace } from "./lib/use-remote-workspace";
 import { hasHalfPowerCutoff } from "./lib/monotonic";
 import { checkRevision, RemoteError, type RemoteController, type RemoteTab } from "./lib/remote-protocol";
@@ -2558,8 +2558,8 @@ const FilterWorkspace = memo(function FilterWorkspace({
                         )}
                         value={settings.ripple}
                         unit="dB"
-                        min={0.1}
-                        max={3}
+                        min={MIN_PASSBAND_RIPPLE}
+                        max={MAX_PASSBAND_RIPPLE}
                         onChange={(n) => updateSettings({ ripple: n })}
                       />
                     </div>

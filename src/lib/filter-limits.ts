@@ -1,6 +1,9 @@
 import type { FilterFamily } from "./types";
 
 export const MAX_PROTOTYPE_ORDER = 100;
+// Includes low-reflection prototypes such as rho = 2% (Rp ≈ 0.0017375 dB).
+export const MIN_PASSBAND_RIPPLE = 0.001;
+export const MAX_PASSBAND_RIPPLE = 3;
 // Dual even-order Chebyshev ladders can terminate below the 0.01 Ω input limit.
 export const MIN_LOAD_IMPEDANCE = .001;
 export const defaultLadderStart = (family: FilterFamily): 'series' | 'shunt' =>

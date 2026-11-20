@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseProject } from "../src/lib/project";
-import { MAX_PROTOTYPE_ORDER, MAX_CIRCUIT_NODES, MIN_LOAD_IMPEDANCE } from "../src/lib/filter-limits";
+import { MIN_PASSBAND_RIPPLE, MAX_PASSBAND_RIPPLE, MAX_PROTOTYPE_ORDER, MAX_CIRCUIT_NODES, MIN_LOAD_IMPEDANCE } from "../src/lib/filter-limits";
 
 export const idSchema = z.string().min(1).max(128);
 export const digitsSchema = z.number().int().min(1).max(15);
@@ -17,14 +17,14 @@ export const settingsSchema = z.object({
   impedance: z.number().min(0.01).max(1e6).describe("Source/input reference impedance in ohms; scales the synthesized components."),
   cauerVariant: z.enum(["b", "c"]).optional().describe("Even-order Cauer variant: b uses unequal prototype terminations; c (default) uses equal terminations. Both have a double transmission zero at infinity. Ignored for odd orders and other families."),
   loadImpedance: z.number().min(MIN_LOAD_IMPEDANCE).max(1e9).optional().describe("Actual load in ohms. Omit for the prototype termination. A different load changes the actual response; no matching network is synthesized and the ideal ripple/mask is not guaranteed."),
-  ripple: z.number().min(0.1).max(3).describe("Passband ripple in dB for Chebyshev I/Cauer; unused by other families in parameter synthesis."),
+  ripple: z.number().min(MIN_PASSBAND_RIPPLE).max(MAX_PASSBAND_RIPPLE).describe("Passband ripple in dB for Chebyshev I/Cauer; unused by other families in parameter synthesis."),
   attenuation: z.number().min(20).max(80).describe("Stopband attenuation in dB for Chebyshev II/Cauer; unused by other families in parameter synthesis."),
 });
 export const toleranceSchema = z.object({
   response: settingsSchema.shape.response,
   passband: z.array(frequency).min(1).max(2),
   stopband: z.array(frequency).min(1).max(2),
-  passbandLoss: z.number().min(0.1).max(3),
+  passbandLoss: z.number().min(MIN_PASSBAND_RIPPLE).max(MAX_PASSBAND_RIPPLE),
   stopbandLoss: z.number().min(20).max(80),
 });
 export const sectionSchema = z.object({
