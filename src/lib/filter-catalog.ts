@@ -1,4 +1,4 @@
-import { ellipticPrototype } from "./synthesis";
+import { modularAngleFromAttenuation, reflectionPercentFromRipple } from "./prototype-parameters";
 import type { FilterFamily, FilterSettings } from "./types";
 
 /** Only explicitly sourced entries belong here. A valid naming convention alone
@@ -83,9 +83,8 @@ export function catalogReference(settings: FilterSettings): CatalogReference | n
   if (settings.family === "chebyshev")
     return candidates.find(entry => Math.abs(entry.ripple! - settings.ripple) <= 1e-10) ?? null;
   if (!Number.isFinite(settings.attenuation) || settings.attenuation <= settings.ripple) return null;
-  const reflectionPercent = 100 * Math.sqrt(-Math.expm1(-settings.ripple * Math.LN10 / 10));
-  const stopbandRatio = ellipticPrototype(settings.order, settings.ripple, settings.attenuation).stopbandRatio;
-  const modularAngle = Math.asin(1 / stopbandRatio) * 180 / Math.PI;
+  const reflectionPercent = reflectionPercentFromRipple(settings.ripple);
+  const modularAngle = modularAngleFromAttenuation(settings.order, settings.ripple, settings.attenuation);
   if (!Number.isFinite(modularAngle)) return null;
   return candidates.find(entry => Math.abs(entry.reflectionPercent! - reflectionPercent) <= 1e-8 &&
     Math.abs(entry.modularAngle! - modularAngle) <= 1e-8) ?? null;

@@ -897,6 +897,13 @@ h1 {
 .parameter-field {
   margin-top: 17px;
 }
+.parameter-field .field-help {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
 .number-field {
   display: flex;
   align-items: center;

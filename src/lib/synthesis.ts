@@ -67,16 +67,22 @@ function inverseSc(w: number, m: number) {
   return factor * Math.asinh(v);
 }
 
+/** Squared elliptic modulus m = (Ωp/Ωs)² from the degree equation. */
+export function ellipticModulus(n: number, ripple: number, attenuation: number) {
+  const m1 = Math.expm1(ripple * Math.LN10 / 10) / Math.expm1(attenuation * Math.LN10 / 10);
+  const q = Math.exp(-Math.PI * ellipticKFromComplement(m1) / ellipticK(m1) / n);
+  let top = 0, bottom = 1;
+  for (let j = 0; j < 12; j++) top += q ** (j * (j + 1));
+  for (let j = 1; j <= 12; j++) bottom += 2 * q ** (j * j);
+  return 16 * q * (top / bottom) ** 4;
+}
+
 /** Real polynomial and finite positive transmission zeros of an odd elliptic prototype. */
 export function ellipticPrototype(n: number, ripple: number, attenuation: number) {
   const eps2 = Math.expm1(ripple * Math.LN10 / 10);
   const m1 = eps2 / Math.expm1(attenuation * Math.LN10 / 10);
   const k1 = ellipticK(m1);
-  const q = Math.exp(-Math.PI * ellipticKFromComplement(m1) / k1 / n);
-  let top = 0, bottom = 1;
-  for (let j = 0; j < 12; j++) top += q ** (j * (j + 1));
-  for (let j = 1; j <= 12; j++) bottom += 2 * q ** (j * j);
-  const m = 16 * q * (top / bottom) ** 4;
+  const m = ellipticModulus(n, ripple, attenuation);
   const capK = ellipticK(m);
   const v0 = capK * inverseSc(1 / Math.sqrt(eps2), m1) / (n * k1);
   const v = jacobi(v0, 1 - m);

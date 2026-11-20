@@ -232,7 +232,7 @@ The sun/moon button switches between **light and dark mode**, including plots, f
 
 ## Exploring a filter
 
-1. Choose the filter family, response type (low-pass, high-pass, band-pass, or band-stop), prototype order, reference frequency, and input impedance. Band filters also have a bandwidth setting. Chebyshev I and Cauer filters add passband ripple; Chebyshev II and Cauer add stopband attenuation.
+1. Choose the filter family, response type (low-pass, high-pass, band-pass, or band-stop), prototype order, reference frequency, and input impedance. Band filters also have a bandwidth setting. Chebyshev I and Cauer filters add passband ripple and an equivalent maximum reflection coefficient in percent; Chebyshev II and Cauer add stopband attenuation. Cauer also offers the modular angle in degrees, linked to stopband attenuation.
 2. Generate the structure. It appears as an editable circuit on the canvas.
 3. Click components to change their values. Drag additional elements from the library onto the canvas or add them through the library.
 4. Connect a right-hand terminal to a left-hand terminal. Select connections or components and press `Delete` or `Backspace` to remove them. The two ports are preserved.
@@ -241,6 +241,8 @@ The sun/moon button switches between **light and dark mode**, including plots, f
 7. Switch to **WDF** to inspect the corresponding wave digital filter as adaptor blocks or a signal-flow graph. Set its sample rate, compare the digital and analog responses, and copy its symbolic or numerical difference equation as LaTeX.
 
 Click **01 / Filter characteristic** or **02 / Design** to collapse or expand that generator section independently. The arrow indicates its state; Enter and Space also toggle the focused heading. Inputs are preserved while collapsed, and each filter tab retains its section states when switching between the generator and component library.
+
+In parameter mode, **Max. reflection coefficient** specifies the amplitude ratio `100 × max |S₁₁|` in the lossless prototype's passband, not reflected power. It is synchronized with passband ripple using `Rp = −10 log10(1 − (ρ/100)²)`. Its supported range corresponds to the existing 0.1–3 dB ripple range (approximately 15.087–70.627%). **Modular angle** uses `θ = asin(1/Ωs)` in degrees for the normalized Cauer low-pass prototype. Editing θ holds order and ripple fixed and solves for stopband attenuation; editing attenuation, ripple, or order refreshes θ. The displayed angle range follows the supported attenuation limits for that order. These definitions follow [Analog Devices, Op Amp Applications, §5-4, p. 5.24](https://www.analog.com/media/en/training-seminars/design-handbooks/P2%20Ch5_final_PtA.pdf#page=26) and apply before low-pass, high-pass, band-pass, or band-stop transformation. The settings remain stored as `ripple` and `attenuation`, so existing project files and API/MCP clients remain compatible. For example, ρ = 20%, θ = 30°, n = 5 gives Rp ≈ 0.177288 dB and Rs ≈ 61.426403 dB.
 
 To start over, select **Clear circuit** above the canvas. This removes all components and signal connections while keeping both ports, their reference impedances, and the common ground rail. Project settings are preserved. **Undo** restores the previous circuit; **Redo** clears it again. The component library opens automatically: click an element to connect it between the empty ports, or drag elements onto the canvas and connect them manually. Empty workspaces can also be saved and reopened as JSON projects.
 
